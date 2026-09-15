@@ -1,0 +1,23 @@
+{"id": "Q001", "doc_id": "WI-ASSY-001", "question": "What is the target torque for the M6 bolts?", "answer": "9.5 ± 0.5 N·m", "language": "en"}
+{"id": "Q002", "doc_id": "WI-ASSY-001", "question": "Which tightening sequence is required?", "answer": "1-3-2-4", "language": "en"}
+{"id": "Q003", "doc_id": "WI-ASSY-001", "question": "What happens if a torque is outside range?", "answer": "Place the unit in the red quarantine tray and notify the team leader.", "language": "en"}
+{"id": "Q004", "doc_id": "SOP-QLT-014", "question": "Trong bao lâu phải thông báo trưởng nhóm?", "answer": "Trong vòng 10 phút.", "language": "vi"}
+{"id": "Q005", "doc_id": "SOP-QLT-014", "question": "When must an NCR be created?", "answer": "Within 30 minutes for a Critical defect or when defect quantity is 3 or more.", "language": "en"}
+{"id": "Q006", "doc_id": "SOP-QLT-014", "question": "What is defect code D07?", "answer": "Bent terminal / Chân terminal cong.", "language": "en"}
+{"id": "Q007", "doc_id": "MAINT-CHK-007", "question": "What is the acceptable air pressure?", "answer": "0.50-0.60 MPa", "language": "en"}
+{"id": "Q008", "doc_id": "MAINT-CHK-007", "question": "What was the recorded servo motor temperature?", "answer": "58 °C", "language": "en"}
+{"id": "Q009", "doc_id": "EHS-ALERT-003", "question": "Áp suất khí phải bằng bao nhiêu trước khi xác nhận zero energy?", "answer": "0 MPa", "language": "vi"}
+{"id": "Q010", "doc_id": "EHS-ALERT-003", "question": "Who may perform LOTO?", "answer": "Only trained and authorized personnel.", "language": "en"}
+{"id": "Q011", "doc_id": "QMS-NCR-011", "question": "What lot is affected?", "answer": "L260915-B", "language": "en"}
+{"id": "Q012", "doc_id": "QMS-NCR-011", "question": "How many pieces are affected?", "answer": "24 pieces", "language": "en"}
+{"id": "Q013", "doc_id": "QMS-NCR-011", "question": "What is the terminal height specification?", "answer": "1.80-1.90 mm", "language": "en"}
+{"id": "Q014", "doc_id": "PROD-HO-20260915", "question": "What was Shift 1 actual output?", "answer": "4,820 pcs", "language": "en"}
+{"id": "Q015", "doc_id": "PROD-HO-20260915", "question": "What caused the downtime?", "answer": "Sensor S12 false trigger.", "language": "en"}
+{"id": "Q016", "doc_id": "PROD-HO-20260915", "question": "When is the next maintenance window for SP-04?", "answer": "2026-09-16 09:30 for 20 minutes.", "language": "en"}
+{"id": "Q017", "doc_id": "SUP-PACK-20260915", "question": "How many CN-7710 connector housings were delivered?", "answer": "2,400 pcs", "language": "en"}
+{"id": "Q018", "doc_id": "SUP-PACK-20260915", "question": "Which box IDs contain TM-1552?", "answer": "BX007-BX010", "language": "en"}
+{"id": "Q019", "doc_id": "ANDON-DAILY-20260915", "question": "Which Andon fault had the longest unplanned downtime?", "answer": "A-214 at Station S40 with 8 minutes.", "language": "en"}
+{"id": "Q020", "doc_id": "IMG-CHECK-001", "question": "What was the measured air pressure on the start-up check sheet?", "answer": "0.54 MPa", "language": "en"}
+{"id": "Q021", "doc_id": "IMG-HMI-001", "question": "What is alarm E-214?", "answer": "Vision camera no trigger.", "language": "en"}
+{"id": "Q022", "doc_id": "IMG-LABEL-001", "question": "What is the pallet quantity?", "answer": "600 pcs", "language": "en"}
+{"id": "Q023", "doc_id": "IMG-SAFE-001", "question": "Tốc độ giới hạn của xe nâng trong xưởng là bao nhiêu?", "answer": "8 km/h", "language": "vi"}

@@ -1,0 +1,18 @@
+﻿doc_id,relative_path,format,modality,language,factory_topic,difficulty,key_test
+WI-ASSY-001,pdfs/WI-ASSY-001_Torque_Control_Work_Instruction_EN.pdf,PDF,native text + table,EN,Assembly work instruction,Medium,procedure + numeric tolerance
+SOP-QLT-014,pdfs/SOP-QLT-014_Defect_Handling_EN-VI.pdf,PDF,native text + table,EN/VI,Quality defect handling,Hard,bilingual retrieval + defect table
+MAINT-CHK-007,pdfs/MAINT-CHK-007_PM_Checklist.pdf,PDF,landscape table,EN,Preventive maintenance,Medium,table extraction + limits
+EHS-ALERT-003,pdfs/EHS-ALERT-003_Lockout_Tagout_EN-VI.pdf,PDF,native bilingual text,EN/VI,Safety / LOTO,Medium,cross-language retrieval
+QMS-NCR-011,pdfs/QMS-NCR-011_Nonconformance_Report.pdf,PDF,form-like key/value,EN,Nonconformance,Medium,field extraction + numeric spec
+PROD-HO-20260915,pdfs/PROD-HO-20260915_Shift_Handover.pdf,PDF,table + narrative,EN,Shift handover,Medium,open-item retrieval + operational summary
+SUP-PACK-20260915,pdfs/SUP-PACK-20260915_Packing_List.pdf,PDF,landscape table,EN,Receiving / supplier,Medium,row lookup + quantities
+ANDON-DAILY-20260915,pdfs/ANDON-DAILY-20260915.pdf,PDF,event table,EN,Andon / downtime,Medium,ranking + duration reasoning
+IMG-CHECK-001,images/scan_checksheet_rotated.png,PNG,rotated noisy scan,EN,Startup check sheet,Hard,OCR + rotation + handwritten-like marks
+IMG-HMI-001,images/machine_alarm_hmi.png,PNG,HMI screenshot,EN,Machine alarm,Medium,vision text + recovery steps
+IMG-LABEL-001,images/pallet_traceability_label.png,PNG,dense label + pseudo QR,EN,Traceability,Medium,label field extraction
+IMG-SAFE-001,images/bilingual_forklift_safety_poster_scan.jpg,JPG,noisy poster,EN/VI,EHS / forklift,Hard,OCR + bilingual text
+TBL-PROD-001,tables/production_log.xlsx,XLSX,structured table + chart,EN,Production performance,Medium,spreadsheet parsing + formulas
+TBL-QLT-001,tables/quality_inspection_results.xlsx,XLSX,structured table + formulas,EN,Quality inspection,Hard,spec comparison + pass/fail
+TBL-MNT-001,tables/maintenance_history.xlsx,XLSX,structured table,EN,Maintenance history,Medium,date + asset lookup
+TBL-DICT-001,tables/bilingual_term_dictionary.xlsx,XLSX,bilingual table,EN/VI,Factory terminology,Easy,cross-language synonym retrieval
+TBL-DEF-001,tables/defect_catalog.csv,CSV,structured table,EN/VI,Defect catalog,Easy,CSV parser + bilingual labels

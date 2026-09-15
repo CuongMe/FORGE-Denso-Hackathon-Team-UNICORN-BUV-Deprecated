@@ -1,0 +1,11 @@
+﻿doc_id,field,expected_value
+WI-ASSY-001,torque_target,9.5 ± 0.5 N·m
+WI-ASSY-001,tool_id,TQ-17
+SOP-QLT-014,team_leader_notification,10 minutes
+QMS-NCR-011,part_number,XY-4821
+QMS-NCR-011,lot,L260915-B
+QMS-NCR-011,affected_quantity,24
+PROD-HO-20260915,actual_output,4820
+PROD-HO-20260915,downtime_min,18
+IMG-HMI-001,alarm_code,E-214
+IMG-LABEL-001,quantity,600
