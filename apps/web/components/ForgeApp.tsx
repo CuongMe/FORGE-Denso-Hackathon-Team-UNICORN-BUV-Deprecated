@@ -7,7 +7,7 @@ import { demoQueries } from "@/lib/demo-queries";
 import type { DocumentSummary, HealthResponse } from "@/lib/types";
 
 import { AskWorkspace, type AskMessage } from "./forge/AskWorkspace";
-import { DocumentsWorkspace, RailFilters, type DocumentFilter } from "./forge/DocumentsWorkspace";
+import { DocumentsRail, DocumentsWorkspace, type DocumentFilter } from "./forge/DocumentsWorkspace";
 import { ForgeRail } from "./forge/ForgeRail";
 import { ForgeShell, type ForgeView } from "./forge/ForgeShell";
 import { GraphRail, GraphWorkspace } from "./forge/GraphWorkspace";
@@ -85,13 +85,7 @@ export function ForgeApp() {
     }
   }
 
-  const rail = activeView === "ask" ? (
-    <ForgeRail documents={documents} health={health} eyebrow="SOURCE PREVIEW" helper="Indexed evidence available to chat" />
-  ) : activeView === "documents" ? (
-    <ForgeRail documents={documents} health={health} eyebrow="DOCUMENTS" helper="Browse indexed sources"><RailFilters documents={documents} active={documentFilter} onChange={setDocumentFilter} /></ForgeRail>
-  ) : (
-    <ForgeRail documents={documents} health={health} eyebrow="GRAPH" helper="Relationships in the evidence index"><GraphRail documents={documents} health={health} /></ForgeRail>
-  );
+  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow="SOURCE PREVIEW" helper="Indexed evidence available to chat" /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} active={documentFilter} onChange={setDocumentFilter} /> : <GraphRail documents={documents} health={health} />;
 
   return (
     <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail}>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./forge-theme.css";
 import "./forge-workspaces.css";
+import "./forge-penpot-fidelity.css";
 
 export const metadata: Metadata = {
   title: "FORGE | Factory operations intelligence",
