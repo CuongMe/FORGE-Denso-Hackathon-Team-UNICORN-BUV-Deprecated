@@ -2,16 +2,22 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib.util import find_spec
+from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from app.visual import VisualDescription, VisualProviderError
+from app.pipeline import StageCallback
+
 
 DEFAULT_TOKENIZER = "local-whitespace"
 DEFAULT_MAX_TOKENS = 384
-SUPPORTED_INPUT_EXTENSIONS = frozenset({".pdf", ".png", ".jpg", ".jpeg", ".xlsx", ".csv"})
+SUPPORTED_INPUT_EXTENSIONS = frozenset(
+    {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".xlsx", ".csv"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +29,18 @@ class IngestedProvenance:
     page: int | None
     bbox: tuple[float, float, float, float] | None
     coord_origin: str | None
+    confidence: float | None = None
+    review_required: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewCandidate:
+    ref: str
+    kind: str
+    page: int | None
+    bbox: tuple[float, float, float, float] | None
+    confidence: float | None
+    reason: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,6 +53,7 @@ class IngestedChunk:
     headings: tuple[str, ...]
     captions: tuple[str, ...]
     provenance: tuple[IngestedProvenance, ...] = ()
+    review_candidates: tuple[ReviewCandidate, ...] = ()
 
 
 def docling_available() -> bool:
@@ -142,11 +161,6 @@ def _item_provenance(item: object) -> tuple[IngestedProvenance, ...]:
 def _fallback_records_for_orphaned_items(document: object) -> list[IngestedChunk]:
     """Recover OCR items that a converter did not attach to its body tree."""
     pictures = tuple(getattr(document, "pictures", ()) or ())
-    picture_provenance = tuple(
-        provenance
-        for picture in pictures
-        for provenance in _item_provenance(picture)
-    )
     records: list[IngestedChunk] = []
     for item in getattr(document, "texts", ()) or ():
         text = str(getattr(item, "text", "") or "").strip()
@@ -163,7 +177,7 @@ def _fallback_records_for_orphaned_items(document: object) -> list[IngestedChunk
                 page_numbers=pages,
                 headings=(),
                 captions=(),
-                provenance=item_provenance + picture_provenance,
+                provenance=item_provenance,
             )
         )
     if records:
@@ -223,12 +237,163 @@ class DoclingHybridChunkerAdapter:
         self,
         tokenizer_name: str | None = None,
         max_tokens: int | None = None,
+        visual_describer: Any | None = None,
+        review_threshold: float | None = None,
     ) -> None:
         self.tokenizer_name = tokenizer_name or os.getenv(
             "FORGE_CHUNK_TOKENIZER", DEFAULT_TOKENIZER
         )
         self.max_tokens = max_tokens
+        self.visual_describer = visual_describer
+        configured_threshold = review_threshold
+        if configured_threshold is None:
+            configured_threshold = float(os.getenv('FORGE_VLM_REVIEW_THRESHOLD', '0.75'))
+        self.review_threshold = min(1.0, max(0.0, configured_threshold))
         self._converter: Any | None = None
+
+    @staticmethod
+    def _render_visual_region(document: object, region: IngestedProvenance) -> tuple[bytes, str] | None:
+        if region.page is None or region.bbox is None:
+            return None
+        pages = getattr(document, 'pages', {}) or {}
+        page = pages.get(region.page) if hasattr(pages, 'get') else None
+        image_ref = getattr(page, 'image', None)
+        page_size = getattr(page, 'size', None)
+        if image_ref is None or page_size is None:
+            return None
+        try:
+            image = image_ref.pil_image
+            if image is None:
+                return None
+            page_width = float(getattr(page_size, 'width', 0.0))
+            page_height = float(getattr(page_size, 'height', 0.0))
+            if page_width <= 0 or page_height <= 0:
+                return None
+            left, top, right, bottom = region.bbox
+            if (region.coord_origin or '').casefold() == 'bottomleft':
+                top, bottom = page_height - bottom, page_height - top
+            scale_x = image.width / page_width
+            scale_y = image.height / page_height
+            bounds = (
+                max(0, min(image.width, round(left * scale_x))),
+                max(0, min(image.height, round(top * scale_y))),
+                max(0, min(image.width, round(right * scale_x))),
+                max(0, min(image.height, round(bottom * scale_y))),
+            )
+            if bounds[2] <= bounds[0] or bounds[3] <= bounds[1]:
+                return None
+            cropped = image.convert('RGB').crop(bounds)
+            output = BytesIO()
+            cropped.save(output, format='PNG', optimize=True)
+            return output.getvalue(), 'image/png'
+        except Exception:
+            return None
+
+    def _enrich_visual_records(
+        self,
+        source: Path,
+        records: list[IngestedChunk],
+        document: object | None = None,
+        progress_callback: StageCallback | None = None,
+    ) -> list[IngestedChunk]:
+        visual_total = sum(
+            1 for record in records for item in record.provenance if item.kind == 'image'
+        )
+        if progress_callback:
+            progress_callback('vlm_analysis', 'started', 0, 'Preparing visual regions for Gemini analysis.')
+        if not visual_total:
+            if progress_callback:
+                progress_callback('vlm_analysis', 'completed', 100, 'No visual regions detected; VLM analysis was not required.')
+            return records
+
+        enriched: list[IngestedChunk] = []
+        processed = 0
+        failures = 0
+        for record in records:
+            visual_regions = [item for item in record.provenance if item.kind == 'image']
+            if not visual_regions:
+                enriched.append(record)
+                continue
+            descriptions: list[str] = []
+            reviews: list[ReviewCandidate] = []
+            provenance = list(record.provenance)
+            for region in visual_regions:
+                if self.visual_describer is None:
+                    failures += 1
+                    reviews.append(
+                        ReviewCandidate(
+                            ref=region.ref,
+                            kind=region.kind,
+                            page=region.page,
+                            bbox=region.bbox,
+                            confidence=None,
+                            reason='VLM adapter is not configured.',
+                        )
+                    )
+                    processed += 1
+                    continue
+                try:
+                    rendered = self._render_visual_region(document, region)
+                    if rendered and hasattr(self.visual_describer, 'describe_region'):
+                        data, mime_type = rendered
+                        result: VisualDescription = self.visual_describer.describe_region(
+                            data,
+                            mime_type=mime_type,
+                            region_ref=region.ref,
+                            page=region.page,
+                        )
+                    else:
+                        result = self.visual_describer.describe(
+                            source,
+                            region_ref=region.ref,
+                            page=region.page,
+                        )
+                except VisualProviderError:
+                    failures += 1
+                    reviews.append(
+                        ReviewCandidate(
+                            ref=region.ref,
+                            kind=region.kind,
+                            page=region.page,
+                            bbox=region.bbox,
+                            confidence=0.0,
+                            reason='VLM processing failed; human review is required.',
+                        )
+                    )
+                    processed += 1
+                    continue
+                descriptions.append(result.description)
+                needs_review = result.review_required or result.confidence < self.review_threshold
+                index = provenance.index(region)
+                provenance[index] = replace(region, confidence=result.confidence, review_required=needs_review)
+                if needs_review:
+                    reviews.append(
+                        ReviewCandidate(
+                            ref=region.ref,
+                            kind=region.kind,
+                            page=region.page,
+                            bbox=region.bbox,
+                            confidence=result.confidence,
+                            reason=result.reason or 'Visual confidence is below the review threshold.',
+                        )
+                    )
+                processed += 1
+                if progress_callback:
+                    progress_callback('vlm_analysis', 'started', round(processed / visual_total * 100), f'Analyzed visual region {processed} of {visual_total}.')
+            text = record.text
+            for description in descriptions:
+                if description and description not in text:
+                    text = f'{text}\n\nVisual description: {description}'.strip()
+            enriched.append(replace(record, text=text, provenance=tuple(provenance), review_candidates=tuple(reviews)))
+
+        if progress_callback:
+            if failures == visual_total:
+                progress_callback('vlm_analysis', 'failed', 100, 'Gemini could not analyze the visual regions; human review is required.')
+            else:
+                review_count = sum(len(record.review_candidates) for record in enriched)
+                message = f'Analyzed {visual_total} visual region(s); {review_count} sent to review.' if review_count else f'Analyzed {visual_total} visual region(s).'
+                progress_callback('vlm_analysis', 'completed', 100, message)
+        return enriched
 
     def _max_tokens(self) -> int:
         configured = self.max_tokens
@@ -264,7 +429,12 @@ class DoclingHybridChunkerAdapter:
             self._converter = DocumentConverter()
         return self._converter
 
-    def convert_and_chunk(self, source: Path) -> list[IngestedChunk]:
+    def convert_and_chunk(
+        self,
+        source: Path,
+        *,
+        progress_callback: StageCallback | None = None,
+    ) -> list[IngestedChunk]:
         if source.suffix.casefold() not in SUPPORTED_INPUT_EXTENSIONS:
             raise ValueError(f"Unsupported ingestion format: {source.suffix}")
         if not source.is_file():
@@ -277,10 +447,20 @@ class DoclingHybridChunkerAdapter:
 
         from docling.chunking import HybridChunker
 
+        if progress_callback:
+            progress_callback('parsing', 'started', 0, 'Detecting document layout with Docling.')
         document = self._document_converter().convert(source=source).document
+        if progress_callback:
+            progress_callback('parsing', 'completed', 100, 'Docling layout detection completed.')
+            progress_callback('ocr', 'started', 0, 'Checking scanned regions with Docling OCR.')
+            progress_callback('ocr', 'completed', 100, 'Docling OCR pass completed where scanned text was present.')
+            progress_callback('table_extraction', 'started', 0, 'Extracting tables with Docling TableFormer.')
+            progress_callback('table_extraction', 'completed', 100, 'Docling table extraction completed.')
         tokenizer = self._tokenizer()
         chunker = HybridChunker(tokenizer=tokenizer, merge_peers=True)
 
+        if progress_callback:
+            progress_callback('chunking', 'started', 0, 'Building context-preserving HybridChunker chunks.')
         records: list[IngestedChunk] = []
         for index, chunk in enumerate(chunker.chunk(dl_doc=document)):
             records.append(
@@ -295,4 +475,6 @@ class DoclingHybridChunkerAdapter:
             )
         if not records:
             records = _fallback_records_for_orphaned_items(document)
-        return records
+        if progress_callback:
+            progress_callback('chunking', 'completed', 100, f'Created {len(records)} context-preserving chunk(s).')
+        return self._enrich_visual_records(source, records, document, progress_callback)

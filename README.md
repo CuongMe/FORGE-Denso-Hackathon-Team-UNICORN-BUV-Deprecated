@@ -66,33 +66,7 @@ flowchart TB
 - Multi-format document ingestion pipeline
 - RAG chatbot demonstration
 - Retrieval, answer quality, and latency report
-- Evaluation dashboard comparing a naive baseline with FORGE
-
-## Primary goal: a reliable live demo
-
-The primary goal is a live demo that proves FORGE can retrieve evidence from real operational documents, answer a question with a source reference, and refuse to invent an answer when the evidence is missing. The core experience must work within 90 seconds.
-
-### 90-second demo script
-
-Documents should be processed before the presentation so the live segment focuses on the user experience and retrieval quality. Rehearse the following sequence until it is repeatable:
-
-| Time | Demo action | What it proves |
-|---|---|---|
-| 0-10s | Open the Next.js interface and show the indexed document collection. | The system is running and ready for questions. |
-| 10-35s | Ask a question answered by a table or structured section. | FORGE retrieves the right context and shows the supporting page or region. |
-| 35-55s | Ask a cross-language question, such as an English query against Vietnamese evidence. | Multilingual embeddings support cross-lingual retrieval. |
-| 55-75s | Ask a question that the indexed documents cannot answer. | The system says, "I don't know," instead of hallucinating. |
-| 75-90s | Open the cited evidence and summarize the flow: HybridChunker, hybrid retrieval, reranking, and grounded generation. | The result is traceable and the engineering choices are clear. |
-
-### The Honest Demo
-
-The refusal case is a required part of the demo. The expected behavior is a clear response such as: "I don't know based on the indexed documents. I could not find sufficient evidence to answer that question." The interface should show that no supporting source was returned, or explain that the evidence threshold was not met.
-
-This demonstrates that FORGE is designed to stay grounded when retrieval fails. It also gives the team a safe, repeatable moment to show that the system is more than a confident text generator.
-
-### Backup plan
-
-Record the complete 90-second sequence in advance, including the cited answer, cross-language query, and refusal case. Keep the video locally available and ready to play if the live environment, network, model endpoint, or indexing service fails. The recording should use the same interface and flow as the live demo so the fallback remains credible.
+- Evaluation dashboard comparing a naive baseline with FORG
 
 ## Technology stack
 
@@ -104,6 +78,7 @@ FORGE is designed for direct-host deployment. The application can run as native 
 - **OCR and vision:** Docling OCR for scanned text, with a vision-language model adapter for complex visual regions and image descriptions.
 - **Canonical representation:** A custom Pydantic schema that preserves pages, headings, regions, tables, languages, coordinates, and source references.
 - **Pipeline orchestration:** LlamaIndex for optional ingestion and retrieval plumbing. The layout-aware document schema, chunker, and retrieval fusion logic remain FORGE-owned code. [LlamaIndex ingestion pipeline](https://docs.llamaindex.ai/en/v0.10.17/module_guides/loading/ingestion_pipeline/root.html)
+- **Knowledge graph:** Kùzu 0.11.3 as the embedded graph database for typed source, chunk, and concept nodes; FastAPI exposes provenance-aware graph snapshots and the Next.js Graph workspace renders live neighborhoods.
 - **Chunking:** Docling's `HybridChunker`, using an offline deterministic tokenizer for the demo and optionally the same tokenizer as the embedding model in production. Its `contextualize()` output is the text sent to embedding and retrieval. [Docling chunking](https://docling-project.github.io/docling/concepts/chunking/)
 - **Embeddings:** BGE-M3 as the default multilingual embedding model for self-hosted deployments, with a managed multilingual model as an alternative. [BGE-M3](https://bge-model.com/bge/bge_m3.html)
 - **Vector search:** Qdrant with dense and sparse vectors, metadata filtering, and reciprocal rank fusion for hybrid candidate retrieval. [Qdrant hybrid search](https://qdrant.tech/documentation/search/text-search/hybrid-search/)
@@ -117,6 +92,7 @@ FORGE is designed for direct-host deployment. The application can run as native 
 ### Stack decisions
 
 The first implementation uses Docling's `HybridChunker`, Qdrant for hybrid candidate retrieval, a cross-encoder for reranking, and Next.js for the user interface. PostgreSQL, object storage, and a durable worker queue remain the next operational layer; the current production query path keeps those boundaries replaceable rather than pretending an in-process upload registry is durable metadata storage. LlamaIndex should remain an integration layer rather than the owner of document structure or chunking logic.
+Kùzu is the graph data layer for the Graph workspace. Query orchestration remains a direct retrieve → rerank → answer path, while graph traversal is exposed through the FastAPI graph contract.
 
 ### Current implementation
 
@@ -170,39 +146,6 @@ The production query path is:
 
 Uploaded PDFs, images, XLSX, and CSV files are converted through Docling and indexed synchronously in this first production slice. The same normalized provenance fields are written into Qdrant payloads. For a multi-user deployment, move that conversion and indexing call behind a durable worker queue, persist document/job metadata in PostgreSQL, and store originals and artifacts in object storage before enabling unrestricted uploads.
 
-## Run the demo locally
-
-The demo uses two native processes; Docker is not required. On the first API start, Docling converts all 17 source files in the supplied pack before the API reports ready. The resulting cache is content-addressed, so later starts reuse it until a source file or ingestion setting changes. From the repository root, open two terminals:
-
-```powershell
-# Terminal 1 — FastAPI
-Set-Location services/api
-uv --cache-dir ../../.uv-cache run uvicorn app.main:app --reload --port 8000
-
-# Terminal 2 — Next.js
-Set-Location apps/web
-pnpm.cmd install
-pnpm.cmd dev
-```
-
-The frontend includes a scoped pnpm build approval for `unrs-resolver`, the native resolver required by the Next.js toolchain. If pnpm still asks for approval on a fresh machine, run `pnpm.cmd approve-builds`, select only `unrs-resolver`, confirm it, then run `pnpm.cmd install` again.
-
-Open `http://localhost:3000`. The interface should show the indexed starter-pack documents and a green API status. Use the quick prompts in this order:
-
-1. **Structured lookup:** “What is the target torque for the M6 bolts?” — returns `9.5 ± 0.5 N·m` with a citation.
-2. **Cross-language retrieval:** “What pressure must be zero before zero energy is confirmed?” — retrieves the Vietnamese EHS evidence and returns `0 MPa`.
-3. **Honest demo:** “Who won the football match yesterday?” — returns “I don't know” with no citation.
-
-Run the checks before recording:
-
-```powershell
-uv --cache-dir .uv-cache run --project services/api --group dev pytest -q -p no:cacheprovider
-Set-Location apps/web
-pnpm.cmd test
-pnpm.cmd typecheck
-pnpm.cmd lint
-pnpm.cmd build
-```
 
 ## Evaluation framework
 
@@ -221,8 +164,6 @@ The golden dataset is the reference set used for regression testing and model co
 - Expected citation or source-reference requirements
 
 The dataset should contain representative PDFs, scans, tables, images, and bilingual documents. Gold evidence is essential because a correct final answer can hide a retrieval failure, while a wrong answer can come from either missing context or poor generation.
-
-The current source-verified v1 set is available at [`data/evaluation/golden_dataset_v1.jsonl`](data/evaluation/golden_dataset_v1.jsonl), with its review contract and sign-off procedure in [`data/evaluation/README.md`](data/evaluation/README.md). It contains 30 answerable cases across PDFs, images, spreadsheets, CSV, bilingual retrieval, numeric precision, and cross-document reasoning. Negative abstention cases are preserved separately in [`data/evaluation/abstention_holdout_v1.jsonl`](data/evaluation/abstention_holdout_v1.jsonl) for safety evaluation and the Honest Demo. The synthetic source pack is AI-generated, so these records remain pending human sign-off before results are presented as final ground truth.
 
 #### Fast bootstrap workflow
 

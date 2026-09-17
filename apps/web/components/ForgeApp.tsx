@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from "react";
 
-import { askQuestion, getDocuments, getHealth, uploadDocument } from "@/lib/api";
+import { askQuestion, getDocuments, getHealth, getIngestionJob, uploadDocument } from "@/lib/api";
 import { demoQueries } from "@/lib/demo-queries";
-import type { DocumentSummary, HealthResponse } from "@/lib/types";
+import type { DocumentSummary, HealthResponse, IngestionJob } from "@/lib/types";
 
 import { AskWorkspace, type AskMessage } from "./forge/AskWorkspace";
 import { DocumentsRail, DocumentsWorkspace, type DocumentFilter } from "./forge/DocumentsWorkspace";
 import { ForgeRail } from "./forge/ForgeRail";
 import { ForgeShell, type ForgeView } from "./forge/ForgeShell";
-import { GraphRail, GraphWorkspace } from "./forge/GraphWorkspace";
+import { GraphWorkspace, GraphWorkspaceRail } from "./forge/GraphWorkspace";
 
 const welcomeMessage: AskMessage = {
   id: "welcome",
@@ -34,6 +34,7 @@ export function ForgeApp() {
   const [isLoading, setIsLoading] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [ingestionJob, setIngestionJob] = useState<IngestionJob | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -75,21 +76,52 @@ export function ForgeApp() {
   }
 
   async function handleUpload(file: File, kind: "document" | "image") {
-    setUploadStatus(`Uploading ${file.name}...`);
+    setUploadStatus("Uploading " + file.name + "...");
     try {
       const result = await uploadDocument(file);
-      setUploadStatus(`${result.filename} received for ingestion.`);
-      if (kind === "image") setUploadStatus(`${result.filename} received for image ingestion.`);
+      if (!result.job_id) {
+        setIngestionJob(null);
+        setUploadStatus(
+          result.filename + (kind === "image" ? " received for image ingestion." : " received for ingestion."),
+        );
+        return;
+      }
+
+      setUploadStatus(result.filename + " queued. Waiting for the indexer...");
+      setIngestionJob(result.job ?? null);
+      let completed = result.job;
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 500));
+        completed = await getIngestionJob(result.job_id);
+        setIngestionJob(completed);
+        if (completed.status === "indexed" || completed.status === "failed") break;
+        setUploadStatus(result.filename + " " + completed.stage + "...");
+      }
+
+      if (!completed || completed.status === "queued" || completed.status === "processing") {
+        throw new Error("The upload is still processing. Check the document library shortly.");
+      }
+      if (completed.status === "failed") {
+        throw new Error(completed.error ?? "Document ingestion failed.");
+      }
+
+      const [nextDocuments, nextHealth] = await Promise.all([getDocuments(), getHealth()]);
+      setDocuments(nextDocuments);
+      setHealth(nextHealth);
+      const reviewCount = completed.result?.review_count ?? 0;
+      setUploadStatus(
+        result.filename + " indexed" + (reviewCount ? " with " + reviewCount + " visual review item(s)." : "."),
+      );
     } catch (error: unknown) {
       setUploadStatus(error instanceof Error ? error.message : "Upload failed.");
     }
   }
 
-  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow="SOURCE PREVIEW" helper="Indexed evidence available to chat" /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} active={documentFilter} onChange={setDocumentFilter} /> : <GraphRail documents={documents} health={health} />;
+  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow="SOURCE PREVIEW" helper="Indexed evidence available to chat" /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} active={documentFilter} onChange={setDocumentFilter} /> : <GraphWorkspaceRail documents={documents} health={health} />;
 
   return (
     <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail}>
-      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={setQuestion} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onReference={(docId) => setQuestion((current) => `${current}${current ? " " : ""}@${docId} `)} />}
+      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} ingestionJob={ingestionJob} prompts={prompts} onQuestionChange={setQuestion} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onReference={(docId) => setQuestion((current) => `${current}${current ? " " : ""}@${docId} `)} />}
       {activeView === "documents" && <DocumentsWorkspace documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} />}
       {activeView === "graph" && <GraphWorkspace documents={documents} health={health} />}
     </ForgeShell>

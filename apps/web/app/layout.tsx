@@ -3,6 +3,7 @@ import "./globals.css";
 import "./forge-theme.css";
 import "./forge-workspaces.css";
 import "./forge-penpot-fidelity.css";
+import "./forge-final-adjustments.css";
 
 export const metadata: Metadata = {
   title: "FORGE | Factory operations intelligence",

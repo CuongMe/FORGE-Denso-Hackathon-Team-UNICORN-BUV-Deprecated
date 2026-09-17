@@ -10,6 +10,7 @@ from app.production import (
     ABSTENTION_TEXT,
     ProductionCrossEncoderReranker,
     ProductionDependencyError,
+    ProductionServiceError,
     ProductionHybridRetriever,
     ProductionSettings,
     GeminiGroundedAnswerer,
@@ -101,14 +102,21 @@ def test_gemini_answerer_uses_grounded_output_and_server_owned_citations():
     assert result.citations[0].chunk_id == "doc-1:chunk-0000"
 
 
-def test_gemini_answerer_fails_closed_below_evidence_threshold():
-    answerer = GeminiGroundedAnswerer(_settings(), client=object())
+def test_gemini_answerer_answers_below_evidence_threshold():
+    class FakeModels:
+        def generate_content(self, **_kwargs):
+            return SimpleNamespace(text='The closest indexed evidence mentions torque.')
 
-    result = answerer.answer("What is the torque?", [_candidate().model_copy(update={"rerank_score": 0.2})])
+    class FakeClient:
+        models = FakeModels()
 
-    assert result.abstained is True
-    assert result.answer == ABSTENTION_TEXT
-    assert result.citations == []
+    answerer = GeminiGroundedAnswerer(_settings(), client=FakeClient())
+    result = answerer.answer('What is the torque?', [_candidate().model_copy(update={'rerank_score': 0.2})])
+
+    assert result.abstained is False
+    assert result.grounding == 'best_match'
+    assert result.citations
+    assert result.answer.startswith('The closest')
 
 
 def test_gemini_answerer_requires_an_api_key_for_live_generation():
@@ -244,3 +252,34 @@ def test_qdrant_retriever_upserts_named_vectors_and_fuses_results():
     assert client.points[0].vector["sparse"].indices == [4, 9]
     assert results[0].chunk.chunk_id == "doc-1:chunk-0000"
     assert results[0].hybrid_score == 0.8
+
+
+def test_existing_qdrant_collection_must_match_named_vector_schema():
+    class FakeDenseEncoder:
+        def encode_document(self, texts, **_kwargs):
+            return [[0.1, 0.2] for _ in texts]
+
+    class FakeClient:
+        def collection_exists(self, **_kwargs):
+            return True
+
+        def get_collection(self, **_kwargs):
+            return SimpleNamespace(
+                config=SimpleNamespace(
+                    params=SimpleNamespace(
+                        vectors={'dense': SimpleNamespace(size=3)},
+                        sparse_vectors={'sparse': SimpleNamespace()},
+                    )
+                )
+            )
+
+    retriever = ProductionHybridRetriever(
+        _settings(),
+        qdrant_client=FakeClient(),
+        dense_encoder=FakeDenseEncoder(),
+        sparse_encoder=object(),
+        qdrant_models=SimpleNamespace(),
+    )
+
+    with pytest.raises(ProductionServiceError, match='dense vector dimension'):
+        retriever.ensure_collection()

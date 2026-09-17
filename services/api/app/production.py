@@ -7,15 +7,18 @@ from pathlib import Path
 from typing import Any, Iterable
 from uuid import NAMESPACE_URL, uuid5
 
-from app.generation import ABSTENTION_TEXT, AnswerDraft
+from app.document_metadata import summarize_document
+from app.generation import ABSTENTION_TEXT, NO_MATCH_TEXT, AnswerDraft
 from app.ingestion import DoclingHybridChunkerAdapter, IngestedChunk
 from app.models import Chunk, ChunkProvenance, Citation, RetrievedChunk
+from app.pipeline import StageCallback
+from app.persistence import LifecycleStore
 
 
 DEFAULT_DENSE_MODEL = "BAAI/bge-m3"
 DEFAULT_SPARSE_MODEL = "Qdrant/bm25"
 DEFAULT_RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
-DEFAULT_LLM_MODEL = "gemini-2.5-flash-lite"
+DEFAULT_LLM_MODEL = "gemini-3.5-flash-lite"
 class ProductionDependencyError(RuntimeError):
     """Raised when an explicitly selected production dependency is unavailable."""
 
@@ -192,6 +195,7 @@ class ProductionHybridRetriever:
         self._load_dependencies()
         try:
             if self.client.collection_exists(collection_name=self.settings.collection_name):
+                self._validate_collection_schema()
                 self._collection_ready = True
                 return
 
@@ -215,14 +219,74 @@ class ProductionHybridRetriever:
             ) from exc
         self._collection_ready = True
 
-    def upsert_chunks(self, chunks: Iterable[Chunk]) -> int:
+    def _validate_collection_schema(self) -> None:
+        '''Reject an existing collection created for a different embedding contract.'''
+        try:
+            collection = self.client.get_collection(collection_name=self.settings.collection_name)
+            params = collection.config.params
+            vectors = getattr(params, 'vectors', None)
+            sparse_vectors = getattr(params, 'sparse_vectors', None)
+            dense = vectors.get('dense') if isinstance(vectors, dict) else None
+            sparse = sparse_vectors.get('sparse') if isinstance(sparse_vectors, dict) else None
+            dimension = getattr(dense, 'size', None)
+            if dense is None or dimension is None:
+                raise ProductionServiceError(
+                    'Qdrant collection must expose a named dense vector called dense.'
+                )
+            if sparse is None:
+                raise ProductionServiceError(
+                    'Qdrant collection must expose a named sparse vector called sparse.'
+                )
+            expected_dimension = len(self._encode_documents(['FORGE vector dimension probe'])[0])
+            if int(dimension) != expected_dimension:
+                raise ProductionServiceError(
+                    f'Qdrant dense vector dimension {dimension} does not match '
+                    f'the embedding model dimension {expected_dimension}.'
+                )
+        except ProductionServiceError:
+            raise
+        except Exception as exc:
+            raise ProductionServiceError(
+                f'Qdrant collection {self.settings.collection_name} has an invalid schema.'
+            ) from exc
+
+    def count_points(self) -> int:
+        '''Return the exact point count used by readiness checks.'''
+        self.ensure_collection()
+        try:
+            result = self.client.count(
+                collection_name=self.settings.collection_name,
+                exact=True,
+            )
+            return max(0, int(getattr(result, 'count', result)))
+        except Exception as exc:
+            raise ProductionServiceError('Qdrant point count is unavailable.') from exc
+
+    def upsert_chunks(
+        self,
+        chunks: Iterable[Chunk],
+        *,
+        progress_callback: StageCallback | None = None,
+    ) -> int:
         records = list(chunks)
         if not records:
+            if progress_callback:
+                progress_callback('embedding', 'completed', 100, 'No chunks required embedding.')
+                progress_callback('indexing', 'completed', 100, 'No chunks required indexing.')
             return 0
-        self.ensure_collection()
-        texts = [record.content for record in records]
-        dense_vectors = self._encode_documents(texts)
-        sparse_vectors = self._encode_sparse(texts)
+        if progress_callback:
+            progress_callback('embedding', 'started', 0, f'Generating BGE-M3 embeddings for {len(records)} chunk(s).')
+        try:
+            self.ensure_collection()
+            texts = [record.content for record in records]
+            dense_vectors = self._encode_documents(texts)
+            sparse_vectors = self._encode_sparse(texts)
+        except (ProductionDependencyError, ProductionServiceError):
+            if progress_callback:
+                progress_callback('embedding', 'failed', 100, 'Embedding generation failed.')
+            raise
+        if progress_callback:
+            progress_callback('embedding', 'completed', 100, f'Generated embeddings for {len(records)} chunk(s).')
         points = [
             self._models.PointStruct(
                 # Qdrant accepts integer or UUID point IDs; keep the readable
@@ -236,6 +300,8 @@ class ProductionHybridRetriever:
             )
             for record, dense, sparse in zip(records, dense_vectors, sparse_vectors, strict=True)
         ]
+        if progress_callback:
+            progress_callback('indexing', 'started', 0, f'Upserting {len(points)} chunk(s) into Qdrant.')
         try:
             self.client.upsert(
                 collection_name=self.settings.collection_name,
@@ -243,7 +309,11 @@ class ProductionHybridRetriever:
                 wait=True,
             )
         except Exception as exc:
+            if progress_callback:
+                progress_callback('indexing', 'failed', 100, 'Qdrant rejected the chunk upsert.')
             raise ProductionServiceError("Qdrant rejected the chunk upsert.") from exc
+        if progress_callback:
+            progress_callback('indexing', 'completed', 100, f'Indexed {len(points)} chunk(s) in Qdrant.')
         return len(points)
 
     def search(self, question: str, limit: int = 8) -> list[RetrievedChunk]:
@@ -285,8 +355,6 @@ class ProductionHybridRetriever:
             results.append(
                 RetrievedChunk(
                     chunk=chunk,
-                    lexical_score=score,
-                    semantic_score=score,
                     hybrid_score=score,
                 )
             )
@@ -395,10 +463,18 @@ class GeminiGroundedAnswerer:
 
     def answer(self, question: str, results: list[RetrievedChunk]) -> AnswerDraft:
         if not results:
-            return self._abstention()
+            return AnswerDraft(
+                answer=NO_MATCH_TEXT,
+                abstained=False,
+                citations=[],
+                grounding='no_match',
+            )
         best_score = results[0].rerank_score
-        if best_score is None or best_score < self.evidence_threshold:
-            return self._abstention()
+        grounding = (
+            'grounded'
+            if best_score is not None and best_score >= self.evidence_threshold
+            else 'best_match'
+        )
 
         evidence = "\n\n".join(
             f"[{candidate.chunk.chunk_id}] {candidate.chunk.source_name}, "
@@ -423,8 +499,7 @@ class GeminiGroundedAnswerer:
                     system_instruction=(
                         "You are FORGE, a factory operations assistant. "
                         "Answer only from the supplied evidence. "
-                        "If the evidence does not directly support an answer, respond exactly: "
-                        f"{ABSTENTION_TEXT} "
+                        "If the evidence is weak or incomplete, clearly state that uncertainty. "
                         "Never invent procedures, values, units, dates, or citations."
                     ),
                     temperature=0.1,
@@ -438,7 +513,7 @@ class GeminiGroundedAnswerer:
 
         answer = str(getattr(response, "text", "") or "").strip()
         if not answer or self._contains_abstention(answer):
-            return self._abstention()
+            answer = results[0].chunk.content
 
         citations = [
             Citation(
@@ -456,16 +531,18 @@ class GeminiGroundedAnswerer:
             )
             for candidate in results[: self.settings.rerank_limit]
         ]
-        return AnswerDraft(answer=answer, abstained=False, citations=citations)
+        return AnswerDraft(
+            answer=answer,
+            abstained=False,
+            citations=citations,
+            grounding=grounding,
+        )
 
     @staticmethod
     def _contains_abstention(answer: str) -> bool:
         lowered = answer.casefold()
         return "i don't know" in lowered or "insufficient evidence" in lowered
 
-    @staticmethod
-    def _abstention() -> AnswerDraft:
-        return AnswerDraft(answer=ABSTENTION_TEXT, abstained=True, citations=[])
 
 
 def chunks_from_docling(
@@ -493,6 +570,8 @@ def chunks_from_docling(
                 page=item.page,
                 bbox=item.bbox,
                 coord_origin=item.coord_origin,
+                confidence=item.confidence,
+                review_required=item.review_required,
             )
             for item in record.provenance
         )
@@ -521,9 +600,11 @@ class ProductionIngestionService:
         self,
         retriever: ProductionHybridRetriever,
         chunker: DoclingHybridChunkerAdapter | None = None,
+        review_store: LifecycleStore | None = None,
     ) -> None:
         self.retriever = retriever
         self.chunker = chunker or DoclingHybridChunkerAdapter()
+        self.review_store = review_store
 
     def ingest(
         self,
@@ -531,11 +612,13 @@ class ProductionIngestionService:
         document_id: str,
         source_name: str,
         *,
+        job_id: str | None = None,
         source_path: str | None = None,
         modality: str | None = None,
         language: str = "multilingual",
+        progress_callback: StageCallback | None = None,
     ) -> dict[str, object]:
-        records = self.chunker.convert_and_chunk(source)
+        records = self.chunker.convert_and_chunk(source, progress_callback=progress_callback)
         chunks = chunks_from_docling(
             document_id=document_id,
             source_name=source_name,
@@ -544,8 +627,53 @@ class ProductionIngestionService:
             source_path=source_path or source.name,
             language=language,
         )
-        indexed = self.retriever.upsert_chunks(chunks)
+        indexed = self.retriever.upsert_chunks(chunks, progress_callback=progress_callback)
+        review_items: list[dict[str, object]] = []
+        for record in records:
+            chunk_id = f'{document_id}:chunk-{record.chunk_index:04d}'
+            for candidate in record.review_candidates:
+                item = {
+                    'job_id': job_id,
+                    'document_id': document_id,
+                    'chunk_id': chunk_id,
+                    'source_ref': candidate.ref,
+                    'kind': candidate.kind,
+                    'page': candidate.page,
+                    'bbox': candidate.bbox,
+                    'confidence': candidate.confidence,
+                    'reason': candidate.reason,
+                }
+                if self.review_store is not None:
+                    review_items.append(
+                        self.review_store.add_review_item(
+                            job_id=job_id,
+                            document_id=document_id,
+                            chunk_id=chunk_id,
+                            source_ref=candidate.ref,
+                            kind=candidate.kind,
+                            page=candidate.page,
+                            bbox=candidate.bbox,
+                            confidence=candidate.confidence,
+                            reason=candidate.reason,
+                        )
+                    )
+                else:
+                    review_items.append(item)
+        document = summarize_document(
+            source=source,
+            doc_id=document_id,
+            source_name=source_name,
+            source_path=source_path or source.name,
+            file_format=source.suffix.casefold().lstrip('.') or 'document',
+            modality=modality or source.suffix.casefold().lstrip('.') or 'document',
+            language=language,
+            factory_topic='uploaded document',
+            chunks=chunks,
+        )
         return {
+            'review_items': review_items,
+            'document': document,
+            'chunks': chunks,
             "backend": "docling-hybridchunker",
             "chunk_count": indexed,
             "document_id": document_id,

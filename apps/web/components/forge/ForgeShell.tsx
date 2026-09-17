@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode } from 'react';
 
-import type { HealthResponse } from "@/lib/types";
+import type { HealthResponse } from '@/lib/types';
 
-import { GraphIcon, TableIcon } from "./ForgeIcons";
+import { GraphIcon, JapanFlagIcon, TableIcon, UkFlagIcon, VietnamFlagIcon } from './ForgeIcons';
 
-export type ForgeView = "ask" | "documents" | "graph";
+export type ForgeView = 'ask' | 'documents' | 'graph';
 
 type ForgeShellProps = {
   activeView: ForgeView;
@@ -18,79 +18,64 @@ type ForgeShellProps = {
 };
 
 const navItems: Array<{ id: ForgeView; label: string; icon?: typeof TableIcon }> = [
-  { id: "ask", label: "Ask" },
-  { id: "documents", label: "Documents", icon: TableIcon },
-  { id: "graph", label: "Graph", icon: GraphIcon },
+  { id: 'ask', label: 'Ask' },
+  { id: 'documents', label: 'Documents', icon: TableIcon },
+  { id: 'graph', label: 'Graph', icon: GraphIcon },
 ];
 
+const languageOptions = [
+  { id: 'en', label: 'English', Flag: UkFlagIcon },
+  { id: 'ja', label: 'Japanese', Flag: JapanFlagIcon },
+  { id: 'vi', label: 'Vietnamese', Flag: VietnamFlagIcon },
+] as const;
+
 export function ForgeShell({ activeView, onViewChange, health, connectionError, rail, children }: ForgeShellProps) {
-  const [language, setLanguage] = useState("en");
-  const apiState = connectionError ? "API OFFLINE" : health ? "API READY" : "CONNECTING";
-  const statusClass = connectionError ? "is-warning" : health ? "is-ready" : "is-loading";
+  const [language, setLanguage] = useState('en');
+  const apiState = connectionError ? 'API OFFLINE' : health ? (health.ready ? 'API READY' : 'API DEGRADED') : 'CONNECTING';
+  const statusClass = connectionError ? 'is-warning' : health?.ready ? 'is-ready' : 'is-loading';
 
   return (
-    <main className="forge-app">
-      <header className="forge-header">
-        <div className="forge-brand" aria-label="FORGE Factory Operations Retrieval Generation Engine">
-          <div className="forge-mark">F</div>
-          <div className="forge-brand-copy">
-            <div className="forge-wordmark">FORGE</div>
-            <div className="forge-descriptor" aria-label="Factory Operations Retrieval Generation Engine">
+    <main className='forge-app'>
+      <header className='forge-header'>
+        <div className='forge-brand' aria-label='FORGE Factory Operations Retrieval Generation Engine'>
+          <div className='forge-mark'>F</div>
+          <div className='forge-brand-copy'>
+            <div className='forge-wordmark'>FORGE</div>
+            <div className='forge-descriptor' aria-label='Factory Operations Retrieval Generation Engine'>
               <span>Factory Operations Retrieval</span>
               <span>Generation Engine</span>
             </div>
           </div>
         </div>
-
-        <div className="forge-navigation-wrap">
-          <span className="forge-workspace-label">WORKSPACE</span>
-          <nav className="forge-navigation" aria-label="Workspace navigation">
+        <div className='forge-navigation-wrap'>
+          <span className='forge-workspace-label'>WORKSPACE</span>
+          <nav className='forge-navigation' aria-label='Workspace navigation'>
             {navItems.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                className={`forge-nav-item ${activeView === id ? "is-active" : ""}`}
-                onClick={() => onViewChange(id)}
-                aria-current={activeView === id ? "page" : undefined}
-              >
-                {Icon && <Icon className="forge-nav-icon" />}
-                {label}
+              <button key={id} type='button' className={'forge-nav-item ' + (activeView === id ? 'is-active' : '')} onClick={() => onViewChange(id)} aria-current={activeView === id ? 'page' : undefined}>
+                {Icon && <Icon className='forge-nav-icon' />}{label}
               </button>
             ))}
           </nav>
         </div>
-
-        <div className="forge-header-tools">
-          <div className="forge-spectrum" aria-label="FORGE seven color spectrum">
-            {["#E85D75", "#F49B50", "#EAC456", "#4FBD7B", "#4D83E6", "#6868C9", "#A568C7"].map((color) => (
-              <span key={color} style={{ backgroundColor: color }} />
-            ))}
+        <div className='forge-header-tools'>
+          <div className='forge-spectrum' aria-label='FORGE seven color spectrum'>
+            {['#E85D75', '#F49B50', '#EAC456', '#4FBD7B', '#4D83E6', '#6868C9', '#A568C7'].map((color) => <span key={color} style={{ backgroundColor: color }} />)}
           </div>
-          <div className={`forge-api-status ${statusClass}`} role="status">
-            <span className="forge-status-dot" />
-            <span>{apiState}</span>
-            <small>GEMINI</small>
+          <div className={'forge-api-status ' + statusClass} role='status'>
+            <span className='forge-status-dot' /><span>{apiState}</span><small>GEMINI</small>
           </div>
-          <div className="forge-language-switch" aria-label="Language selector">
-            {[["en", "🇬🇧", "English"], ["ja", "🇯🇵", "日本語"], ["vi", "🇻🇳", "Tiếng Việt"]].map(([id, flag, label]) => (
-              <button
-                key={id}
-                type="button"
-                className={language === id ? "is-active" : ""}
-                aria-label={label}
-                aria-pressed={language === id}
-                onClick={() => setLanguage(id)}
-              >
-                {flag}
+          <div className='forge-language-switch' aria-label='Language selector'>
+            {languageOptions.map(({ id, label, Flag }) => (
+              <button key={id} type='button' className={language === id ? 'is-active' : ''} aria-label={label} aria-pressed={language === id} onClick={() => setLanguage(id)}>
+                <Flag className='forge-flag' />
               </button>
             ))}
           </div>
         </div>
       </header>
-
-      <div className="forge-body">
-        <aside className="forge-context-rail">{rail}</aside>
-        <section className="forge-main">{children}</section>
+      <div className='forge-body'>
+        <aside className='forge-context-rail'>{rail}</aside>
+        <section className='forge-main'>{children}</section>
       </div>
     </main>
   );

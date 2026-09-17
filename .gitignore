@@ -12,10 +12,16 @@ out/
 dist/
 coverage/
 .env
+key.txt
 .env.local
 .env.*.local
 data/uploads/
 data/.forge-cache/
+data/.forge-state/
 .qdrant-local/
 *.pem
 *.key
+data/state/
+run-*.log
+.ua/
+tasks/

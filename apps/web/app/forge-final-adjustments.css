@@ -1,0 +1,30 @@
+.forge-flag { display: block; width: 31px; height: 21px; border-radius: 3px; }
+.forge-language-switch button { width: 58px; height: 28px; padding: 3px 9px; }
+.forge-language-switch button.is-active { background: var(--forge-green-soft); }
+
+.forge-message-list { max-height: 330px; overflow-y: auto; padding-right: 8px; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: #9bb4bf transparent; }
+.forge-message-list::-webkit-scrollbar { width: 7px; }
+.forge-message-list::-webkit-scrollbar-thumb { background: #9bb4bf; border-radius: 4px; }
+.forge-message-list::-webkit-scrollbar-track { background: transparent; }
+
+.forge-placeholder-card { max-width: 760px; margin: 50px auto 0; padding: 38px; border: 1px solid var(--forge-line); border-radius: 12px; background: var(--forge-surface); text-align: center; }
+.forge-placeholder-mark { display: grid; place-items: center; width: 54px; height: 54px; margin: 0 auto 17px; border-radius: 12px; background: var(--forge-green-soft); color: var(--forge-green); }
+.forge-placeholder-mark svg { width: 26px; height: 26px; }
+.forge-placeholder-card h2 { margin: 10px 0 0; color: var(--forge-ink); font-family: Georgia, serif; font-size: 28px; }
+.forge-placeholder-card > p:not(.forge-eyebrow) { max-width: 520px; margin: 12px auto 0; color: var(--forge-muted); font-size: 12px; line-height: 1.6; }
+.forge-placeholder-rule { display: flex; align-items: center; gap: 12px; max-width: 260px; margin: 26px auto 0; color: var(--forge-faint); font-size: 8px; font-weight: 800; letter-spacing: .1em; }
+.forge-placeholder-rule span { height: 1px; flex: 1; background: var(--forge-line); }
+.forge-placeholder-card ul { display: grid; gap: 8px; max-width: 390px; margin: 20px auto 0; padding: 0; list-style: none; color: var(--forge-ink); font-size: 10px; text-align: left; }
+.forge-placeholder-card li { padding: 9px 12px; border-radius: 7px; background: var(--forge-soft); }
+.forge-placeholder-rail { display: grid; align-content: start; gap: 7px; min-height: 100%; }
+.forge-placeholder-rail-card { display: flex; align-items: start; gap: 10px; margin-top: 18px; padding: 14px; border: 1px solid var(--forge-line); border-radius: 8px; background: var(--forge-surface); }
+.forge-placeholder-rail-card > div { display: grid; gap: 5px; }
+.forge-placeholder-rail-card strong { color: var(--forge-ink); font-family: Georgia, serif; font-size: 15px; }
+.forge-placeholder-rail-card small { color: var(--forge-muted); font-size: 9px; line-height: 1.45; }
+.forge-placeholder-copy { margin: 24px 0 0; color: var(--forge-muted); font-size: 10px; }
+
+@media (max-width: 620px) {
+  .forge-placeholder-card { margin-top: 24px; padding: 24px 18px; }
+  .forge-placeholder-card h2 { font-size: 22px; }
+  .forge-message-list { max-height: 300px; }
+}

@@ -22,10 +22,22 @@ def test_retriever_matches_english_query_to_vietnamese_evidence():
     assert results[0].chunk.chunk_id.startswith("EHS-ALERT-003:chunk-")
 
 
-def test_answerer_abstains_when_evidence_is_missing():
-    results = HybridRetriever().search("Who won the football match yesterday?", limit=5)
-    response = GroundedAnswerer().answer("Who won the football match yesterday?", results)
+def test_answerer_returns_best_match_without_abstaining():
+    question = 'give me knowledge about preventive maintenance'
+    results = HybridRetriever().search(question, limit=5)
+    response = GroundedAnswerer().answer(question, results)
 
-    assert response.abstained is True
+    assert response.abstained is False
+    assert response.grounding == 'best_match'
+    assert response.citations
+    assert response.citations[0].chunk_id == results[0].chunk.chunk_id
+    assert response.answer == results[0].chunk.content
+
+
+def test_answerer_reports_no_match_without_abstaining():
+    response = GroundedAnswerer().answer('unrelated question', [])
+
+    assert response.abstained is False
+    assert response.grounding == 'no_match'
     assert response.citations == []
-    assert "don't know" in response.answer.lower()
+    assert 'No matching content' in response.answer
