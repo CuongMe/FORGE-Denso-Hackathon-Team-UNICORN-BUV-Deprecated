@@ -25,3 +25,7 @@ data/state/
 run-*.log
 .ua/
 tasks/
+.agents/
+.forge-smoke/
+.forge-test-state*/
+.pytest-basetemp*/

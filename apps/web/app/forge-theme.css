@@ -28,7 +28,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px
 .forge-header { display: grid; grid-template-columns: minmax(260px, 1fr) auto minmax(350px, 1fr); align-items: center; min-height: 72px; padding: 0 24px; border-bottom: 1px solid var(--forge-line); background: var(--forge-surface); }
 .forge-brand, .forge-header-tools, .forge-navigation { display: flex; align-items: center; }
 .forge-brand { gap: 12px; }
-.forge-mark { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--forge-green); color: var(--forge-ink); font-family: Georgia, serif; font-size: 20px; font-weight: 700; }
+.forge-mark { display: grid; place-items: center; width: 46px; height: 46px; overflow: hidden; padding: 4px; border: 1px solid #b9e2d4; border-radius: 12px; background: var(--forge-surface); }
+.forge-logo { display: block; width: 100%; height: 100%; object-fit: contain; }
 .forge-brand-copy { min-width: 0; }
 .forge-wordmark { color: var(--forge-ink); font-family: Georgia, serif; font-size: 16px; font-weight: 700; letter-spacing: .02em; }
 .forge-descriptor { display: flex; flex-direction: column; gap: 1px; margin-top: 2px; font-family: Georgia, serif; font-size: 9px; font-weight: 700; line-height: 1.1; }

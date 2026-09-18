@@ -1,6 +1,13 @@
-# FORGE Factory Operations Retrieval & Generation Engine
+<p align="center">
+  <img src="./Logo.png" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" height="180" />
+</p>
 
-![AI agent understanding diverse document formats](./image.png)
+<h1 align="center">FORGE Factory Operations Retrieval &amp; Generation Engine</h1>
+
+<p align="center">
+  <strong>Multimodal factory document intelligence for grounded, traceable answers.</strong><br />
+  Denso Factory Hackathon 2026 · Challenge A3
+</p>
 
 > **Dataset disclosure:** The supplied factory data-preparation/supply pack is **AI-generated synthetic data** for demonstration and evaluation only. It contains no official factory standard, confidential information, or production record.
 
