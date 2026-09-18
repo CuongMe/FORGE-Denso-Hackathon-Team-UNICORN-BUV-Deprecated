@@ -81,19 +81,19 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 
 | Layer | Technology | Purpose | Icon |
 |---|---|---|:---:|
-| Frontend | [Next.js](https://nextjs.org/docs/app) · React · TypeScript · Tailwind CSS | Chat UI and uploads | <img src='https://cdn.simpleicons.org/nextdotjs' alt='Next.js' width='24' height='24' /> |
-| API | Python · [FastAPI](https://fastapi.tiangolo.com/) · Pydantic | Typed document and query contracts | <img src='https://cdn.simpleicons.org/fastapi' alt='FastAPI' width='24' height='24' /> |
-| Ingestion | [Docling](https://docling.org/) · OCR · `HybridChunker` | Layout-aware parsing and chunking | 📄 |
-| Orchestration | [LlamaIndex](https://docs.llamaindex.ai/en/v0.10.17/module_guides/loading/ingestion_pipeline/root/) | Optional ingestion and retrieval plumbing | 🧩 |
-| Graph | Kùzu 0.11.3 | Embedded source, chunk, and concept graph | 🕸️ |
-| Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | 🧠 |
-| Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant' alt='Qdrant' width='24' height='24' /> |
-| Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | ↕️ |
-| Metadata | PostgreSQL | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/postgresql' alt='PostgreSQL' width='24' height='24' /> |
-| Storage | Local filesystem | Uploads and processed artifacts | 💾 |
-| Jobs | Python worker · Redis | Background ingestion and re-indexing | <img src='https://cdn.simpleicons.org/redis' alt='Redis' width='24' height='24' /> |
-| Generation | Gemini 2.5 Flash-Lite (free tier for demo) · `google-genai` | Grounded answer generation | <img src='https://cdn.simpleicons.org/googlegemini' alt='Gemini' width='24' height='24' /> |
-| Tooling | `uv` · `pnpm` | Python and Node.js dependencies | 🛠️ |
+| Frontend | [Next.js](https://nextjs.org/docs/app) · React · TypeScript · Tailwind CSS | Chat UI and uploads | <img src='https://cdn.simpleicons.org/nextdotjs/000000' alt='Next.js' title='Next.js' height='20' /> <img src='https://cdn.simpleicons.org/react/61DAFB' alt='React' title='React' height='20' /> <img src='https://cdn.simpleicons.org/typescript/3178C6' alt='TypeScript' title='TypeScript' height='20' /> <img src='https://cdn.simpleicons.org/tailwindcss/06B6D4' alt='Tailwind CSS' title='Tailwind CSS' height='20' /> |
+| API | Python · [FastAPI](https://fastapi.tiangolo.com/) · Pydantic | Typed document and query contracts | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> <img src='https://cdn.simpleicons.org/fastapi/009688' alt='FastAPI' title='FastAPI' height='20' /> <img src='https://cdn.simpleicons.org/pydantic/E92063' alt='Pydantic' title='Pydantic' height='20' /> |
+| Ingestion | [Docling](https://docling.org/) · OCR · `HybridChunker` | Layout-aware parsing and chunking | <img src='https://github.com/docling-project.png?size=64' alt='Docling' title='Docling' height='20' /> |
+| Orchestration | [LlamaIndex](https://docs.llamaindex.ai/en/v0.10.17/module_guides/loading/ingestion_pipeline/root/) | Optional ingestion and retrieval plumbing | <img src='https://github.com/run-llama.png?size=64' alt='LlamaIndex' title='LlamaIndex' height='20' /> |
+| Graph | Kùzu 0.11.3 | Embedded source, chunk, and concept graph | <img src='https://github.com/kuzudb.png?size=64' alt='Kùzu' title='Kùzu' height='20' /> |
+| Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
+| Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant/DC244C' alt='Qdrant' title='Qdrant' height='20' /> |
+| Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
+| Metadata | PostgreSQL | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/postgresql/4169E1' alt='PostgreSQL' title='PostgreSQL' height='20' /> |
+| Storage | Local filesystem | Uploads and processed artifacts | — |
+| Jobs | Python worker · Redis | Background ingestion and re-indexing | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> <img src='https://cdn.simpleicons.org/redis/DC382D' alt='Redis' title='Redis' height='20' /> |
+| Generation | Gemini 2.5 Flash-Lite (free tier for demo) · `google-genai` | Grounded answer generation | <img src='https://cdn.simpleicons.org/googlegemini/8E75B2' alt='Gemini' title='Gemini' height='20' /> |
+| Tooling | `uv` · `pnpm` | Python and Node.js dependencies | <img src='https://cdn.simpleicons.org/uv/6E56CF' alt='uv' title='uv' height='20' /> <img src='https://cdn.simpleicons.org/pnpm/F69220' alt='pnpm' title='pnpm' height='20' /> |
 
 ## Evaluation framework
 
