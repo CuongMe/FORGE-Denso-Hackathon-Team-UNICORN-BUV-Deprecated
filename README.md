@@ -77,30 +77,23 @@ flowchart TB
 
 ## Technology stack
 
-FORGE is designed for direct-host deployment. The application can run as native Python and Node.js processes or use managed services, so Docker is not required.
+FORGE runs as native Python and Node.js processes or on managed services; Docker is optional.
 
-- **Frontend:** Next.js App Router, React, and TypeScript for the chat and document upload experience. Tailwind CSS provides the visual system, with accessible components owned by the application. [Next.js](https://nextjs.org/docs/app)
-- **Backend API:** Python, FastAPI, and Pydantic for typed document, query, and response contracts. [FastAPI](https://fastapi.tiangolo.com/)
-- **Document processing:** Docling for PDF conversion, layout detection, reading order, table extraction, OCR, and Markdown or JSON export. [Docling](https://docling.org/)
-- **OCR and vision:** Docling OCR for scanned text, with a vision-language model adapter for complex visual regions and image descriptions.
-- **Canonical representation:** A custom Pydantic schema that preserves pages, headings, regions, tables, languages, coordinates, and source references.
-- **Pipeline orchestration:** LlamaIndex for optional ingestion and retrieval plumbing. The layout-aware document schema, chunker, and retrieval fusion logic remain FORGE-owned code. [LlamaIndex ingestion pipeline](https://docs.llamaindex.ai/en/v0.10.17/module_guides/loading/ingestion_pipeline/root.html)
-- **Knowledge graph:** Kùzu 0.11.3 as the embedded graph database for typed source, chunk, and concept nodes; FastAPI exposes provenance-aware graph snapshots and the Next.js Graph workspace renders live neighborhoods.
-- **Chunking:** Docling's `HybridChunker`, using an offline deterministic tokenizer for the demo and optionally the same tokenizer as the embedding model in production. Its `contextualize()` output is the text sent to embedding and retrieval. [Docling chunking](https://docling-project.github.io/docling/concepts/chunking/)
-- **Embeddings:** BGE-M3 as the default multilingual embedding model for self-hosted deployments, with a managed multilingual model as an alternative. [BGE-M3](https://bge-model.com/bge/bge_m3.html)
-- **Vector search:** Qdrant with dense and sparse vectors, metadata filtering, and reciprocal rank fusion for hybrid candidate retrieval. [Qdrant hybrid search](https://qdrant.tech/documentation/search/text-search/hybrid-search/)
-- **Reranking:** `BAAI/bge-reranker-v2-m3` through Sentence Transformers' `CrossEncoder` API to rerank the top candidate chunks with multilingual query-passage scoring. [Model card](https://huggingface.co/BAAI/bge-reranker-v2-m3), [CrossEncoder usage](https://www.sbert.net/docs/cross_encoder/usage/usage.html)
-- **Metadata database:** PostgreSQL for document records, processing status, user settings, evaluation data, and audit information.
-- **File storage:** Local filesystem storage for original uploads and processed artifacts in the current implementation. S3-compatible object storage is deferred to a future deployment layer.
-- **Background processing:** A Python worker with Redis-backed job coordination for long-running ingestion and re-indexing tasks.
-- **Generation:** Gemini 2.5 Flash-Lite through Google's `google-genai` SDK. It is the default low-cost/free-tier provider for the demo; the provider boundary keeps a later managed or self-hosted replacement straightforward. [Gemini API](https://ai.google.dev/gemini-api/docs/libraries)
-- **Local development and deployment:** `uv` for Python dependencies, `pnpm` for the Next.js application, and native process managers or managed services instead of Docker.
-
-### Stack decisions
-
-The first implementation uses Docling's `HybridChunker`, Qdrant for hybrid candidate retrieval, a cross-encoder for reranking, and Next.js for the user interface. PostgreSQL, object storage, and a durable worker queue remain the next operational layer; the current production query path keeps those boundaries replaceable rather than pretending an in-process upload registry is durable metadata storage. LlamaIndex should remain an integration layer rather than the owner of document structure or chunking logic.
-Kùzu is the graph data layer for the Graph workspace. Query orchestration remains a direct retrieve → rerank → answer path, while graph traversal is exposed through the FastAPI graph contract.
-
+| Layer | Technology | Purpose | Icon |
+|---|---|---|:---:|
+| Frontend | [Next.js](https://nextjs.org/docs/app) · React · TypeScript · Tailwind CSS | Chat UI and uploads | <img src='https://cdn.simpleicons.org/nextdotjs' alt='Next.js' width='24' height='24' /> |
+| API | Python · [FastAPI](https://fastapi.tiangolo.com/) · Pydantic | Typed document and query contracts | <img src='https://cdn.simpleicons.org/fastapi' alt='FastAPI' width='24' height='24' /> |
+| Ingestion | [Docling](https://docling.org/) · OCR · `HybridChunker` | Layout-aware parsing and chunking | 📄 |
+| Orchestration | [LlamaIndex](https://docs.llamaindex.ai/en/v0.10.17/module_guides/loading/ingestion_pipeline/root/) | Optional ingestion and retrieval plumbing | 🧩 |
+| Graph | Kùzu 0.11.3 | Embedded source, chunk, and concept graph | 🕸️ |
+| Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | 🧠 |
+| Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant' alt='Qdrant' width='24' height='24' /> |
+| Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | ↕️ |
+| Metadata | PostgreSQL | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/postgresql' alt='PostgreSQL' width='24' height='24' /> |
+| Storage | Local filesystem | Uploads and processed artifacts | 💾 |
+| Jobs | Python worker · Redis | Background ingestion and re-indexing | <img src='https://cdn.simpleicons.org/redis' alt='Redis' width='24' height='24' /> |
+| Generation | Gemini 2.5 Flash-Lite (free tier for demo) · `google-genai` | Grounded answer generation | <img src='https://cdn.simpleicons.org/googlegemini' alt='Gemini' width='24' height='24' /> |
+| Tooling | `uv` · `pnpm` | Python and Node.js dependencies | 🛠️ |
 
 ## Evaluation framework
 
