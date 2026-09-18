@@ -91,7 +91,7 @@ FORGE is designed for direct-host deployment. The application can run as native 
 - **Vector search:** Qdrant with dense and sparse vectors, metadata filtering, and reciprocal rank fusion for hybrid candidate retrieval. [Qdrant hybrid search](https://qdrant.tech/documentation/search/text-search/hybrid-search/)
 - **Reranking:** `BAAI/bge-reranker-v2-m3` through Sentence Transformers' `CrossEncoder` API to rerank the top candidate chunks with multilingual query-passage scoring. [Model card](https://huggingface.co/BAAI/bge-reranker-v2-m3), [CrossEncoder usage](https://www.sbert.net/docs/cross_encoder/usage/usage.html)
 - **Metadata database:** PostgreSQL for document records, processing status, user settings, evaluation data, and audit information.
-- **File storage:** S3-compatible object storage for original files, page images, and processed Markdown or JSON artifacts. MinIO can be used for local development.
+- **File storage:** Local filesystem storage for original uploads and processed artifacts in the current implementation. S3-compatible object storage is deferred to a future deployment layer.
 - **Background processing:** A Python worker with Redis-backed job coordination for long-running ingestion and re-indexing tasks.
 - **Generation:** Gemini 2.5 Flash-Lite through Google's `google-genai` SDK. It is the default low-cost/free-tier provider for the demo; the provider boundary keeps a later managed or self-hosted replacement straightforward. [Gemini API](https://ai.google.dev/gemini-api/docs/libraries)
 - **Local development and deployment:** `uv` for Python dependencies, `pnpm` for the Next.js application, and native process managers or managed services instead of Docker.
@@ -100,58 +100,6 @@ FORGE is designed for direct-host deployment. The application can run as native 
 
 The first implementation uses Docling's `HybridChunker`, Qdrant for hybrid candidate retrieval, a cross-encoder for reranking, and Next.js for the user interface. PostgreSQL, object storage, and a durable worker queue remain the next operational layer; the current production query path keeps those boundaries replaceable rather than pretending an in-process upload registry is durable metadata storage. LlamaIndex should remain an integration layer rather than the owner of document structure or chunking logic.
 Kùzu is the graph data layer for the Graph workspace. Query orchestration remains a direct retrieve → rerank → answer path, while graph traversal is exposed through the FastAPI graph contract.
-
-### Current implementation
-
-The repository now contains a working, dependency-light demo slice for the full query path:
-
-- `apps/web` is a Next.js chat interface with quick demo prompts, upload feedback, citations, retrieval trace details, loading states, and an explicit abstention state.
-- `services/api` exposes typed FastAPI contracts for health, document inventory, uploads, and query responses. The query response always carries `chunk_id`, source, page/region metadata, and retrieval trace fields.
-- The supplied Denso starter pack is converted from its 17 manifest files at runtime: all PDFs, PNG/JPG images, XLSX workbooks, and the CSV catalog go through Docling and `HybridChunker`. The QA JSONL files are evaluation assets only; they are not indexed. The current pack produces 49 real chunks with table and image regions preserved.
-- Every source-derived chunk carries its repo-relative source path, chunk ID, page set, semantic region label, region type, Docling item refs, and layout bounding boxes with coordinate origin. Citations return the same provenance, including table refs, picture refs, and “page unavailable” when a format such as CSV has no page coordinate.
-- A content-addressed local cache under `data/.forge-cache/` makes repeat starts fast and invalidates when a source file, tokenizer selection, or chunk-size setting changes. The default `local-whitespace` tokenizer avoids an unnecessary model download for the live demo; production can set `FORGE_CHUNK_TOKENIZER=BAAI/bge-m3` for embedding-aligned chunk boundaries.
-- Uploads are size- and extension-validated and stored outside the source tree. Demo mode acknowledges uploads without changing its deterministic index; production mode sends uploaded files through Docling conversion, `HybridChunker`, embedding, Qdrant upsert, and metadata registration.
-
-This separation is intentional: the demo uses the same real source conversion and provenance contract as production, while keeping Qdrant, metadata storage, and model providers replaceable at the infrastructure boundary. The evaluation QA files remain outside the retrieval corpus so test answers cannot leak into runtime retrieval.
-
-The API now requires Docling for the default demo. Install the service dependencies from the repository root with `uv --cache-dir .uv-cache sync --project services/api` or, for an existing virtual environment, `uv --cache-dir .uv-cache pip install --python services/api/.venv/Scripts/python.exe -r services/api/requirements-docling.txt`. It follows Docling's `DocumentConverter` → `HybridChunker.chunk()` → `HybridChunker.contextualize()` flow. The default local tokenizer does not download Hugging Face weights; set `FORGE_CHUNK_TOKENIZER` to a locally available embedding tokenizer when model-aligned chunk boundaries are required.
-
-## Production runtime (opt-in)
-
-Production mode is explicit so a missing model, Qdrant service, or LLM key cannot silently downgrade the application to a weaker retrieval path. It does not require Docker: use a managed Qdrant Cloud collection or another reachable Qdrant deployment, then run the API as a native Python process.
-
-Install the production adapters:
-
-```powershell
-Set-Location services/api
-uv --cache-dir ../../.uv-cache pip install --python .venv/Scripts/python.exe -r requirements-production.txt
-```
-
-The first production run downloads the BGE-M3 embedding weights and the multilingual cross-encoder weights into the Hugging Face cache. Pre-warm those models in the deployment image or CI job so the first user request does not pay the download cost. Override `FORGE_DENSE_MODEL` or `FORGE_RERANKER_MODEL` only when the replacement model is compatible with the configured retrieval contract.
-
-Configure the service in the same PowerShell session. Keep keys in environment variables or a secret manager; do not commit them:
-
-```powershell
-$env:FORGE_RUNTIME_MODE = "production"
-$env:FORGE_QDRANT_URL = "https://<your-qdrant-endpoint>:6333"
-$env:FORGE_QDRANT_API_KEY = "<your-qdrant-api-key>"
-$env:GEMINI_API_KEY = "<your-gemini-api-key>"
-```
-
-The default model is `gemini-2.5-flash-lite`. Create the key in [Google AI Studio](https://ai.google.dev/gemini-api/docs/api-key), keep it server-side, and confirm the current [Gemini free-tier limits](https://ai.google.dev/gemini-api/docs/pricing) before a public demo.
-
-Index the supplied synthetic starter pack once, then start the API. The indexing command now converts the real source files before embedding them; it does not read the QA anchors:
-
-```powershell
-uv --cache-dir ../../.uv-cache run python -m app.index_demo
-uv --cache-dir ../../.uv-cache run uvicorn app.main:app --reload --port 8000
-```
-
-The production query path is:
-
-`question → BGE-M3 dense query + Qdrant BM25 sparse query → Qdrant RRF fusion → multilingual cross-encoder reranking → evidence threshold → Gemini answer`
-
-Uploaded PDFs, images, XLSX, and CSV files are converted through Docling and indexed synchronously in this first production slice. The same normalized provenance fields are written into Qdrant payloads. For a multi-user deployment, move that conversion and indexing call behind a durable worker queue, persist document/job metadata in PostgreSQL, and store originals and artifacts in object storage before enabling unrestricted uploads.
 
 
 ## Evaluation framework
