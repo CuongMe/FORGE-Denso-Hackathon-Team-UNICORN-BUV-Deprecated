@@ -61,7 +61,62 @@ At least 60% of the corpus is Tier 2–5, ensuring FORGE is tested on realistic 
 
 FORGE uses a multimodal retrieval-augmented generation pipeline. The indexing path converts mixed-format documents into searchable, context-preserving representations. The answering path combines a user's question with the most relevant content and passes both to an LLM for a grounded response.
 
-![FORGE architecture](docs/forge-architecture.svg)
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '16px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 70}}}%%
+flowchart TB
+    USER(["👤 Factory Engineer"])
+    UI["Next.js chat + upload UI"]
+    API["FastAPI API"]
+
+    USER -->|asks question| UI
+    UI -->|upload / query| API
+
+    subgraph INGESTION["📥 Ingestion Pipeline (per document)"]
+        PARSE["Docling + OCR<br/>TableFormer + VLM"]
+        CHUNK["HybridChunker<br/>context + provenance"]
+        EMBED["BGE-M3<br/>(dense + sparse)"]
+        PARSE -->|structured blocks| CHUNK
+        CHUNK -->|text chunks| EMBED
+    end
+
+    subgraph QUERY["💬 Query Pipeline (per question)"]
+        RETRIEVE["Hybrid retrieval"]
+        RERANK["Cross-encoder reranking"]
+        GEMINI["Gemini grounded generation<br/>(query + retrieved context)"]
+        CHECK{"Evidence sufficient?"}
+        ANSWER["Cited answer"]
+        ABSTAIN["Abstention: 'I don't know'"]
+
+        RETRIEVE --> RERANK --> GEMINI --> CHECK
+        CHECK -->|yes| ANSWER
+        CHECK -->|no| ABSTAIN
+    end
+
+    API --> PARSE
+    API --> RETRIEVE
+
+    EMBED -->|vectors| QDRANT[("Qdrant vector store")]
+    CHUNK -->|metadata| SQLITE[("SQLite metadata")]
+    PARSE -->|files & images| FILES[("Local filesystem object storage")]
+
+    QDRANT -->|top-K candidates| RETRIEVE
+    ANSWER --> UI
+    ABSTAIN --> UI
+
+    classDef ui fill:#3B82F6,stroke:#1E40AF,color:#fff
+    classDef api fill:#8B5CF6,stroke:#5B21B6,color:#fff
+    classDef process fill:#10B981,stroke:#047857,color:#fff
+    classDef store fill:#F59E0B,stroke:#B45309,color:#fff
+    classDef llm fill:#EF4444,stroke:#B91C1C,color:#fff
+    classDef user fill:#6B7280,stroke:#374151,color:#fff
+
+    class USER user
+    class UI ui
+    class API api
+    class PARSE,CHUNK,EMBED,RETRIEVE,RERANK process
+    class QDRANT,SQLITE,FILES store
+    class GEMINI llm
+```
 
 ### Pipeline stages
 
