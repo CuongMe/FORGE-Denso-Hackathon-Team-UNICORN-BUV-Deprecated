@@ -62,7 +62,7 @@ At least 60% of the corpus is Tier 2–5, ensuring FORGE is tested on realistic 
 FORGE uses a multimodal retrieval-augmented generation pipeline. The indexing path converts mixed-format documents into searchable, context-preserving representations. The answering path combines a user's question with the most relevant content and passes both to an LLM for a grounded response.
 
 ```mermaid
-%%{init: {'themeVariables': {'fontSize': '16px'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 70}}}%%
+%%{init: {'themeVariables': {'fontSize': '16px', 'fontFamily': 'Trebuchet MS, Verdana, Arial, sans-serif'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 70}}}%%
 flowchart TB
     USER(["👤 Factory Engineer"])
     UI["Next.js chat + upload UI"]
@@ -97,25 +97,16 @@ flowchart TB
 
     EMBED -->|vectors| QDRANT[("Qdrant vector store")]
     CHUNK -->|metadata| SQLITE[("SQLite metadata")]
-    PARSE -->|files & images| FILES[("Local filesystem object storage")]
+    PARSE -->|files & images| FILES[("Local FileSystem")]
 
     QDRANT -->|top-K candidates| RETRIEVE
     ANSWER --> UI
-    ABSTAIN --> UI
 
-    classDef ui fill:#3B82F6,stroke:#1E40AF,color:#fff
-    classDef api fill:#8B5CF6,stroke:#5B21B6,color:#fff
-    classDef process fill:#10B981,stroke:#047857,color:#fff
-    classDef store fill:#F59E0B,stroke:#B45309,color:#fff
-    classDef llm fill:#EF4444,stroke:#B91C1C,color:#fff
-    classDef user fill:#6B7280,stroke:#374151,color:#fff
-
-    class USER user
-    class UI ui
-    class API api
-    class PARSE,CHUNK,EMBED,RETRIEVE,RERANK process
-    class QDRANT,SQLITE,FILES store
-    class GEMINI llm
+    classDef node fill:#E8F0FE,stroke:#2563EB,color:#333333
+    class USER,UI,API,PARSE,CHUNK,EMBED,RETRIEVE,RERANK,GEMINI,CHECK,ANSWER,ABSTAIN,QDRANT,SQLITE,FILES node
+    style INGESTION fill:#EFF6FF,stroke:#1D4ED8,color:#333333
+    style QUERY fill:#EFF6FF,stroke:#1D4ED8,color:#333333
+    linkStyle default stroke:#333333,stroke-width:1px
 ```
 
 ### Pipeline stages
