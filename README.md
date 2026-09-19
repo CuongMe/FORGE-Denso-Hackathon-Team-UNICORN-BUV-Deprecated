@@ -17,36 +17,51 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 
 Factory operations knowledge is often spread across PDFs, scanned images, tables, and bilingual documents. Each format can require different preprocessing, including OCR, layout reconstruction, table extraction, and language handling, before an AI system can search and use the content. When that work is manual or inconsistent, valuable information takes longer to access and chatbot answers can miss or misread important context. This makes it difficult to build one dependable retrieval workflow for the documents teams already use.
 
+## Data Curation
+
+Input data is the foundation for validating the RAG system. To test every capability of the pipeline, the input corpus is curated from a diverse collection of open-source datasets, all licensed under permissive terms (Creative Commons, CC0, MIT, Apache 2.0, or public domain).
+
+### Format Coverage
+
+The corpus exercises every claimed input path through two linked sets:
+
+**Coverage links**
+
+- **Digital PDF** → Docling text extraction and reading order
+- **Scanned PDF** → OCR and noisy-layout detection
+- **PDF with complex tables** → TableFormer and table-aware chunking
+- **PDF with charts or diagrams** → VLM adapter and image-block extraction
+- **Bilingual PDF (VN/JP, VN/EN)** → BGE-M3 cross-lingual retrieval
+- **Excel / CSV / XLSX** → structured parsing and row/column chunking
+- **Standalone images** → VLM description and image understanding
+- **Mixed PDF (text + table + image)** → structure parsing and multi-block handling
+
+### Difficulty Tiers
+
+Documents are stratified into six tiers for difficulty-specific reporting:
+
+- **Tier 1 — Clean:** Digital PDF, single language, simple layout
+- **Tier 2 — Structured:** Tables, headings, lists, nested sections
+- **Tier 3 — Visual:** Charts, diagrams, embedded images
+- **Tier 4 — Degraded:** Scanned, blurry, rotated, or low-resolution input
+- **Tier 5 — Multilingual:** Bilingual or cross-lingual content
+- **Tier 6 — Adversarial:** Missing pages, contradictory information, out-of-domain content
+
+At least 60% of the corpus is Tier 2–5, ensuring FORGE is tested on realistic industrial complexity rather than only clean documents.
+
+### Curation Principles
+
+- **Open and licensed**: All documents are open-source or public domain, with clear attribution.
+- **No PII or confidential content**: No personally identifiable information or proprietary Denso material.
+- **Versioned and reproducible**: The corpus is tagged (e.g., `corpus_v1.0`) and referenced in every evaluation report.
+- **Metadata-complete**: Each document carries a manifest record (format, tier, language, page count, source, license).
+- **Bounded**: 10–20 documents, 80–200 pages total, enough for meaningful evaluation without exceeding 15 minutes per run.
+
 ## Solution architecture
 
 FORGE uses a multimodal retrieval-augmented generation pipeline. The indexing path converts mixed-format documents into searchable, context-preserving representations. The answering path combines a user's question with the most relevant content and passes both to an LLM for a grounded response.
 
-```mermaid
-%%{init: {'themeVariables': {'fontSize': '18px'}, 'flowchart': {'nodeSpacing': 45, 'rankSpacing': 65}}}%%
-flowchart TB
-    UI["Next.js chat and upload UI"] --> API["FastAPI API"]
-    API --> A["Documents<br/>PDFs, images, and other formats"]
-    API --> Q["User query"]
-
-    A --> B["Document ingestion"]
-    B --> C["Layout detection<br/>Text, tables, images"]
-    C --> D["OCR / VLM processing"]
-    D --> E["Semantic conversion<br/>Markdown or JSON"]
-    E --> F["Contextual chunking"]
-    F --> G["Multilingual embeddings"]
-    G --> H[("Vector index")]
-
-    Q --> R["Hybrid retrieval"]
-    H --> R
-    R --> CAND["Candidate chunks"]
-    Q --> RR["Cross-encoder reranker"]
-    CAND --> RR
-    RR --> K["Ranked chunks"]
-    Q --> L["LLM generation"]
-    K --> L
-    L --> O["Grounded answer"]
-    O --> UI
-```
+![FORGE architecture](docs/forge-architecture.svg)
 
 ### Pipeline stages
 
@@ -73,7 +88,7 @@ flowchart TB
 - Multi-format document ingestion pipeline
 - RAG chatbot demonstration
 - Retrieval, answer quality, and latency report
-- Evaluation dashboard comparing a naive baseline with FORG
+- Evaluation dashboard comparing a naive baseline with FORGE
 
 ## Technology stack
 
@@ -85,7 +100,6 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 | API | Python · [FastAPI](https://fastapi.tiangolo.com/) · Pydantic | Typed document and query contracts | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> <img src='https://cdn.simpleicons.org/fastapi/009688' alt='FastAPI' title='FastAPI' height='20' /> <img src='https://cdn.simpleicons.org/pydantic/E92063' alt='Pydantic' title='Pydantic' height='20' /> |
 | Ingestion | [Docling](https://docling.org/) · OCR · `HybridChunker` | Layout-aware parsing and chunking | <img src='https://github.com/docling-project.png?size=64' alt='Docling' title='Docling' height='20' /> |
 | Orchestration | [LlamaIndex](https://docs.llamaindex.ai/en/v0.10.17/module_guides/loading/ingestion_pipeline/root/) | Optional ingestion and retrieval plumbing | <img src='https://github.com/run-llama.png?size=64' alt='LlamaIndex' title='LlamaIndex' height='20' /> |
-| Graph | Kùzu 0.11.3 | Embedded source, chunk, and concept graph | <img src='https://github.com/kuzudb.png?size=64' alt='Kùzu' title='Kùzu' height='20' /> |
 | Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
 | Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant/DC244C' alt='Qdrant' title='Qdrant' height='20' /> |
 | Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
