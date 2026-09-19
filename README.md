@@ -111,15 +111,81 @@ flowchart TB
 
 ### Pipeline stages
 
-1. **Document ingestion** accepts PDFs, images, and other supported formats and records the source document and its metadata.
-2. **Layout detection** identifies regions such as text blocks, tables, figures, and images so the document's structure is available to later stages.
-3. **OCR and VLM processing** extracts text from each region and creates descriptions for visual elements that contain useful information.
-4. **Semantic conversion** transforms the extracted content into Markdown or JSON while preserving headings, reading order, table relationships, page references, and other layout context.
-5. **Contextual chunking** uses Docling's `HybridChunker` to apply document-aware and tokenizer-aware chunking. It keeps headings and captions with their content, merges compatible peer chunks, and can repeat table headers when a table spans multiple chunks.
-6. **Embedding** creates multilingual vector representations for each chunk and stores them with the original text and source metadata.
-7. **Hybrid retrieval** combines keyword matching with vector similarity to produce a broad candidate set that includes both exact operational terms and semantically related content.
-8. **Cross-encoder reranking** scores each query and candidate-chunk pair together, then reorders the candidates so the most relevant context reaches the generator. The reranker runs on the smaller candidate set to balance quality and latency.
-9. **Generation** sends the user query and reranked context to an LLM, which produces a grounded answer and can return the source references associated with the retrieved chunks.
+#### Ingestion
+
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '15px'}, 'flowchart': {'curve': 'linear', 'nodeSpacing': 30, 'rankSpacing': 40}}}%%
+flowchart TB
+    INPUT["📄 PDFs • images • CSV • XLSX"]
+    RECORD["Record document + metadata"]
+    LAYOUT["Docling layout detection<br/>text • tables • figures • images"]
+    VISUAL["OCR + VLM<br/>extract text + describe visuals"]
+    CONVERT["Semantic conversion<br/>Markdown / JSON preserved"]
+    CHUNK["HybridChunker<br/>context-aware + tokenizer-aware"]
+    EMBED["BGE-M3<br/>multilingual embeddings"]
+
+    QDRANT[("Qdrant<br/>vector index")]
+    SQLITE[("SQLite<br/>document + chunk metadata")]
+    FILES[("Local FileSystem<br/>originals + page images")]
+
+    INPUT --> RECORD
+    RECORD --> LAYOUT
+    LAYOUT --> VISUAL
+    VISUAL --> CONVERT
+    CONVERT --> CHUNK
+    CHUNK --> EMBED
+    EMBED --> QDRANT
+
+    RECORD -.-> SQLITE
+    RECORD -.-> FILES
+    VISUAL -.-> FILES
+    CHUNK -.-> SQLITE
+
+    classDef process fill:#D1FAE5,stroke:#047857,color:#064E3B,stroke-width:1.5px
+    classDef store fill:#FEF3C7,stroke:#B45309,color:#78350F,stroke-width:1.5px
+    classDef input fill:#DBEAFE,stroke:#1E40AF,color:#1E3A8A,stroke-width:1.5px
+
+    class INPUT input
+    class RECORD,LAYOUT,VISUAL,CONVERT,CHUNK,EMBED process
+    class QDRANT,SQLITE,FILES store
+```
+
+#### Query
+
+```mermaid
+%%{init: {'themeVariables': {'fontSize': '15px'}, 'flowchart': {'curve': 'linear', 'nodeSpacing': 30, 'rankSpacing': 40}}}%%
+flowchart TB
+    QUESTION["❓ User question"]
+    RETRIEVE["Hybrid retrieval<br/>keyword + vector similarity"]
+    RERANK["Cross-encoder reranking<br/>score query–chunk pairs"]
+    GENERATE["Grounded generation<br/>question + reranked context"]
+    CHECK{"Evidence<br/>sufficient?"}
+    ANSWER["✅ Cited answer<br/>+ source references"]
+    ABSTAIN["⛔ Abstention<br/>'I don't know'"]
+
+    QDRANT[("Qdrant<br/>vector index")]
+    SQLITE[("SQLite<br/>provenance")]
+
+    QUESTION --> RETRIEVE
+    RETRIEVE --> RERANK
+    RERANK --> GENERATE
+    GENERATE --> CHECK
+    CHECK -->|yes| ANSWER
+    CHECK -->|no| ABSTAIN
+
+    QDRANT -.-> RETRIEVE
+    SQLITE -.-> GENERATE
+
+    classDef process fill:#D1FAE5,stroke:#047857,color:#064E3B,stroke-width:1.5px
+    classDef store fill:#FEF3C7,stroke:#B45309,color:#78350F,stroke-width:1.5px
+    classDef llm fill:#FEE2E2,stroke:#B91C1C,color:#7F1D1D,stroke-width:1.5px
+    classDef question fill:#DBEAFE,stroke:#1E40AF,color:#1E3A8A,stroke-width:1.5px
+
+    class QUESTION question
+    class RETRIEVE,RERANK process
+    class GENERATE,CHECK,ANSWER,ABSTAIN llm
+    class QDRANT,SQLITE store
+```
 
 ### Design principles
 
@@ -145,13 +211,12 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 | Frontend | [Next.js](https://nextjs.org/docs/app) · React · TypeScript · Tailwind CSS | Chat UI and uploads | <img src='https://cdn.simpleicons.org/nextdotjs/000000' alt='Next.js' title='Next.js' height='20' /> <img src='https://cdn.simpleicons.org/react/61DAFB' alt='React' title='React' height='20' /> <img src='https://cdn.simpleicons.org/typescript/3178C6' alt='TypeScript' title='TypeScript' height='20' /> <img src='https://cdn.simpleicons.org/tailwindcss/06B6D4' alt='Tailwind CSS' title='Tailwind CSS' height='20' /> |
 | API | Python · [FastAPI](https://fastapi.tiangolo.com/) · Pydantic | Typed document and query contracts | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> <img src='https://cdn.simpleicons.org/fastapi/009688' alt='FastAPI' title='FastAPI' height='20' /> <img src='https://cdn.simpleicons.org/pydantic/E92063' alt='Pydantic' title='Pydantic' height='20' /> |
 | Ingestion | [Docling](https://docling.org/) · OCR · `HybridChunker` | Layout-aware parsing and chunking | <img src='https://github.com/docling-project.png?size=64' alt='Docling' title='Docling' height='20' /> |
-| Orchestration | [LlamaIndex](https://docs.llamaindex.ai/en/v0.10.17/module_guides/loading/ingestion_pipeline/root/) | Optional ingestion and retrieval plumbing | <img src='https://github.com/run-llama.png?size=64' alt='LlamaIndex' title='LlamaIndex' height='20' /> |
 | Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
 | Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant/DC244C' alt='Qdrant' title='Qdrant' height='20' /> |
 | Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
-| Metadata | PostgreSQL | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/postgresql/4169E1' alt='PostgreSQL' title='PostgreSQL' height='20' /> |
+| Metadata | SQLite · PostgreSQL-ready | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/sqlite/003B57' alt='SQLite' title='SQLite' height='20' /> |
 | Storage | Local filesystem | Uploads and processed artifacts | — |
-| Jobs | Python worker · Redis | Background ingestion and re-indexing | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> <img src='https://cdn.simpleicons.org/redis/DC382D' alt='Redis' title='Redis' height='20' /> |
+| Jobs | Python worker | Background ingestion and re-indexing | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> |
 | Generation | Gemini 2.5 Flash-Lite (free tier for demo) · `google-genai` | Grounded answer generation | <img src='https://cdn.simpleicons.org/googlegemini/8E75B2' alt='Gemini' title='Gemini' height='20' /> |
 | Tooling | `uv` · `pnpm` | Python and Node.js dependencies | <img src='https://cdn.simpleicons.org/uv/6E56CF' alt='uv' title='uv' height='20' /> <img src='https://cdn.simpleicons.org/pnpm/F69220' alt='pnpm' title='pnpm' height='20' /> |
 
@@ -161,88 +226,52 @@ A reliable RAG system needs to be evaluated at every important boundary, from do
 
 ### 1. The golden dataset
 
-The golden dataset is the reference set used for regression testing and model comparison. Each test case should include:
-
-- A stable case ID and the source document ID
-- The question and its language
-- The expected answer or the facts an answer must contain
-- The relevant page, region, table, or chunk IDs that support the answer
-- The document format and question type, such as text lookup, table reasoning, visual understanding, or multi-step retrieval
-- An answerability label for questions where the system should abstain because the evidence is missing
-- Expected citation or source-reference requirements
-
-The dataset should contain representative PDFs, scans, tables, images, and bilingual documents. Gold evidence is essential because a correct final answer can hide a retrieval failure, while a wrong answer can come from either missing context or poor generation.
-
-#### Fast bootstrap workflow
-
-Creating 50 to 200 high-quality cases by hand is slow, so FORGE can bootstrap candidate cases from the processed corpus:
-
-1. Ask an LLM to generate questions from Docling Markdown or JSON chunks.
-2. Require each candidate to include the question, reference answer, language, answerability label, and exact supporting `chunk_id` values.
-3. Stratify the candidates by document format, language, question type, and difficulty.
-4. Run a time-boxed human calibration pass on a representative sample. Correct accepted cases, reject unsupported cases, and expand the review if the error rate is high.
-5. Promote only verified cases to the golden dataset.
-
-This gives the team a fast starting point while keeping the final labels grounded in the source documents. The pitch should describe this accurately as LLM-assisted dataset generation followed by human verification.
+The golden dataset is human-authored input included in each evaluation test case. Each case contains the question, source evidence, and expected answer; that expected answer is the ground truth used to evaluate retrieval, generation, correctness, and abstention.
 
 ### 2. The metrics
 
-#### Retrieval and reranking
+| **Metric** | **What it measures** | **Implementation** |
+|---|---|---|
+| **Hit@5** | Retrieval finds the right evidence | Python |
+| **Context Recall** | Retrieval finds all needed evidence | Ragas |
+| **Faithfulness** | LLM does not hallucinate | Ragas |
+| **Answer Correctness** | Answers match ground truth | Ragas |
+| **Answerability F1** | System abstains when it should | Python |
+| **p95 Latency** | System is fast enough for production | Python |
+| **Validation** | Regression checks and human calibration | Python |
 
-- **Hit@k and Recall@k:** whether the supporting evidence appears in the retrieved candidates.
-- **MRR and nDCG@k:** whether relevant evidence is ranked near the top.
-- **Context precision:** how much of the retrieved context is useful rather than noise.
-- **Context recall:** how much of the evidence needed to answer the question was retrieved.
-- **Reranker lift:** the change in ranking quality from hybrid retrieval alone to hybrid retrieval followed by cross-encoder reranking.
-
-#### Generation
-
-- **Faithfulness:** whether the answer is supported by the retrieved evidence.
-- **Answer correctness:** whether the answer agrees with the reference answer and required facts.
-- **Answer relevancy and completeness:** whether it addresses the question directly without omitting important parts.
-- **Citation correctness and coverage:** whether cited sources support the claims and cover the answer's main assertions.
-- **Abstention accuracy:** whether the system declines to answer when the corpus does not contain sufficient evidence.
-
-#### Pipeline and operations
-
-- OCR quality on a labeled sample, using character or word error rate where ground-truth transcriptions exist.
-- Table and layout extraction accuracy for representative documents.
-- Ingestion success rate and reprocessing failure rate.
-- Query latency, ingestion throughput, and cost per document or query.
-
-#### Specialized evaluation
-
-- **Table extraction:** normalize the ground-truth and predicted tables into a consistent Markdown representation, then compare cell content and structure using normalized edit distance or fuzzy matching. Report both a similarity score and cell-level precision, recall, and F1 where possible.
-- **VLM descriptions:** evaluate a labeled sample with a rubric-based judge. Score whether the description captures the main objects, labels, values, and relationships in the visual region on a 1 to 5 scale.
-- **Abstention:** label every case as answerable or unanswerable. An answerable question is successful only when the system gives a correct, supported answer. An unanswerable question is successful only when the system explicitly abstains. Report answerability F1 for the binary decision, unanswerable recall for correct abstentions, and end-to-end answer success across all cases.
-
-The four abstention outcomes are:
-
-- Answerable question with a correct supported answer: `1`
-- Answerable question answered with an abstention: `0`
-- Unanswerable question with an explicit abstention: `1`
-- Unanswerable question answered with an unsupported claim: `0`
-
-If the pitch uses the label **Abstention F1**, define it as the F1 score for the unanswerable class and show the underlying confusion matrix. The four-case score above is an end-to-end correctness score, not an F1 score by itself.
+Each run records the corpus, parser, chunker, embedding model, reranker, LLM, prompt, retrieval settings, and timestamp.
 
 #### Cost accounting
 
-Record usage for every ingestion and query run so costs can be calculated from actual model and infrastructure consumption:
+These are demo estimates; production reporting should use the model, token, image, and infrastructure usage recorded for each run.
 
-- **Document cost:** OCR and VLM calls, output tokens, embedding tokens, storage, and reprocessing.
-- **Query cost:** query embedding, reranking, LLM input and output tokens, and any citation or evaluation calls.
-- **Operational cost:** compute time, memory or GPU usage, and shared-service costs allocated per document or query.
+##### 1. Cost per query
 
-Store the model name, token or image counts, unit prices, and run ID with each measurement. Report both average and p95 cost where the workload varies. Values in the pitch dashboard must come from these logs rather than illustrative estimates.
+| Assumption | Estimate |
+|---|---:|
+| Average input tokens (question + five chunks) | ~2,000 |
+| Average output tokens | ~200 |
+| Gemini Flash-Lite input price | $0.075 / 1M tokens |
+| Gemini Flash-Lite output price | $0.30 / 1M tokens |
 
-### 3. The tools
+**Estimated cost per query** = `(2,000 × $0.075 + 200 × $0.30) / 1,000,000` = **$0.00021** (approximately **$0.0002**).
 
-- **Ragas** for automated RAG metrics such as context precision, context recall, faithfulness, response relevancy, and multimodal evaluation. [Ragas metrics](https://docs.ragas.io/en/latest/concepts/metrics/available_metrics/)
-- **pytest** for deterministic tests covering parsing, schema validation, chunk boundaries, metadata preservation, retrieval fixtures, and API contracts. [pytest parametrization](https://docs.pytest.org/en/stable/how-to/parametrize.html)
-- **RapidFuzz** or an equivalent text-similarity library for normalized table comparisons.
-- **Human review** for a sampled set of answers, especially table, image, bilingual, multi-step, and abstention cases. Automated judge scores should be calibrated against these reviews.
+##### 2. Cost per document
 
-Every evaluation run should record the corpus version, parser, chunker, tokenizer, embedding model, reranker, LLM, prompt version, retrieval settings, and timestamp. This makes changes measurable and prevents improvements in one component from being mistaken for improvements in the whole system.
+When Docling, BGE-M3, Qdrant, and local storage run locally, ingestion is approximately **$0.00 per document**. Visual analysis is also free while it remains within the Gemini free tier; paid VLM usage makes the cost document-dependent.
+
+##### 3. Monthly demo TCO
+
+| Component | Monthly estimate |
+|---|---:|
+| Oracle Cloud VPS (Always Free) | $0 |
+| Gemini API (10,000 queries) | $2.10 |
+| Gemini visual analysis within free tier | $0 |
+| Self-hosted services and local storage | $0 |
+| **Estimated total** | **$2.10/month** |
+
+The total excludes paid VLM overages, evaluation calls, and future managed-service costs.
 
 ### Baseline comparison
 
@@ -262,26 +291,5 @@ The results dashboard should show measured values and the change from baseline. 
 | Operations | p95 latency | TBD | TBD | TBD |
 | Operations | Cost per query | TBD | TBD | TBD |
 
-## Judge questions
-
-The pitch should explain the hardest engineering decisions through system behavior and measured trade-offs, rather than walking through source code.
-
-### What was the hardest engineering decision?
-
-The hardest decision was preserving document structure across the entire pipeline. Flattening everything into plain text would simplify ingestion, but it would lose table relationships, reading order, headings, and visual context. FORGE keeps the structured Docling representation through chunking, retrieves candidates with both semantic and lexical search, and uses a cross-encoder to select the strongest evidence before generation.
-
-### Why not put the whole document into a large context window?
-
-We considered full-document prompting for individual files. It repeats the entire document for every question, which increases latency and cost and becomes impractical as the document library grows. FORGE retrieves only the evidence needed for the question, reranks it for precision, and preserves the page or region reference needed to verify the answer. We will support this comparison with measured latency and cost from the evaluation dashboard instead of quoting unverified estimates.
-
-### How do you handle bilingual documents?
-
-We use BGE-M3 for multilingual embeddings so related English and Vietnamese passages can be compared in the same retrieval space. The system keeps the original language and source metadata, while the retrieval layer can match an English question to Vietnamese evidence, or the reverse, without requiring a separate index or a translation step for the first pass. Cross-language cases are part of the golden dataset.
-
-### What happens when a document is a poor-quality scan?
-
-The pipeline uses OCR for scanned text and can route low-confidence or visually complex regions through the VLM adapter. Each extracted result keeps its page and region reference, and low-confidence cases can enter a human-review queue in the metadata database. If the evidence remains insufficient, the answer path should abstain rather than generate a plausible guess.
-
-### How do you know the answer is grounded?
-
-Every answer is evaluated against the retrieved evidence and the gold source regions in the dataset. We measure retrieval recall and ranking quality before generation, then faithfulness, answer correctness, citation coverage, and abstention behavior after generation. The demo makes this visible by opening the exact evidence used for the answer.
+## Repository Rules
+1. Discuss ideas through Zalo first before building and sending a pull requests.
