@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./Logo.png" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" height="180" />
+  <img src="./apps/web/public/forge-mark.svg" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" height="180" />
 </p>
 
 <h1 align="center">FORGE Factory Operations Retrieval &amp; Generation Engine</h1>
