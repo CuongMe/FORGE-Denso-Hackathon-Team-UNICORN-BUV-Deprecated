@@ -2,14 +2,12 @@
   <img src="./apps/web/public/forge-mark.svg" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" width="120" height="120" />
 </p>
 
-<h1 align="center">FORGE Factory Operations Retrieval &amp; Generation Engine</h1>
+<h1 align="center">FORGE: Factory Operations Retrieval &amp; Generation Engine</h1>
 
 <p align="center">
   <strong>Multimodal factory document intelligence for grounded, traceable answers.</strong><br />
   Denso Factory Hackathon 2026 · Challenge A3
 </p>
-
-> **Dataset disclosure:** The supplied factory data-preparation/supply pack is **AI-generated synthetic data** for demonstration and evaluation only. It contains no official factory standard, confidential information, or production record.
 
 FORGE is a multi-format document understanding and retrieval-augmented generation (RAG) system. It is designed to process PDFs, images, tables, and bilingual documents using OCR/VLM, layout-aware extraction, multilingual embeddings, and vector search - enabling accurate chatbot responses without manual preprocessing.
 
@@ -23,43 +21,19 @@ FORGE is built around an evidence contract: document structure and provenance st
 
 ## Data Curation
 
-Input data is the foundation for validating the RAG system. To test every capability of the pipeline, the input corpus is curated from a diverse collection of open-source datasets, all licensed under permissive terms (Creative Commons, CC0, MIT, Apache 2.0, or public domain).
+Input data validates FORGE across document, visual, and tabular ingestion paths. The project keeps AI-generated functionality data separate from the external testing dataset.
 
-### Format Coverage
-
-The corpus exercises every claimed input path through two linked sets:
-
-**Coverage links**
-
-- **Digital PDF** → Docling text extraction and reading order
-- **Scanned PDF** → OCR and noisy-layout detection
-- **PDF with complex tables** → TableFormer and table-aware chunking
-- **PDF with charts or diagrams** → VLM adapter and image-block extraction
-- **Bilingual PDF (VN/JP, VN/EN)** → BGE-M3 cross-lingual retrieval
-- **Excel / CSV / XLSX** → structured parsing and row/column chunking
-- **Standalone images** → VLM description and image understanding
-- **Mixed PDF (text + table + image)** → structure parsing and multi-block handling
-
-### Difficulty Tiers
-
-Documents are stratified into six tiers for difficulty-specific reporting:
-
-- **Tier 1 — Clean:** Digital PDF, single language, simple layout
-- **Tier 2 — Structured:** Tables, headings, lists, nested sections
-- **Tier 3 — Visual:** Charts, diagrams, embedded images
-- **Tier 4 — Degraded:** Scanned, blurry, rotated, or low-resolution input
-- **Tier 5 — Multilingual:** Bilingual or cross-lingual content
-- **Tier 6 — Adversarial:** Missing pages, contradictory information, out-of-domain content
-
-At least 60% of the corpus is Tier 2–5, ensuring FORGE is tested on realistic industrial complexity rather than only clean documents.
+| Data source | Description and sources |
+|---|---|
+| **AI-generated functionality data** | Synthetic factory PDFs, scans, images, spreadsheets, and CSVs created for functionality testing. It exercises ingestion, OCR, visual analysis, retrieval, and UI flows. Source: [`data/denso_factory_hack_data_prep`](data/denso_factory_hack_data_prep). |
+| **Curated FORGE testing data** | External test pack containing 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A ground truth, 30 [Mitsubishi Electric VIXIO](https://www.mitsubishielectric.com/fa/download/software/detailsearch.page?mode=lib&kisyu=/vixio&shiryoid=1000000933&lang=2&select=0&softid=3&infostatus=2_2_2&viewradio=0&viewstatus=&viewpos=) metal-nut images with 18 paired defect masks, and [`Intelligent_Production_IIoT.csv`](https://www.kaggle.com/datasets/colabsss/intelligent-production-operations-dataset) plus [`industrial_dataset.csv`](data/legacy_industrial_equipment_sensor_logs/industrial_dataset.csv). Sources and counts: [`dataset_manifest.json`](data/curated_forge_testing/dataset_manifest.json); review checklist: [`golden_data_checklist.xlsx`](data/curated_forge_testing/golden_data_checklist.xlsx). |
 
 ### Curation Principles
 
-- **Open and licensed**: All documents are open-source or public domain, with clear attribution.
-- **No PII or confidential content**: No personally identifiable information or proprietary Denso material.
-- **Versioned and reproducible**: The corpus is tagged (e.g., `corpus_v1.0`) and referenced in every evaluation report.
-- **Metadata-complete**: Each document carries a manifest record (format, tier, language, page count, source, license).
-- **Bounded**: 10–20 documents, 80–200 pages total, enough for meaningful evaluation without exceeding 15 minutes per run.
+- **Source-linked:** Provider, download link, selection, and provenance are recorded in the manifest.
+- **Safe to test:** AI-generated data is synthetic; external samples contain no project-specific confidential material.
+- **Reproducible:** Curated files, counts, ground truth, and review status are versioned with the project.
+- **Metadata-complete:** Each source records its modality, intended test path, and available ground truth.
 
 ## Solution architecture
 
@@ -137,8 +111,9 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 | Frontend | [Next.js](https://nextjs.org/docs/app) · React · TypeScript · Tailwind CSS | Chat UI and uploads | <img src='https://cdn.simpleicons.org/nextdotjs/000000' alt='Next.js' title='Next.js' height='20' /> <img src='https://cdn.simpleicons.org/react/61DAFB' alt='React' title='React' height='20' /> <img src='https://cdn.simpleicons.org/typescript/3178C6' alt='TypeScript' title='TypeScript' height='20' /> <img src='https://cdn.simpleicons.org/tailwindcss/06B6D4' alt='Tailwind CSS' title='Tailwind CSS' height='20' /> |
 | API | Python · [FastAPI](https://fastapi.tiangolo.com/) · Pydantic | Typed document and query contracts | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> <img src='https://cdn.simpleicons.org/fastapi/009688' alt='FastAPI' title='FastAPI' height='20' /> <img src='https://cdn.simpleicons.org/pydantic/E92063' alt='Pydantic' title='Pydantic' height='20' /> |
 | Ingestion | [Docling](https://docling.org/) · OCR · `HybridChunker` | Layout-aware parsing and chunking | <img src='https://github.com/docling-project.png?size=64' alt='Docling' title='Docling' height='20' /> |
+| Visual understanding | [Florence-2](https://huggingface.co/microsoft/Florence-2-base-ft) · Gemini (optional) | Local visual captions; Gemini fallback | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Florence-2 on Hugging Face' height='20' /> <img src='https://cdn.simpleicons.org/googlegemini/8E75B2' alt='Gemini' title='Gemini' height='20' /> |
 | Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
-| Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant/DC244C' alt='Qdrant' title='Qdrant' height='20' /> |
+| Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) (self-hosted) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant/DC244C' alt='Qdrant' title='Qdrant' height='20' /> |
 | Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
 | Metadata | SQLite · PostgreSQL-ready | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/sqlite/003B57' alt='SQLite' title='SQLite' height='20' /> |
 | Storage | Local filesystem | Uploads and processed artifacts | — |
@@ -148,11 +123,11 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 
 ## Evaluation framework
 
-A reliable RAG system needs to be evaluated at every important boundary, from document extraction to the final answer. FORGE uses three pillars: a golden dataset, a consistent metric set, and repeatable evaluation tooling.
+A reliable RAG system needs to be evaluated at every important boundary, from document extraction to the final answer. FORGE uses golden data prompts, a consistent metric set, and repeatable evaluation tooling.
 
 ### 1. The golden dataset
 
-The golden dataset is human-authored input included in each evaluation test case. Each case contains the question, source evidence, and expected answer; that expected answer is the ground truth used to evaluate retrieval, generation, correctness, and abstention.
+Golden data prompts are human-authored evaluation inputs. Each prompt includes a question and expected answer; the expected answer is the ground truth used to evaluate retrieval, generation, correctness, and abstention. Use the human-review checklist in [`data/curated_forge_testing/golden_data_checklist.xlsx`](data/curated_forge_testing/golden_data_checklist.xlsx); JSONL remains only as a machine-readable runtime fixture where required.
 
 ### 2. The metrics
 
@@ -185,7 +160,7 @@ These are demo estimates; production reporting should use the model, token, imag
 
 ##### 2. Cost per document
 
-When Docling, BGE-M3, Qdrant, and local storage run locally, ingestion is approximately **$0.00 per document**. Visual analysis is also free while it remains within the Gemini free tier; paid VLM usage makes the cost document-dependent.
+When Docling, BGE-M3, Qdrant, Florence-2, and local storage run locally, ingestion and visual analysis are approximately **$0.00 per document** aside from self-hosted compute. Gemini remains an optional visual fallback; its usage is provider-priced.
 
 ##### 3. Monthly demo TCO
 
@@ -193,11 +168,15 @@ When Docling, BGE-M3, Qdrant, and local storage run locally, ingestion is approx
 |---|---:|
 | Oracle Cloud VPS (Always Free) | $0 |
 | Gemini API (10,000 queries) | $2.10 |
-| Gemini visual analysis within free tier | $0 |
+| Florence-2 visual analysis (local) | $0 |
 | Self-hosted services and local storage | $0 |
 | **Estimated total** | **$2.10/month** |
 
 The total excludes paid VLM overages, evaluation calls, and future managed-service costs.
+
+### License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
 
 ### Baseline comparison
 
@@ -216,6 +195,3 @@ The results dashboard should show measured values and the change from baseline. 
 | Generation | Answerability F1 | TBD | TBD | TBD |
 | Operations | p95 latency | TBD | TBD | TBD |
 | Operations | Cost per query | TBD | TBD | TBD |
-
-## Repository Rules
-1. Discuss ideas through Zalo first before building and sending a pull requests.
