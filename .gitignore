@@ -16,6 +16,8 @@ key.txt
 .env.local
 .env.*.local
 data/uploads/
+data/surface_defect_inspection_sdid/
+data/legacy_industrial_equipment_sensor_logs/
 data/.forge-cache/
 data/.forge-state/
 .qdrant-local/
@@ -29,3 +31,7 @@ tasks/
 .forge-smoke/
 .forge-test-state*/
 .pytest-basetemp*/
+Slide Design.md
+image.png
+**/.cache/
+data/**/*.zip
