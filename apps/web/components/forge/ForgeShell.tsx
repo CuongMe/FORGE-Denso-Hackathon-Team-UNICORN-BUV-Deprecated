@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import type { HealthResponse } from '@/lib/types';
 
-import { GraphIcon, JapanFlagIcon, TableIcon, UkFlagIcon, VietnamFlagIcon } from './ForgeIcons';
+import { TableIcon } from './ForgeIcons';
 
-export type ForgeView = 'ask' | 'documents' | 'graph';
+export type ForgeView = 'ask' | 'documents' | 'metrics' | 'evaluations';
 
 type ForgeShellProps = {
   activeView: ForgeView;
@@ -20,17 +20,11 @@ type ForgeShellProps = {
 const navItems: Array<{ id: ForgeView; label: string; icon?: typeof TableIcon }> = [
   { id: 'ask', label: 'Ask' },
   { id: 'documents', label: 'Documents', icon: TableIcon },
-  { id: 'graph', label: 'Graph', icon: GraphIcon },
+  { id: 'metrics', label: 'Metrics' },
+  { id: 'evaluations', label: 'Evaluations' },
 ];
 
-const languageOptions = [
-  { id: 'en', label: 'English', Flag: UkFlagIcon },
-  { id: 'ja', label: 'Japanese', Flag: JapanFlagIcon },
-  { id: 'vi', label: 'Vietnamese', Flag: VietnamFlagIcon },
-] as const;
-
 export function ForgeShell({ activeView, onViewChange, health, connectionError, rail, children }: ForgeShellProps) {
-  const [language, setLanguage] = useState('en');
   const apiState = connectionError ? 'API OFFLINE' : health ? (health.ready ? 'API READY' : 'API DEGRADED') : 'CONNECTING';
   const statusClass = connectionError ? 'is-warning' : health?.ready ? 'is-ready' : 'is-loading';
 
@@ -38,7 +32,7 @@ export function ForgeShell({ activeView, onViewChange, health, connectionError, 
     <main className='forge-app'>
       <header className='forge-header'>
         <div className='forge-brand' aria-label='FORGE Factory Operations Retrieval Generation Engine'>
-          <div className='forge-mark'><img src='/logo.png' alt='' className='forge-logo' /></div>
+          <div className='forge-mark'><img src='/forge-mark.svg' alt='' className='forge-logo' /></div>
           <div className='forge-brand-copy'>
             <div className='forge-wordmark'>FORGE</div>
             <div className='forge-descriptor' aria-label='Factory Operations Retrieval Generation Engine'>
@@ -63,13 +57,6 @@ export function ForgeShell({ activeView, onViewChange, health, connectionError, 
           </div>
           <div className={'forge-api-status ' + statusClass} role='status'>
             <span className='forge-status-dot' /><span>{apiState}</span><small>GEMINI</small>
-          </div>
-          <div className='forge-language-switch' aria-label='Language selector'>
-            {languageOptions.map(({ id, label, Flag }) => (
-              <button key={id} type='button' className={language === id ? 'is-active' : ''} aria-label={label} aria-pressed={language === id} onClick={() => setLanguage(id)}>
-                <Flag className='forge-flag' />
-              </button>
-            ))}
           </div>
         </div>
       </header>

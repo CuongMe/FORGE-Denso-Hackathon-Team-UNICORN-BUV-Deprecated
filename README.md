@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./apps/web/public/forge-mark.svg" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" height="180" />
+  <img src="./apps/web/public/forge-mark.svg" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" width="120" height="120" />
 </p>
 
 <h1 align="center">FORGE Factory Operations Retrieval &amp; Generation Engine</h1>
@@ -16,6 +16,10 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 ## Pain point
 
 Factory operations knowledge is often spread across PDFs, scanned images, tables, and bilingual documents. Each format can require different preprocessing, including OCR, layout reconstruction, table extraction, and language handling, before an AI system can search and use the content. When that work is manual or inconsistent, valuable information takes longer to access and chatbot answers can miss or misread important context. This makes it difficult to build one dependable retrieval workflow for the documents teams already use.
+
+## Unique selling point
+
+FORGE is built around an evidence contract: document structure and provenance stay attached from page and region through chunk, retrieval, reranking, and citation. This lets one auditable pipeline handle text, tables, visuals, and bilingual evidence while measuring not only answer quality, but also whether the system should abstain. Its retrieval boundary is designed to support learned evidence-path routing without replacing the core pipeline.
 
 ## Data Curation
 

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title">
+  <title>FORGE F mark</title>
+  <defs>
+    <linearGradient id="forge-gradient" x1="18" y1="16" x2="78" y2="82" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#168B6C" />
+      <stop offset="1" stop-color="#4D83E6" />
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="80" height="80" rx="20" fill="#F2F6F8" />
+  <path fill="url(#forge-gradient)" d="M27 22h43v13H42v10h25v13H42v16H27V22Z" />
+</svg>
