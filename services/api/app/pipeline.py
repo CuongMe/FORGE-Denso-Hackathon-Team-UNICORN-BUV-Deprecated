@@ -18,7 +18,6 @@ INGESTION_STAGE_DEFINITIONS: tuple[tuple[str, str], ...] = (
     ('chunking', 'Chunking'),
     ('embedding', 'Embedding'),
     ('indexing', 'Indexing'),
-    ('graph_extraction', 'Graph Extraction'),
     ('completed', 'Completed'),
 )
 

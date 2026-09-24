@@ -90,7 +90,7 @@ class IngestionWorker:
             error = 'Ingestion failed. Check service logs for details.'
             if current_stage in {
                 'uploading', 'parsing', 'ocr', 'table_extraction', 'vlm_analysis',
-                'chunking', 'embedding', 'indexing', 'graph_extraction',
+                'chunking', 'embedding', 'indexing',
             }:
                 try:
                     report(current_stage, 'failed', 100, error)

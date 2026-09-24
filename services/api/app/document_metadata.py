@@ -123,7 +123,7 @@ def summarize_document(
         'column_count': 0,
         'image_count': (
             max(1, len(image_refs))
-            if suffix in {'.png', '.jpg', '.jpeg', '.webp'}
+            if suffix in {'.png', '.jpg', '.jpeg', '.webp', '.bmp'}
             else len(image_refs)
         ),
         'region_types': region_types,

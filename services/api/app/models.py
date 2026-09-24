@@ -93,51 +93,20 @@ class RetrievalTrace(BaseModel):
     candidates: list[RetrievalCandidate] = Field(default_factory=list)
 
 
+class TokenUsage(BaseModel):
+    prompt_tokens: int = Field(default=0, ge=0)
+    completion_tokens: int = Field(default=0, ge=0)
+    total_tokens: int = Field(default=0, ge=0)
+    estimated_cost_usd: float = Field(default=0.0, ge=0)
+
+
 class QueryResponse(BaseModel):
     answer: str
     abstained: bool
     grounding: Literal['grounded', 'best_match', 'no_match'] = 'grounded'
     citations: list[Citation]
     trace: RetrievalTrace
-
-
-class GraphNode(BaseModel):
-    id: str
-    kind: Literal['source', 'chunk', 'concept']
-    label: str
-    subtitle: str = ''
-    doc_id: str | None = None
-    source_name: str | None = None
-    source_path: str | None = None
-    format: str | None = None
-    status: str | None = None
-    factory_topic: str | None = None
-    page: int | None = None
-    pages: list[int] = Field(default_factory=list)
-    region: str | None = None
-    region_type: str | None = None
-    preview: str | None = None
-    provenance: list[ChunkProvenance] = Field(default_factory=list)
-
-
-class GraphEdge(BaseModel):
-    id: str
-    source: str
-    target: str
-    relation: str
-    page: int | None = None
-    region: str | None = None
-    provenance_ref: str | None = None
-    confidence: float = 0.0
-
-
-class GraphResponse(BaseModel):
-    backend: str
-    selected_node: str | None = None
-    nodes: list[GraphNode] = Field(default_factory=list)
-    edges: list[GraphEdge] = Field(default_factory=list)
-    total_nodes: int = 0
-    total_edges: int = 0
+    usage: TokenUsage = Field(default_factory=TokenUsage)
 
 
 class IngestionStage(BaseModel):

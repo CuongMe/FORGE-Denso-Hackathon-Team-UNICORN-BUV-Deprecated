@@ -1,13 +1,31 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 
 class VisualProviderError(RuntimeError):
     '''Raised when the configured visual model cannot be used.'''
+
+
+def _offline_model_mode() -> bool:
+    return os.getenv('FORGE_HF_OFFLINE', '1').strip().casefold() not in {
+        '0',
+        'false',
+        'no',
+        'off',
+    }
+
+
+def _configure_hf_module_cache() -> None:
+    if _offline_model_mode() and not os.getenv('HF_MODULES_CACHE'):
+        os.environ['HF_MODULES_CACHE'] = str(
+            Path(__file__).resolve().parents[1] / '.hf-modules'
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,6 +36,177 @@ class VisualDescription:
     reason: str = ''
 
 
+class Florence2VisualDescriber:
+    '''Describe visual evidence locally with Florence-2.
+
+    Florence-2 caption tasks do not expose calibrated confidence scores. Its
+    output is therefore always retained as searchable evidence and routed to
+    human review rather than being treated as an autonomous inspection result.
+    '''
+
+    _MIME_TYPES = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.bmp': 'image/bmp',
+    }
+    _TASK = '<MORE_DETAILED_CAPTION>'
+    _REVIEW_REASON = 'Florence-2 does not expose calibrated confidence; human review is required.'
+
+    def __init__(
+        self,
+        *,
+        model: str,
+        processor: Any | None = None,
+        model_instance: Any | None = None,
+    ) -> None:
+        self.model = model
+        self._processor = processor
+        self._model_instance = model_instance
+        self._device: str | None = None
+
+    def _load_dependencies(self) -> None:
+        if self._processor is not None and self._model_instance is not None:
+            return
+        _configure_hf_module_cache()
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoProcessor
+        except ImportError as exc:
+            raise VisualProviderError(
+                'Florence-2 requires the torch and transformers packages.'
+            ) from exc
+
+        self._device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        dtype = torch.float16 if self._device == 'cuda' else torch.float32
+        try:
+            if self._processor is None:
+                self._processor = AutoProcessor.from_pretrained(
+                    self.model,
+                    trust_remote_code=True,
+                    local_files_only=_offline_model_mode(),
+                )
+            if self._model_instance is None:
+                self._model_instance = AutoModelForCausalLM.from_pretrained(
+                    self.model,
+                    torch_dtype=dtype,
+                    trust_remote_code=True,
+                    local_files_only=_offline_model_mode(),
+                ).to(self._device)
+        except Exception as exc:
+            raise VisualProviderError('The Florence-2 model could not be loaded.') from exc
+
+    @property
+    def processor(self) -> Any:
+        self._load_dependencies()
+        return self._processor
+
+    @property
+    def model_instance(self) -> Any:
+        self._load_dependencies()
+        return self._model_instance
+
+    def warm(self) -> None:
+        """Load Florence-2 before the first visual ingestion request."""
+        self._load_dependencies()
+
+    @staticmethod
+    def _image_from_bytes(data: bytes) -> Any:
+        try:
+            from PIL import Image
+
+            with Image.open(BytesIO(data)) as opened:
+                return opened.convert('RGB').copy()
+        except Exception as exc:
+            raise VisualProviderError('Florence-2 could not read the image source.') from exc
+
+    @staticmethod
+    def _caption_from_response(result: Any, task: str) -> str:
+        value = result.get(task) if isinstance(result, dict) else result
+        return value.strip() if isinstance(value, str) else ''
+
+    def _describe_bytes(self, data: bytes) -> VisualDescription:
+        image = self._image_from_bytes(data)
+        try:
+            inputs = self.processor(
+                text=self._TASK,
+                images=image,
+                return_tensors='pt',
+            )
+            if self._device is not None and hasattr(inputs, 'to'):
+                inputs = inputs.to(self._device)
+            generated = self.model_instance.generate(
+                input_ids=inputs['input_ids'],
+                pixel_values=inputs['pixel_values'],
+                max_new_tokens=256,
+                do_sample=False,
+                num_beams=3,
+            )
+            generated_text = self.processor.batch_decode(
+                generated,
+                skip_special_tokens=False,
+            )[0]
+            parsed = self.processor.post_process_generation(
+                generated_text,
+                task=self._TASK,
+                image_size=image.size,
+            )
+        except VisualProviderError:
+            raise
+        except Exception as exc:
+            raise VisualProviderError('Florence-2 could not analyze the visual source.') from exc
+
+        description = self._caption_from_response(parsed, self._TASK)
+        if not description:
+            return VisualDescription(
+                description='',
+                confidence=0.0,
+                review_required=True,
+                reason='Florence-2 did not return a visual description.',
+            )
+        return VisualDescription(
+            description=description,
+            confidence=0.5,
+            review_required=True,
+            reason=self._REVIEW_REASON,
+        )
+
+    def describe(
+        self,
+        source: Path,
+        *,
+        region_ref: str,
+        page: int | None = None,
+    ) -> VisualDescription:
+        if source.suffix.casefold() not in self._MIME_TYPES:
+            source_label = source.suffix or 'unknown'
+            return VisualDescription(
+                description='',
+                confidence=0.0,
+                review_required=True,
+                reason=f'Unsupported Florence-2 source type: {source_label}.',
+            )
+        return self._describe_bytes(source.read_bytes())
+
+    def describe_region(
+        self,
+        data: bytes,
+        *,
+        mime_type: str,
+        region_ref: str,
+        page: int | None = None,
+    ) -> VisualDescription:
+        if mime_type not in self._MIME_TYPES.values():
+            return VisualDescription(
+                description='',
+                confidence=0.0,
+                review_required=True,
+                reason=f'Unsupported Florence-2 region type: {mime_type}.',
+            )
+        return self._describe_bytes(data)
+
+
 class GeminiVisualDescriber:
     '''Describe visual evidence with Gemini and fail safe on uncertain output.'''
 
@@ -26,6 +215,7 @@ class GeminiVisualDescriber:
         '.jpeg': 'image/jpeg',
         '.png': 'image/png',
         '.webp': 'image/webp',
+        '.bmp': 'image/bmp',
         '.pdf': 'application/pdf',
     }
 
@@ -61,6 +251,10 @@ class GeminiVisualDescriber:
                 raise VisualProviderError('The VLM client could not be created.') from exc
         return self._client
 
+    def warm(self) -> None:
+        """Initialize the Gemini visual client without spending a request."""
+        _ = self.client
+
     def _describe_bytes(
         self,
         data: bytes,
@@ -70,6 +264,17 @@ class GeminiVisualDescriber:
         page: int | None,
         cropped: bool,
     ) -> VisualDescription:
+        if mime_type == 'image/bmp':
+            try:
+                from PIL import Image
+
+                with Image.open(BytesIO(data)) as opened:
+                    converted = BytesIO()
+                    opened.convert('RGB').save(converted, format='PNG')
+                data = converted.getvalue()
+                mime_type = 'image/png'
+            except Exception as exc:
+                raise VisualProviderError('The VLM could not convert the BMP image source.') from exc
         try:
             from google.genai import types
 

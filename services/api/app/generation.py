@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from app.models import Citation, RetrievedChunk
+from app.models import Citation, RetrievedChunk, TokenUsage
 
 
 ABSTENTION_TEXT = (
@@ -20,11 +20,13 @@ class AnswerDraft:
         abstained: bool,
         citations: list[Citation],
         grounding: GroundingStatus = 'grounded',
+        usage: TokenUsage | None = None,
     ) -> None:
         self.answer = answer
         self.abstained = abstained
         self.citations = citations
         self.grounding = grounding
+        self.usage = usage or TokenUsage()
 
 
 class GroundedAnswerer:
@@ -34,8 +36,8 @@ class GroundedAnswerer:
     def answer(self, question: str, results: list[RetrievedChunk]) -> AnswerDraft:
         if not results:
             return AnswerDraft(
-                answer=NO_MATCH_TEXT,
-                abstained=False,
+                answer=ABSTENTION_TEXT,
+                abstained=True,
                 citations=[],
                 grounding='no_match',
             )

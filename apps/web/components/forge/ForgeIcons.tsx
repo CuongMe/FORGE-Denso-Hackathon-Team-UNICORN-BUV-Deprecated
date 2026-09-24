@@ -30,10 +30,6 @@ export function TableIcon(props: IconProps) {
   return <Icon {...props}><rect x="2.75" y="3.25" width="14.5" height="13.5" rx="1.75" /><path d="M2.75 7.5h14.5M7.5 7.5v9.25M12.5 7.5v9.25" /></Icon>;
 }
 
-export function GraphIcon(props: IconProps) {
-  return <Icon {...props}><circle cx="5" cy="10" r="2" /><circle cx="15" cy="5" r="2" /><circle cx="15" cy="15" r="2" /><path d="m6.8 9.1 6.4-3.2M6.8 10.9l6.4 3.2" strokeLinecap="round" /></Icon>;
-}
-
 export function ShieldIcon(props: IconProps) {
   return <Icon {...props}><path d="M10 2.5 16 5v4.2c0 3.7-2.5 6.9-6 8.3-3.5-1.4-6-4.6-6-8.3V5l6-2.5Z" strokeLinecap="round" strokeLinejoin="round" /><path d="m7.2 10 1.8 1.8 3.8-4" strokeLinecap="round" strokeLinejoin="round" /></Icon>;
 }
@@ -48,10 +44,6 @@ export function ArrowUpIcon(props: IconProps) {
 
 export function ArrowRightIcon(props: IconProps) {
   return <Icon {...props}><path d="M4 10h11M11 5l5 5-5 5" strokeLinecap="round" strokeLinejoin="round" /></Icon>;
-}
-
-export function PinIcon(props: IconProps) {
-  return <Icon {...props}><path d="m7 3 6 6M9 5l-4 4 3 3-3 5 5-3 3 3 4-4M11 9l-2 2" strokeLinecap="round" strokeLinejoin="round" /></Icon>;
 }
 
 export function UkFlagIcon(props: IconProps) {

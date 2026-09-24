@@ -1,6 +1,8 @@
 import type {
+  EvaluationDataset,
+  EvaluationRun,
+  QueryMetrics,
   DocumentSummary,
-  GraphResponse,
   HealthResponse,
   IngestionJob,
   QueryResponse,
@@ -8,20 +10,42 @@ import type {
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_FORGE_API_URL ?? "http://127.0.0.1:8000/api";
+let adminKey = "";
+
+export function setAdminKey(value: string) {
+  adminKey = value.trim();
+}
 
 export function getDocumentRawUrl(documentId: string) {
   return `${API_BASE}/documents/${encodeURIComponent(documentId)}/raw`;
 }
+export function getDocumentPreviewUrl(documentId: string) {
+  return `${API_BASE}/documents/${encodeURIComponent(documentId)}/preview`;
+}
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, timeoutMs = 30_000): Promise<T> {
   const headers = new Headers(init?.headers);
   if (!(init?.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers,
-  });
+  if (adminKey) headers.set("X-Forge-Admin-Key", adminKey);
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (error: unknown) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("The API did not respond before the upload timeout. Check that the FastAPI service is running.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
   const body = (await response.json()) as T & { error?: { message?: string } };
   if (!response.ok) {
     throw new Error(body.error?.message ?? "The API request failed.");
@@ -31,6 +55,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getHealth() {
   return request<HealthResponse>("/health");
+}
+
+export function getMetrics() {
+  return request<QueryMetrics>('/metrics');
+}
+
+export function getEvaluationDatasets() {
+  return request<{ data: { id: EvaluationDataset; count: number; answerable: number; signed_off: number; pending_review: number }[] }>('/evaluations/datasets');
+}
+
+export function getEvaluations() {
+  return request<{ data: EvaluationRun[] }>('/evaluations');
+}
+
+export function getEvaluation(id: string) {
+  return request<EvaluationRun>('/evaluations/' + encodeURIComponent(id));
+}
+
+export function startEvaluation(dataset: EvaluationDataset, limit: number) {
+  return request<EvaluationRun>('/evaluations', { method: 'POST', body: JSON.stringify({ dataset, limit }) });
 }
 
 export async function getDocuments() {
@@ -51,21 +95,11 @@ export function uploadDocument(file: File) {
   return request<UploadResponse>("/documents", {
     method: "POST",
     body: form,
-  });
+  }, 120_000);
 }
 
 export function getIngestionJob(jobId: string) {
   return request<{ data: IngestionJob }>(
     "/ingestion/jobs/" + encodeURIComponent(jobId),
   ).then((response) => response.data);
-}
-
-export function getGraph(params: { nodeId?: string; search?: string; depth?: number; limit?: number } = {}) {
-  const query = new URLSearchParams();
-  if (params.nodeId) query.set('node_id', params.nodeId);
-  if (params.search) query.set('search', params.search);
-  if (params.depth !== undefined) query.set('depth', String(params.depth));
-  if (params.limit !== undefined) query.set('limit', String(params.limit));
-  const suffix = query.toString() ? '?' + query.toString() : '';
-  return request<GraphResponse>('/graph' + suffix);
 }

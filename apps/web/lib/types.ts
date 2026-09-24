@@ -1,3 +1,65 @@
+export type EvaluationDataset = 'golden' | 'abstention' | 'all';
+export type EvaluationSummary = {
+  completed: number;
+  failed: number;
+  source_recall: number | null;
+  source_precision: number | null;
+  hybrid_mrr: number | null;
+  reranked_mrr: number | null;
+  reranker_lift: number | null;
+  citation_precision: number | null;
+  answer_token_f1: number | null;
+  required_fact_coverage: number | null;
+  answerability_correct: number | null;
+  answerability_f1: number | null;
+  p50_latency_ms: number | null;
+  p95_latency_ms: number | null;
+};
+export type EvaluationCase = {
+  case_id: string;
+  question: string;
+  reference_answer: string;
+  required_facts: string[];
+  gold_evidence: { doc_id: string; page: number | null; region: string; quote: string }[];
+  answerable: boolean;
+  question_type: string;
+  language: string;
+  verification_status: string;
+  status: 'completed' | 'failed';
+  latency_ms: number;
+  error: string | null;
+  response: QueryResponse | null;
+  scores: (Pick<EvaluationSummary, 'source_recall' | 'source_precision' | 'hybrid_mrr' | 'reranked_mrr' | 'citation_precision' | 'answer_token_f1' | 'required_fact_coverage'> & { answerability_correct: boolean; predicted_answerable: boolean }) | null;
+};
+export type EvaluationRun = {
+  run_id: string;
+  status: 'queued' | 'running' | 'completed' | 'completed_with_errors' | 'interrupted' | 'failed';
+  dataset: EvaluationDataset;
+  total: number;
+  queued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  dataset_hash: string;
+  configuration: Record<string, unknown>;
+  summary: EvaluationSummary;
+  results?: EvaluationCase[];
+};
+export type QueryMetrics = {
+  total_queries: number;
+  window_size: number;
+  retention_days: number;
+  success_rate: number | null;
+  abstention_rate: number | null;
+  citation_rate: number | null;
+  p50_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
+  recent: { id: number; created_at: string; latency_ms: number; succeeded: number; abstained: number; citations: number; prompt_tokens: number; completion_tokens: number; total_tokens: number; estimated_cost_usd: number }[];
+};
+
 export type ChunkProvenance = {
   ref: string;
   kind: string;
@@ -25,6 +87,12 @@ export type QueryResponse = {
   abstained: boolean;
   grounding: 'grounded' | 'best_match' | 'no_match';
   citations: Citation[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    estimated_cost_usd: number;
+  };
   trace: {
     retrieval_mode: "hybrid";
     candidates_considered: number;
@@ -59,7 +127,6 @@ export type HealthResponse = {
   status: string;
   ready: boolean;
   readiness: { ready: boolean; checks: Record<string, string> };
-  demo_mode: boolean;
   documents_count: number;
   chunks_count: number;
   reranker: string;
@@ -69,51 +136,6 @@ export type HealthResponse = {
     chunker: string;
     supported_extensions: string[];
   };
-  graph?: {
-    backend: string;
-    available: boolean;
-    nodes_count: number;
-    edges_count: number;
-  };
-};
-
-export type GraphNode = {
-  id: string;
-  kind: 'source' | 'chunk' | 'concept';
-  label: string;
-  subtitle: string;
-  doc_id?: string | null;
-  source_name?: string | null;
-  source_path?: string | null;
-  format?: string | null;
-  status?: string | null;
-  factory_topic?: string | null;
-  page?: number | null;
-  pages: number[];
-  region?: string | null;
-  region_type?: string | null;
-  preview?: string | null;
-  provenance: ChunkProvenance[];
-};
-
-export type GraphEdge = {
-  id: string;
-  source: string;
-  target: string;
-  relation: string;
-  page?: number | null;
-  region?: string | null;
-  provenance_ref?: string | null;
-  confidence: number;
-};
-
-export type GraphResponse = {
-  backend: string;
-  selected_node: string | null;
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  total_nodes: number;
-  total_edges: number;
 };
 
 export type DocumentSummary = {
@@ -139,8 +161,8 @@ export type UploadResponse = {
   filename: string;
   status: string;
   message: string;
-  job_id?: string;
-  job?: IngestionJob;
+  job_id: string;
+  job: IngestionJob;
 };
 
 export type IngestionStageStatus = 'pending' | 'started' | 'completed' | 'failed';

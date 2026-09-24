@@ -1,4 +1,4 @@
-from app.generation import GroundedAnswerer
+from app.generation import ABSTENTION_TEXT, GroundedAnswerer
 from app.retrieval import HybridRetriever
 
 
@@ -34,10 +34,10 @@ def test_answerer_returns_best_match_without_abstaining():
     assert response.answer == results[0].chunk.content
 
 
-def test_answerer_reports_no_match_without_abstaining():
+def test_answerer_abstains_when_no_evidence_is_available():
     response = GroundedAnswerer().answer('unrelated question', [])
 
-    assert response.abstained is False
+    assert response.abstained is True
     assert response.grounding == 'no_match'
     assert response.citations == []
-    assert 'No matching content' in response.answer
+    assert response.answer == ABSTENTION_TEXT

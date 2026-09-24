@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from app import corpus
 from app.corpus import load_source_pack_chunks
 from app.ingestion import IngestedChunk
 
@@ -47,6 +48,11 @@ def test_source_registry_converts_every_manifest_file_without_qa_anchors(tmp_pat
 
 def test_curated_pdfs_can_be_enabled_explicitly(tmp_path, monkeypatch):
     monkeypatch.setenv('FORGE_INCLUDE_CURATED_DOCUMENTS', 'true')
+    curated = tmp_path / 'curated_documents'
+    curated.mkdir()
+    for name in ('reference-a.pdf', 'reference-b.pdf', 'reference-c.pdf'):
+        (curated / name).write_bytes(b'%PDF-1.4 test fixture')
+    monkeypatch.setattr(corpus, 'CURATED_ROOT', curated)
     adapter = RecordingAdapter()
 
     chunks = load_source_pack_chunks(adapter, cache_path=tmp_path / 'curated.json')

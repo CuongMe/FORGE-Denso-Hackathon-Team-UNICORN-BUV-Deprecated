@@ -17,7 +17,10 @@ Factory operations knowledge is often spread across PDFs, scanned images, tables
 
 ## Unique selling point
 
-FORGE is built around an evidence contract: document structure and provenance stay attached from page and region through chunk, retrieval, reranking, and citation. This lets one auditable pipeline handle text, tables, visuals, and bilingual evidence while measuring not only answer quality, but also whether the system should abstain. Its retrieval boundary is designed to support learned evidence-path routing without replacing the core pipeline.
+1. FORGE is fine-tuned for factory environments and designed for seamless integration with DensoGPT.
+2. Its local-first full-stack design keeps hosting costs close to zero.
+3. FORGE uses a hardened RAG pipeline to protect production operations from prompt injection and process failures.
+4. Its fail-safe workflow supports retries, checkpointed ingestion, and idempotent writes. If Docling crashes mid-document, ingestion resumes from the last completed page instead of starting over. VPS reboots do not leave stuck jobs, and failed LLM calls return a safe fallback instead of a 500 error or partial answer.
 
 ## Data Curation
 
@@ -30,10 +33,35 @@ Input data validates FORGE across document, visual, and tabular ingestion paths.
 
 ### Curation Principles
 
-- **Source-linked:** Provider, download link, selection, and provenance are recorded in the manifest.
-- **Safe to test:** AI-generated data is synthetic; external samples contain no project-specific confidential material.
-- **Reproducible:** Curated files, counts, ground truth, and review status are versioned with the project.
-- **Metadata-complete:** Each source records its modality, intended test path, and available ground truth.
+1. **Preserve provenance:** Keep each sample linked to its original source, dataset, metadata, and available ground truth.
+2. **Cover factory formats:** Include documents, scans, tables, images, CSV/XLSX files, and bilingual Vietnamese/Japanese content.
+3. **Separate test purposes:** Use AI-generated data for functionality testing and curated external data for system evaluation.
+4. **Keep evaluation honest:** Label synthetic data, retain human-reviewed answers or masks, and leave unavailable ground truth unfilled.
+
+## Market Research & Analysis
+
+FORGE sits between managed enterprise search, open-source document-RAG platforms, and industrial copilots. The alternatives below are adjacent rather than identical competitors:
+
+| Alternative | Current strength | FORGE's position |
+|---|---|---|
+| [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/retrieval-augmented-generation-overview?tabs=docs) | Managed hybrid retrieval, semantic ranking, agentic retrieval, and multimodal document extraction. | A smaller, local-first factory pipeline with direct control over parsing, models, and evidence policy. |
+| [Amazon Bedrock Knowledge Bases](https://docs.aws.amazon.com/bedrock/latest/userguide/kb-multimodal.html) | Managed multimodal ingestion and retrieval across text, images, audio, and video. | Focused on the factory document formats and bilingual evidence flows needed for the A3 demo. |
+| [Google Agent Search](https://docs.cloud.google.com/generative-ai-app-builder/docs) | Managed enterprise search, semantic understanding, structured data, PDFs, and generated answers. | Lower-cost, self-hostable architecture with an explicit ingestion trace and abstention path. |
+| [RAGFlow](https://github.com/infiniflow/ragflow/blob/main/docs/quickstart.mdx) | Open-source document parsing, visual understanding, multiple chunking strategies, and broad file support. | A narrower factory operations product with a simpler deployment footprint and a focused evaluation harness. |
+| [Siemens Industrial Copilot](https://www.siemens.com/en-gb/company/insights/generative-ai-industrial-copilot/) | Industrial troubleshooting, engineering assistance, and integration with Siemens workflows. | Vendor-neutral retrieval for mixed factory documents, scans, tables, images, and Vietnamese/Japanese content. |
+
+### Positioning
+
+The market is crowded at the generic RAG layer. FORGE should therefore be positioned as a practical factory-document intelligence layer: local-first, multimodal, bilingual, source-cited, and safe to abstain when evidence is weak. Its strongest wedge is the combination of layout-aware ingestion, hybrid retrieval, visual evidence handling, and a repeatable factory evaluation set—not a claim that its individual models are unique.
+
+### Related research
+
+- [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401) established the core pattern of grounding generation with retrieved external knowledge.
+- [BGE-M3](https://arxiv.org/abs/2402.03216) supports multilingual dense, sparse, and multi-vector retrieval, which aligns with FORGE's Vietnamese/Japanese retrieval requirement.
+- [DocVQA](https://arxiv.org/abs/2007.00398) shows that document question answering depends on structure, layout, and reading comprehension—not OCR alone.
+- [MMDocRAG](https://arxiv.org/abs/2505.16470) finds that multimodal document QA still struggles with cross-modal evidence retrieval, supporting FORGE's emphasis on visual evidence and explicit evaluation.
+
+The main gaps versus mature enterprise products are connectors, identity-aware permissions, high-availability workers, and measured benchmark results. These should be framed as the next production milestones rather than hidden behind generic RAG claims.
 
 ## Solution architecture
 
@@ -87,6 +115,28 @@ flowchart TB
     linkStyle default stroke:#333333,stroke-width:1px
 ```
 
+## Quick start
+
+1. Install the locked backend dependencies: `cd services/api && uv sync`.
+2. Copy `services/api/.env.example` to `services/api/.env` and set `GEMINI_API_KEY`.
+3. Start Qdrant locally on `http://127.0.0.1:6333`, or point `FORGE_QDRANT_URL` at a Qdrant Cloud instance.
+4. Build the source index once: `uv run python -m app.index_demo`.
+5. Start the API with `uv run uvicorn app.main:app --host 127.0.0.1 --port 8000`.
+6. Start the frontend in a second terminal: `cd apps/web && pnpm install && pnpm dev`.
+
+The API reports `ready: false` until Qdrant is reachable and the source index has been built.
+
+### Demo hosting
+
+The demo is designed to run on a single [AWS EC2 Free Tier–eligible instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-free-tier-usage.html). For newer AWS accounts, `m7i-flex.large` provides 2 vCPUs and 8 GiB RAM—enough for the FastAPI API, Next.js frontend, Docker-hosted Qdrant, SQLite, and cached local models. Confirm the Free Tier label in the AWS console before launch; eligibility, credits, storage, public IPv4, and data-transfer charges are account- and region-dependent.
+
+- Keep Qdrant private at `127.0.0.1:6333` and persist its storage on EBS.
+- Run one API process because the demo uses SQLite, local files, and an in-process worker.
+- Set `FORGE_QDRANT_URL=http://127.0.0.1:6333`, configure `FORGE_ALLOWED_ORIGINS`, and keep secrets in `.env`.
+- Add an AWS Budget alert before deployment; this is a time-limited demo plan, not permanent free hosting.
+
+See the [EC2 instance specifications](https://docs.aws.amazon.com/ec2/latest/instancetypes/gp.html) and [VPC pricing](https://aws.amazon.com/vpc/pricing/) before deploying.
+
 ### Design principles
 
 - **Layout-aware:** document structure is treated as part of the meaning, especially for tables, forms, and multi-column pages.
@@ -111,7 +161,7 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 | Frontend | [Next.js](https://nextjs.org/docs/app) · React · TypeScript · Tailwind CSS | Chat UI and uploads | <img src='https://cdn.simpleicons.org/nextdotjs/000000' alt='Next.js' title='Next.js' height='20' /> <img src='https://cdn.simpleicons.org/react/61DAFB' alt='React' title='React' height='20' /> <img src='https://cdn.simpleicons.org/typescript/3178C6' alt='TypeScript' title='TypeScript' height='20' /> <img src='https://cdn.simpleicons.org/tailwindcss/06B6D4' alt='Tailwind CSS' title='Tailwind CSS' height='20' /> |
 | API | Python · [FastAPI](https://fastapi.tiangolo.com/) · Pydantic | Typed document and query contracts | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> <img src='https://cdn.simpleicons.org/fastapi/009688' alt='FastAPI' title='FastAPI' height='20' /> <img src='https://cdn.simpleicons.org/pydantic/E92063' alt='Pydantic' title='Pydantic' height='20' /> |
 | Ingestion | [Docling](https://docling.org/) · OCR · `HybridChunker` | Layout-aware parsing and chunking | <img src='https://github.com/docling-project.png?size=64' alt='Docling' title='Docling' height='20' /> |
-| Visual understanding | [Florence-2](https://huggingface.co/microsoft/Florence-2-base-ft) · Gemini (optional) | Local visual captions; Gemini fallback | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Florence-2 on Hugging Face' height='20' /> <img src='https://cdn.simpleicons.org/googlegemini/8E75B2' alt='Gemini' title='Gemini' height='20' /> |
+| Visual understanding | [Florence-2](https://huggingface.co/microsoft/Florence-2-base-ft) | Local visual captions with human review | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Florence-2 on Hugging Face' height='20' /> |
 | Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
 | Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) (self-hosted) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant/DC244C' alt='Qdrant' title='Qdrant' height='20' /> |
 | Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
@@ -160,19 +210,19 @@ These are demo estimates; production reporting should use the model, token, imag
 
 ##### 2. Cost per document
 
-When Docling, BGE-M3, Qdrant, Florence-2, and local storage run locally, ingestion and visual analysis are approximately **$0.00 per document** aside from self-hosted compute. Gemini remains an optional visual fallback; its usage is provider-priced.
+When Docling, BGE-M3, Qdrant, Florence-2, and local storage run on the demo EC2 instance, ingestion and visual analysis are approximately **$0.00 per document** aside from the instance and storage allowance. Gemini remains an optional visual fallback; its usage is provider-priced.
 
 ##### 3. Monthly demo TCO
 
 | Component | Monthly estimate |
 |---|---:|
-| Oracle Cloud VPS (Always Free) | $0 |
+| AWS EC2 Free Tier–eligible demo instance | $0 while eligible* |
 | Gemini API (10,000 queries) | $2.10 |
 | Florence-2 visual analysis (local) | $0 |
-| Self-hosted services and local storage | $0 |
-| **Estimated total** | **$2.10/month** |
+| Docker Qdrant and SQLite | Included on the instance* |
+| **Estimated demo total** | **$2.10/month + AWS usage outside the allowance** |
 
-The total excludes paid VLM overages, evaluation calls, and future managed-service costs.
+\* AWS Free Tier eligibility, credits, EBS storage, public IPv4, and data transfer depend on the account and region. The total excludes paid VLM overages, evaluation calls, and future managed-service costs.
 
 ### License
 

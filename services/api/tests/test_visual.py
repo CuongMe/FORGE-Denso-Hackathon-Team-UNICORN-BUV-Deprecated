@@ -1,6 +1,63 @@
+from io import BytesIO
 from types import SimpleNamespace
 
-from app.visual import GeminiVisualDescriber
+from PIL import Image
+
+from app.visual import Florence2VisualDescriber, GeminiVisualDescriber
+
+
+def test_florence2_visual_describer_returns_a_reviewable_caption():
+    class FakeInputs(dict):
+        def to(self, *_args, **_kwargs):
+            return self
+
+    class FakeProcessor:
+        def __call__(self, *, text, images, return_tensors):
+            assert text == '<MORE_DETAILED_CAPTION>'
+            assert images.size == (3, 2)
+            assert return_tensors == 'pt'
+            return FakeInputs(input_ids='prompt', pixel_values='pixels')
+
+        def batch_decode(self, generated, *, skip_special_tokens):
+            assert generated == ['generated']
+            assert skip_special_tokens is False
+            return ['<caption>']
+
+        def post_process_generation(self, generated_text, *, task, image_size):
+            assert generated_text == '<caption>'
+            assert task == '<MORE_DETAILED_CAPTION>'
+            assert image_size == (3, 2)
+            return {task: 'A machined metal flange with six holes.'}
+
+    class FakeModel:
+        def generate(self, **kwargs):
+            assert kwargs['input_ids'] == 'prompt'
+            assert kwargs['pixel_values'] == 'pixels'
+            assert kwargs['max_new_tokens'] == 256
+            assert kwargs['do_sample'] is False
+            return ['generated']
+
+    describer = Florence2VisualDescriber(
+        model='microsoft/Florence-2-base-ft',
+        processor=FakeProcessor(),
+        model_instance=FakeModel(),
+    )
+
+    image = Image.new('RGB', (3, 2), color='white')
+    encoded = BytesIO()
+    image.save(encoded, format='PNG')
+
+    result = describer.describe_region(
+        encoded.getvalue(),
+        mime_type='image/png',
+        region_ref='#/pictures/1',
+        page=2,
+    )
+
+    assert result.description == 'A machined metal flange with six holes.'
+    assert result.confidence == 0.5
+    assert result.review_required is True
+    assert 'calibrated confidence' in result.reason
 
 
 def test_gemini_visual_describer_parses_confidence_and_review_decision(tmp_path):

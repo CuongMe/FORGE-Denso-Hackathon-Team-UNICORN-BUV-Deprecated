@@ -1,3 +1,4 @@
+import { useTranslations } from 'next-intl';
 import type { QueryResponse, RetrievalCandidate } from '@/lib/types';
 
 function formatLatency(value: number) {
@@ -8,30 +9,36 @@ function formatScore(value: number | null) {
   return value == null ? '-' : `${Math.round(value * 100)}%`;
 }
 
-function formatLocation(candidate: RetrievalCandidate) {
+function formatRerankScore(value: number | null) {
+  if (value == null) return '-';
+  return value === 1 ? '100%' : value.toFixed(3);
+}
+
+function formatLocation(candidate: RetrievalCandidate, locationNotRecorded: string) {
   if (candidate.page != null) return `p. ${candidate.page}`;
   if (candidate.pages.length > 0) return `pp. ${candidate.pages.join(', ')}`;
-  return 'location not recorded';
+  return locationNotRecorded;
 }
 
 export function RetrievalTrace({ response }: { response: QueryResponse }) {
+  const t = useTranslations();
   const candidates = response.trace.candidates ?? [];
   const metrics = [
-    ['Candidates', String(response.trace.candidates_considered)],
-    ['Reranked', String(response.trace.reranked_count)],
-    ['Threshold', response.trace.evidence_threshold.toFixed(2)],
-    ['Latency', formatLatency(response.trace.latency_ms)],
+    [t('trace.candidates'), String(response.trace.candidates_considered)],
+    [t('trace.reranked'), String(response.trace.reranked_count)],
+    [t('trace.threshold'), response.trace.evidence_threshold.toFixed(2)],
+    [t('trace.latency'), formatLatency(response.trace.latency_ms)],
   ];
 
   return (
     <section className='forge-side-card forge-trace-card' aria-labelledby='retrieval-trace-heading'>
       <div className='forge-side-card-heading'>
         <div>
-          <p className='forge-eyebrow' id='retrieval-trace-heading'>RETRIEVAL TRACE</p>
-          <p className='forge-trace-flow'>HYBRID -&gt; RERANK -&gt; ANSWER</p>
+          <p className='forge-eyebrow' id='retrieval-trace-heading'>{t('ask.retrievalTrace')}</p>
+          <p className='forge-trace-flow'>{t('ask.traceFlow')}</p>
         </div>
       </div>
-      <p className='forge-side-helper'>Ranked candidate detail from the server</p>
+      <p className='forge-side-helper'>{t('trace.helper')}</p>
       <div className='forge-trace-metrics'>
         {metrics.map(([label, value]) => (
           <div key={label}><span>{label}</span><strong>{value}</strong></div>
@@ -40,26 +47,26 @@ export function RetrievalTrace({ response }: { response: QueryResponse }) {
       <div className='forge-trace-scroll'>
         <table className='forge-trace-table'>
           <thead>
-            <tr><th>#</th><th>SOURCE / CHUNK</th><th>LOCATION</th><th>HYBRID</th><th>RERANK</th><th>ANSWER</th></tr>
+            <tr><th>#</th><th>{t('trace.sourceChunk')}</th><th>{t('trace.location')}</th><th>{t('trace.hybrid')}</th><th>{t('trace.rerank')}</th><th>{t('trace.answer')}</th></tr>
           </thead>
           <tbody>
             {candidates.length ? candidates.map((candidate) => (
               <tr key={candidate.chunk_id} className={candidate.selected_for_answer ? 'is-selected' : undefined}>
                 <td>{candidate.hybrid_rank}</td>
                 <td><strong>{candidate.doc_id}</strong><small>{candidate.chunk_id}</small></td>
-                <td>{formatLocation(candidate)}</td>
+                <td>{formatLocation(candidate, t('documents.provenanceMissing'))}</td>
                 <td>{formatScore(candidate.hybrid_score)}</td>
-                <td>{formatScore(candidate.rerank_score)}</td>
-                <td>{candidate.selected_for_answer ? 'Yes' : '-'}</td>
+                <td>{formatRerankScore(candidate.rerank_score)}</td>
+                <td>{candidate.selected_for_answer ? t('trace.yes') : '-'}</td>
               </tr>
             )) : (
-              <tr><td colSpan={6}>No retrieval candidates were returned.</td></tr>
+              <tr><td colSpan={6}>{t('trace.noCandidates')}</td></tr>
             )}
           </tbody>
         </table>
       </div>
       <p className='forge-trace-foot'>
-        {response.trace.candidates_considered} candidates - {response.trace.reranked_count} reranked - {formatLatency(response.trace.latency_ms)}
+        {t('trace.summary', { candidates: response.trace.candidates_considered, reranked: response.trace.reranked_count, latency: formatLatency(response.trace.latency_ms) })}
       </p>
     </section>
   );

@@ -26,13 +26,6 @@
 .forge-rail-status-card strong, .forge-rail-status-card small { display: block; }
 .forge-rail-status-card strong { color: var(--forge-green); font-size: 8px; letter-spacing: .04em; }
 .forge-rail-status-card small { margin-top: 7px; color: var(--forge-muted); font-size: 8px; line-height: 1.4; }
-.forge-rail-graph-filters { display: grid; gap: 7px; }
-.forge-rail-graph-filters > div { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 10px; border: 1px solid var(--forge-line); border-radius: 8px; background: var(--forge-surface); color: var(--forge-muted); font-size: 9px; font-weight: 800; }
-.forge-rail-graph-filters > div.is-active { border-color: #b9e2d4; background: var(--forge-green-soft); color: var(--forge-green); }
-.forge-rail-graph-filters i, .graph-rail-legend i { width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--forge-green); }
-.forge-rail-graph-filters i.chunk, .graph-rail-legend i.chunk { background: var(--forge-blue); }
-.forge-rail-graph-filters i.concept, .graph-rail-legend i.concept { background: #a568c7; }
-.forge-rail-graph-filters strong { margin-left: auto; color: inherit; font-size: 9px; }
 .forge-rail-note { max-width: 175px; margin-top: 27px; color: var(--forge-muted); font-size: 8px; line-height: 1.45; }
 
 .ask-layout { display: grid; grid-template-columns: minmax(0, 1fr) 294px; gap: 26px; align-items: start; }
@@ -88,12 +81,12 @@
 .forge-side-card { min-width: 0; padding: 17px; border: 1px solid var(--forge-line); border-radius: 10px; background: var(--forge-surface); }
 .forge-side-card-heading { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
 .forge-side-helper { margin: 8px 0 0; color: var(--forge-muted); font-size: 9px; line-height: 1.45; }
-.forge-side-pill, .graph-detail-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 25px; padding: 0 13px; border: 1px solid #b9e2d4; border-radius: 999px; background: var(--forge-green-soft); color: var(--forge-green); font-size: 8px; font-weight: 800; }
+.forge-side-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 25px; padding: 0 13px; border: 1px solid #b9e2d4; border-radius: 999px; background: var(--forge-green-soft); color: var(--forge-green); font-size: 8px; font-weight: 800; }
 .forge-current-reference { display: grid; gap: 5px; margin-top: 15px; padding: 13px; border: 1px solid var(--forge-line); border-radius: 8px; background: #f2f7f9; }
 .forge-current-reference strong { color: var(--forge-ink); font-size: 12px; }
 .forge-current-reference span { color: var(--forge-muted); font-size: 8px; font-weight: 700; }
 .forge-current-reference b { margin-top: 3px; color: var(--forge-ink); font-size: 9px; }
-.forge-current-reference a, .forge-side-link { color: var(--forge-green); font-size: 8px; font-weight: 800; text-decoration: none; }
+.forge-side-link { padding: 0; border: 0; background: transparent; color: var(--forge-green); font: inherit; font-size: 8px; font-weight: 800; text-align: left; text-decoration: none; cursor: pointer; }
 .forge-side-section { margin-top: 17px; }
 .forge-related-list { display: grid; gap: 7px; margin-top: 8px; }
 .forge-related-source { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 7px; min-height: 38px; padding: 8px; border: 1px solid var(--forge-line); border-radius: 8px; }
@@ -115,10 +108,10 @@
 .forge-trace-table td small { margin-top: 2px; color: var(--forge-muted); font-size: 7px; }
 .forge-trace-foot { margin: 8px 0 0; color: var(--forge-muted); font-size: 8px; }
 
-.documents-workspace, .graph-workspace { gap: 18px; }
-.documents-heading, .graph-heading { align-items: end; }
-.documents-heading h1, .graph-heading h1 { font-size: 34px; }
-.documents-heading .forge-corpus-summary, .graph-heading .forge-corpus-summary { text-align: right; }
+.documents-workspace { gap: 18px; }
+.documents-heading { align-items: end; }
+.documents-heading h1 { font-size: 34px; }
+.documents-heading .forge-corpus-summary { text-align: right; }
 .forge-search-bar { min-height: 43px; }
 .forge-search-bar strong { margin-left: auto; color: var(--forge-muted); font-size: 8px; white-space: nowrap; }
 .documents-filter-row { align-items: center; margin-top: -3px; }
@@ -148,37 +141,6 @@
 .forge-health-list .blue { background: var(--forge-blue); }
 .forge-health-list .purple { background: #a568c7; }
 
-.graph-heading { align-items: end; }
-.graph-search-bar { max-width: none; }
-.graph-filter-row { align-items: center; justify-content: start; gap: 12px; }
-.graph-filter-label { color: var(--forge-muted); font-size: 8px; font-weight: 800; letter-spacing: .07em; }
-.graph-filter-group { gap: 8px; }
-.graph-layer-filter { display: inline-flex; align-items: center; gap: 4px; min-width: 88px; justify-content: center; }
-.graph-layer-filter input { display: none; }
-.graph-layout { grid-template-columns: minmax(0, 1fr) 234px; gap: 22px; }
-.graph-canvas-scroll { height: 474px; overflow: auto; }
-.graph-canvas { min-width: 730px; height: 470px; background: var(--forge-surface); background-image: none; }
-.graph-canvas-label { top: 15px; left: 22px; color: var(--forge-muted); }
-.graph-canvas-label span { margin-left: 320px; color: var(--forge-muted); }
-.graph-node { min-width: 172px; max-width: 174px; min-height: 58px; padding: 10px 12px; border-radius: 9px; box-shadow: none; }
-.graph-node.source { border-left: 0; border-color: #b9e2d4; }
-.graph-node.source .graph-node-dot { background: var(--forge-green); }
-.graph-node.chunk { border-left: 0; border-color: #c9dcf4; background: #f3f7fc; }
-.graph-node.concept { border-left: 0; border-color: #f0d89a; background: #fffaf0; }
-.graph-node.concept .graph-node-dot { background: #eac456; }
-.graph-node.is-selected { border-color: var(--forge-green); background: var(--forge-green-soft); box-shadow: none; }
-.graph-node-title { font-size: 9px; }
-.graph-node-subtitle { font-size: 8px; }
-.graph-details { position: static; padding: 17px; }
-.graph-details .graph-detail-pill { float: right; margin-top: -4px; }
-.graph-details h2 { clear: both; margin-top: 15px; font-size: 17px; }
-.graph-details > p { font-size: 9px; }
-.graph-details .forge-relationship-list { gap: 7px; margin-top: 19px; padding-top: 14px; border-top: 1px solid var(--forge-line); }
-.forge-relationship { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px; min-height: 47px; padding: 10px; }
-.forge-relationship small { grid-column: 1 / -1; color: var(--forge-muted); font-size: 7px; }
-.graph-details .forge-side-link { display: block; margin-top: 20px; }
-.graph-details .forge-side-foot { margin-top: 56px; color: var(--forge-faint); font-size: 8px; }
-
 @media (max-width: 1050px) {
   .forge-header { grid-template-columns: 220px minmax(300px, 1fr) auto; padding-inline: 18px; }
   .forge-header-tools { gap: 12px; }
@@ -190,14 +152,13 @@
   .forge-header { grid-template-columns: 1fr; gap: 10px; }
   .forge-navigation-wrap { min-height: 36px; }
   .forge-header-tools { justify-content: start; }
-  .ask-layout, .forge-document-layout, .graph-layout { grid-template-columns: 1fr; }
+  .ask-layout, .forge-document-layout { grid-template-columns: 1fr; }
   .ask-side { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .forge-document-preview, .graph-details { position: static; }
+  .forge-document-preview { position: static; }
 }
 
 @media (max-width: 620px) {
   .ask-side { grid-template-columns: 1fr; }
   .forge-message.is-user { max-width: 86%; }
   .forge-document-context { flex-wrap: wrap; gap: 7px; padding-block: 7px; }
-  .graph-filter-row { align-items: start; flex-direction: column; }
 }

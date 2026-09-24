@@ -34,4 +34,6 @@ tasks/
 Slide Design.md
 image.png
 **/.cache/
+**/.hf-modules/
 data/**/*.zip
+data/external/

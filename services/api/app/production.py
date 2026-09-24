@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import math
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 from uuid import NAMESPACE_URL, uuid5
 
+from dotenv import load_dotenv
+
 from app.document_metadata import summarize_document
 from app.generation import ABSTENTION_TEXT, NO_MATCH_TEXT, AnswerDraft
 from app.ingestion import DoclingHybridChunkerAdapter, IngestedChunk
-from app.models import Chunk, ChunkProvenance, Citation, RetrievedChunk
+from app.models import Chunk, ChunkProvenance, Citation, RetrievedChunk, TokenUsage
 from app.pipeline import StageCallback
 from app.persistence import LifecycleStore
 
@@ -19,12 +22,61 @@ DEFAULT_DENSE_MODEL = "BAAI/bge-m3"
 DEFAULT_SPARSE_MODEL = "Qdrant/bm25"
 DEFAULT_RERANKER_MODEL = "BAAI/bge-reranker-v2-m3"
 DEFAULT_LLM_MODEL = "gemini-3.5-flash-lite"
+DEFAULT_VISUAL_PROVIDER = "florence2"
+DEFAULT_VISUAL_MODEL = "microsoft/Florence-2-base-ft"
+IMAGE_QUERY_TERMS = frozenset({
+    'image', 'images', 'img', 'photo', 'photos', 'picture', 'pictures',
+    'screenshot', 'screenshots', 'visual', 'visuals', 'ảnh', 'hình', 'hinh',
+})
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env", override=False)
+
+
+def _offline_model_mode() -> bool:
+    return os.getenv("FORGE_HF_OFFLINE", "1").strip().casefold() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
+
+
+def _query_requests_image_sources(question: str) -> bool:
+    tokens = set(re.findall(r'\w+', question.casefold(), flags=re.UNICODE))
+    return bool(tokens & IMAGE_QUERY_TERMS)
+
+
+if _offline_model_mode():
+    # Keep normal application startup independent of Hugging Face availability.
+    os.environ.setdefault("HF_HUB_OFFLINE", "1")
+    os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+
+
 class ProductionDependencyError(RuntimeError):
     """Raised when an explicitly selected production dependency is unavailable."""
 
 
 class ProductionServiceError(RuntimeError):
     """Raised when a configured production service cannot complete an operation."""
+
+
+def _resolve_model_source(model_name: str, component: str) -> str:
+    """Resolve a model to a local Hugging Face snapshot in offline mode."""
+    model_path = Path(model_name).expanduser()
+    if model_path.is_dir():
+        return str(model_path)
+    if not _offline_model_mode():
+        return model_name
+
+    try:
+        from huggingface_hub import snapshot_download
+
+        return snapshot_download(repo_id=model_name, local_files_only=True)
+    except Exception as exc:
+        raise ProductionServiceError(
+            f"The {component} model is not available in the local Hugging Face cache: "
+            f"{model_name}. Set FORGE_HF_OFFLINE=0 once to download it, then restart offline."
+        ) from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,12 +92,21 @@ class ProductionSettings:
     retrieval_limit: int
     rerank_limit: int
     evidence_threshold: float
+    input_usd_per_million: float = 0.0
+    output_usd_per_million: float = 0.0
+    embed_batch_size: int = 64
+    visual_provider: str = DEFAULT_VISUAL_PROVIDER
+    visual_model: str = DEFAULT_VISUAL_MODEL
 
     @classmethod
     def from_env(cls) -> "ProductionSettings":
+        qdrant_url = os.getenv("FORGE_QDRANT_URL", "http://127.0.0.1:6333")
+        qdrant_api_key = os.getenv("FORGE_QDRANT_API_KEY") or None
+        if qdrant_url.startswith(("http://127.0.0.1", "http://localhost")):
+            qdrant_api_key = None
         return cls(
-            qdrant_url=os.getenv("FORGE_QDRANT_URL", "http://127.0.0.1:6333"),
-            qdrant_api_key=os.getenv("FORGE_QDRANT_API_KEY") or None,
+            qdrant_url=qdrant_url,
+            qdrant_api_key=qdrant_api_key,
             collection_name=os.getenv("FORGE_QDRANT_COLLECTION", "forge_chunks"),
             dense_model=os.getenv("FORGE_DENSE_MODEL", DEFAULT_DENSE_MODEL),
             sparse_model=os.getenv("FORGE_SPARSE_MODEL", DEFAULT_SPARSE_MODEL),
@@ -57,9 +118,14 @@ class ProductionSettings:
                 or os.getenv("FORGE_LLM_API_KEY")
                 or None
             ),
-            retrieval_limit=max(1, int(os.getenv("FORGE_RETRIEVAL_LIMIT", "20"))),
+            retrieval_limit=max(1, int(os.getenv("FORGE_RETRIEVAL_LIMIT", "10"))),
             rerank_limit=max(1, int(os.getenv("FORGE_RERANK_LIMIT", "5"))),
             evidence_threshold=float(os.getenv("FORGE_EVIDENCE_THRESHOLD", "0.45")),
+            input_usd_per_million=max(0.0, float(os.getenv('FORGE_GEMINI_INPUT_USD_PER_MILLION', '0'))),
+            output_usd_per_million=max(0.0, float(os.getenv('FORGE_GEMINI_OUTPUT_USD_PER_MILLION', '0'))),
+            embed_batch_size=max(1, min(512, int(os.getenv('FORGE_EMBED_BATCH_SIZE', '64')))),
+            visual_provider=os.getenv('FORGE_VISUAL_PROVIDER', DEFAULT_VISUAL_PROVIDER).strip().casefold(),
+            visual_model=os.getenv('FORGE_VISUAL_MODEL', DEFAULT_VISUAL_MODEL).strip(),
         )
 
 
@@ -120,7 +186,11 @@ class ProductionHybridRetriever:
                     "Install services/api/requirements-production.txt."
                 ) from exc
             try:
-                self._dense_encoder = SentenceTransformer(self.settings.dense_model)
+                dense_source = _resolve_model_source(self.settings.dense_model, "dense embedding")
+                self._dense_encoder = SentenceTransformer(
+                    dense_source,
+                    local_files_only=_offline_model_mode(),
+                )
             except Exception as exc:
                 raise ProductionServiceError(
                     f"The dense model could not be loaded: {self.settings.dense_model}."
@@ -141,6 +211,10 @@ class ProductionHybridRetriever:
                     f"The sparse model could not be loaded: {self.settings.sparse_model}."
                 ) from exc
 
+    def warm(self) -> None:
+        """Load local retrieval models before the first user request."""
+        self._load_dependencies()
+
     @property
     def client(self) -> Any:
         self._load_dependencies()
@@ -151,7 +225,12 @@ class ProductionHybridRetriever:
         encoder = self._dense_encoder
         method = getattr(encoder, "encode_document", None) or getattr(encoder, "encode")
         try:
-            encoded = method(texts, normalize_embeddings=True, show_progress_bar=False)
+            encoded = method(
+                texts,
+                batch_size=self.settings.embed_batch_size,
+                normalize_embeddings=True,
+                show_progress_bar=False,
+            )
         except Exception as exc:
             raise ProductionServiceError("The dense encoder failed to embed document text.") from exc
         vectors = _vector_batch(encoded)
@@ -175,7 +254,7 @@ class ProductionHybridRetriever:
     def _encode_sparse(self, texts: list[str]) -> list[Any]:
         self._load_dependencies()
         try:
-            embeddings = list(self._sparse_encoder.embed(texts, batch_size=max(1, len(texts))))
+            embeddings = list(self._sparse_encoder.embed(texts, batch_size=self.settings.embed_batch_size))
         except Exception as exc:
             raise ProductionServiceError("The sparse encoder failed to embed text.") from exc
         if len(embeddings) != len(texts):
@@ -316,13 +395,29 @@ class ProductionHybridRetriever:
             progress_callback('indexing', 'completed', 100, f'Indexed {len(points)} chunk(s) in Qdrant.')
         return len(points)
 
-    def search(self, question: str, limit: int = 8) -> list[RetrievedChunk]:
+    def search(
+        self,
+        question: str,
+        limit: int = 8,
+        *,
+        document_id: str | None = None,
+    ) -> list[RetrievedChunk]:
         if limit < 1:
             return []
         self.ensure_collection()
         dense_query = self._encode_query(question)
         sparse_query = self._sparse_vector(self._encode_sparse([question])[0])
         prefetch_limit = max(limit * 4, 20)
+        query_filter = None
+        if document_id:
+            query_filter = self._models.Filter(
+                must=[
+                    self._models.FieldCondition(
+                        key='doc_id',
+                        match=self._models.MatchValue(value=document_id),
+                    )
+                ]
+            )
         try:
             response = self.client.query_points(
                 collection_name=self.settings.collection_name,
@@ -339,6 +434,7 @@ class ProductionHybridRetriever:
                     ),
                 ],
                 query=self._models.FusionQuery(fusion=self._models.Fusion.RRF),
+                query_filter=query_filter,
                 with_payload=True,
                 limit=limit,
             )
@@ -385,12 +481,21 @@ class ProductionCrossEncoderReranker:
                     "Install services/api/requirements-production.txt."
                 ) from exc
             try:
-                self._model = CrossEncoder(self.settings.reranker_model, max_length=512)
+                reranker_source = _resolve_model_source(self.settings.reranker_model, "reranker")
+                self._model = CrossEncoder(
+                    reranker_source,
+                    max_length=512,
+                    local_files_only=_offline_model_mode(),
+                )
             except Exception as exc:
                 raise ProductionServiceError(
                     f"The reranker model could not be loaded: {self.settings.reranker_model}."
                 ) from exc
         return self._model
+
+    def warm(self) -> None:
+        """Load the cross-encoder before the first user request."""
+        _ = self.model
 
     @staticmethod
     def _score(value: Any) -> float:
@@ -461,20 +566,31 @@ class GeminiGroundedAnswerer:
             self._client = genai.Client(api_key=self.settings.llm_api_key)
         return self._client
 
+    def warm(self) -> None:
+        """Initialize the Gemini client without spending a generation request."""
+        _ = self.client
+
     def answer(self, question: str, results: list[RetrievedChunk]) -> AnswerDraft:
         if not results:
             return AnswerDraft(
-                answer=NO_MATCH_TEXT,
-                abstained=False,
+                answer=ABSTENTION_TEXT,
+                abstained=True,
                 citations=[],
                 grounding='no_match',
             )
         best_score = results[0].rerank_score
-        grounding = (
-            'grounded'
-            if best_score is not None and best_score >= self.evidence_threshold
-            else 'best_match'
+        evidence_threshold = (
+            min(self.evidence_threshold, 0.20)
+            if _query_requests_image_sources(question)
+            else self.evidence_threshold
         )
+        if best_score is None or best_score < evidence_threshold:
+            return AnswerDraft(
+                answer=ABSTENTION_TEXT,
+                abstained=True,
+                citations=[],
+                grounding='no_match',
+            )
 
         evidence = "\n\n".join(
             f"[{candidate.chunk.chunk_id}] {candidate.chunk.source_name}, "
@@ -500,6 +616,7 @@ class GeminiGroundedAnswerer:
                         "You are FORGE, a factory operations assistant. "
                         "Answer only from the supplied evidence. "
                         "If the evidence is weak or incomplete, clearly state that uncertainty. "
+                        "If the evidence cannot answer the question, reply exactly: ABSTAIN. "
                         "Never invent procedures, values, units, dates, or citations."
                     ),
                     temperature=0.1,
@@ -512,8 +629,15 @@ class GeminiGroundedAnswerer:
             raise ProductionServiceError("The configured LLM provider failed to answer.") from exc
 
         answer = str(getattr(response, "text", "") or "").strip()
+        usage = self._usage(response)
         if not answer or self._contains_abstention(answer):
-            answer = results[0].chunk.content
+            return AnswerDraft(
+                answer=ABSTENTION_TEXT,
+                abstained=True,
+                citations=[],
+                grounding='no_match',
+                usage=usage,
+            )
 
         citations = [
             Citation(
@@ -529,19 +653,72 @@ class GeminiGroundedAnswerer:
                 quote=candidate.chunk.content[:500],
                 score=candidate.rerank_score or candidate.hybrid_score,
             )
-            for candidate in results[: self.settings.rerank_limit]
+            for candidate in self._citation_candidates(
+                answer,
+                results[: self.settings.rerank_limit],
+            )
         ]
         return AnswerDraft(
             answer=answer,
             abstained=False,
             citations=citations,
-            grounding=grounding,
+            grounding='grounded',
+            usage=usage,
         )
+
+    @staticmethod
+    def _citation_candidates(
+        answer: str,
+        candidates: list[RetrievedChunk],
+    ) -> list[RetrievedChunk]:
+        """Keep citations tied to words present in the generated answer.
+
+        The provider receives several evidence chunks, but returning every
+        reranked chunk as a citation makes the UI imply support the answer may
+        not have used. A small lexical relevance filter keeps the citation set
+        conservative and falls back to the best chunk when the answer is a
+        paraphrase with no shared tokens.
+        """
+        if not candidates:
+            return []
+
+        answer_tokens = set(re.findall(r"[^\W_]+", answer.casefold()))
+        scored = [
+            (
+                len(answer_tokens & set(re.findall(r"[^\W_]+", candidate.chunk.content.casefold())))
+                / max(1, len(answer_tokens)),
+                candidate,
+            )
+            for candidate in candidates
+        ]
+        best_relevance = max(score for score, _ in scored)
+        if best_relevance <= 0:
+            return [candidates[0]]
+
+        cutoff = max(0.1, best_relevance * 0.5)
+        selected = [candidate for score, candidate in scored if score >= cutoff]
+        return selected or [candidates[0]]
 
     @staticmethod
     def _contains_abstention(answer: str) -> bool:
         lowered = answer.casefold()
-        return "i don't know" in lowered or "insufficient evidence" in lowered
+        return lowered == 'abstain' or "i don't know" in lowered or "insufficient evidence" in lowered
+
+    def _usage(self, response: Any) -> TokenUsage:
+        metadata = getattr(response, 'usage_metadata', None)
+        prompt = int(getattr(metadata, 'prompt_token_count', 0) or 0)
+        completion = int(getattr(metadata, 'candidates_token_count', 0) or 0)
+        total = int(getattr(metadata, 'total_token_count', prompt + completion) or prompt + completion)
+        cost = (
+            prompt * self.settings.input_usd_per_million
+            + completion * self.settings.output_usd_per_million
+        ) / 1_000_000
+        return TokenUsage(
+            prompt_tokens=prompt,
+            completion_tokens=completion,
+            total_tokens=total,
+            estimated_cost_usd=cost,
+        )
 
 
 

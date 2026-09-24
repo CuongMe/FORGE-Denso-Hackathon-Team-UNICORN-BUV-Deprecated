@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import os
+import re
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from app.corpus import list_demo_documents, load_source_pack_chunks
 from app.document_metadata import summarize_document
-from app.generation import AnswerDraft, GroundedAnswerer
-from app.graph_store import GraphStoreUnavailable, KuzuGraphStore
+from app.generation import AnswerDraft
 from app.ingestion import DoclingHybridChunkerAdapter, ingestion_status
 from app.models import Chunk, RetrievedChunk
 from app.persistence import LifecycleStore, sha256_file
@@ -22,11 +23,40 @@ from app.production import (
     ProductionServiceError,
     ProductionSettings,
 )
-from app.retrieval import CrossEncoderReranker, HybridRetriever
-from app.visual import GeminiVisualDescriber
+from app.visual import Florence2VisualDescriber, GeminiVisualDescriber
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
+IMAGE_EXTENSIONS = frozenset({'.jpg', '.jpeg', '.png', '.webp', '.bmp'})
+IMAGE_QUERY_TERMS = frozenset({
+    'image',
+    'images',
+    'img',
+    'photo',
+    'photos',
+    'picture',
+    'pictures',
+    'screenshot',
+    'screenshots',
+    'visual',
+    'visuals',
+    'ảnh',
+    'hình',
+    'hinh',
+})
+
+
+def _query_requests_image_sources(question: str) -> bool:
+    tokens = set(re.findall(r'\w+', question.casefold(), flags=re.UNICODE))
+    return bool(tokens & IMAGE_QUERY_TERMS)
+
+
+def _is_image_chunk(chunk: Chunk) -> bool:
+    source = Path(chunk.source_path or chunk.source_name)
+    if source.suffix.casefold() in IMAGE_EXTENSIONS:
+        return True
+    modality = chunk.modality.casefold()
+    return any(term in modality for term in ('image', 'screenshot', 'photo', 'picture', 'visual'))
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,79 +75,146 @@ def _relative_source_path(source: Path) -> str:
 
 @dataclass(slots=True)
 class RuntimeBundle:
-    mode: str
     chunks: tuple[Chunk, ...]
     retriever: Any
     reranker: Any
     answerer: Any
     ingestion_service: Any | None = None
     state_store: LifecycleStore | None = None
-    graph_store: KuzuGraphStore | None = None
     _documents: list[dict[str, object]] = field(default_factory=list)
-    _indexed_chunks: int = 0
-
-    @property
-    def demo_mode(self) -> bool:
-        return self.mode == 'demo'
+    _warm_lock: threading.Lock = field(default_factory=threading.Lock, init=False, repr=False)
+    _models_warmed: bool = field(default=False, init=False, repr=False)
 
     @property
     def chunks_count(self) -> int:
         if self.state_store is not None:
             return self.state_store.indexed_counts()[1]
-        return len(self.chunks) + self._indexed_chunks
+        return 0
 
     def document_list(self) -> list[dict[str, object]]:
-        if self.demo_mode:
-            return list_demo_documents(list(self.chunks))
         if self.state_store is not None:
             return self.state_store.list_documents()
         return list(self._documents)
 
     def ingestion(self) -> dict[str, object]:
         status = ingestion_status()
-        status.update({'mode': self.mode})
-        if self.mode == 'production':
-            status.update(
-                {
-                    'backend': 'docling-hybridchunker',
-                    'qdrant_collection': self.ingestion_service.retriever.settings.collection_name,
-                    'state_store': 'sqlite',
-                    'state_database': self.state_store.database if self.state_store else None,
-                }
-            )
+        status.update(
+            {
+                'mode': 'production',
+                'backend': 'docling-hybridchunker',
+                'qdrant_collection': self.ingestion_service.retriever.settings.collection_name,
+                'state_store': 'sqlite',
+                'state_database': self.state_store.database if self.state_store else None,
+            }
+        )
         return status
 
-    def graph_status(self) -> dict[str, object]:
-        if self.graph_store is None:
-            return {
-                'backend': 'unavailable',
-                'available': False,
-                'nodes_count': 0,
-                'edges_count': 0,
-            }
-        return self.graph_store.status()
+    def warm_models(self) -> None:
+        """Load query and embedding models before accepting user work.
 
-    def execute_query(self, question: str) -> QueryExecution:
-        candidates = self.retriever.search(
-            question,
-            limit=getattr(getattr(self.retriever, 'settings', None), 'retrieval_limit', 8),
-        )
+        Visual models remain lazy because many documents have no visual
+        regions, and a missing optional visual model must not break text
+        queries or embedding.
+        """
+        with self._warm_lock:
+            if self._models_warmed:
+                return
+            for component in (self.retriever, self.reranker, self.answerer):
+                warm = getattr(component, 'warm', None)
+                if callable(warm):
+                    warm()
+            self._models_warmed = True
+
+    def execute_query(
+        self,
+        question: str,
+        *,
+        document_id: str | None = None,
+    ) -> QueryExecution:
+        self.warm_models()
+        retrieval_limit = getattr(getattr(self.retriever, 'settings', None), 'retrieval_limit', 8)
+        if document_id:
+            candidates = self.retriever.search(
+                question,
+                limit=retrieval_limit,
+                document_id=document_id,
+            )
+        else:
+            candidates = self.retriever.search(question, limit=retrieval_limit)
+        if _query_requests_image_sources(question):
+            candidates = self._image_candidates(candidates, document_id=document_id)
         ranked = self.reranker.rerank(
             question,
             candidates,
             limit=getattr(getattr(self.reranker, 'settings', None), 'rerank_limit', 5),
         )
+        if document_id:
+            ranked = self._apply_document_reference_match(ranked, document_id)
         return QueryExecution(
             candidates=candidates,
             ranked=ranked,
             draft=self.answerer.answer(question, ranked),
         )
 
-    def readiness(self) -> dict[str, object]:
-        if self.demo_mode:
-            return {'ready': True, 'checks': {'corpus': 'ready', 'retrieval': 'demo', 'generation': 'demo'}}
+    @staticmethod
+    def _apply_document_reference_match(
+        ranked: list[RetrievedChunk],
+        document_id: str,
+    ) -> list[RetrievedChunk]:
+        """Treat an explicit source reference as an exact document match.
 
+        The cross-encoder still ranks chunks within the referenced document, but
+        its semantic score must not reject an operator-selected source merely
+        because a generic question does not overlap the source text.
+        """
+        return [
+            candidate.model_copy(update={'rerank_score': 1.0})
+            if getattr(getattr(candidate, 'chunk', None), 'doc_id', None) == document_id
+            else candidate
+            for candidate in ranked
+        ]
+
+    def _image_candidates(
+        self,
+        candidates: list[RetrievedChunk],
+        *,
+        document_id: str | None = None,
+    ) -> list[RetrievedChunk]:
+        """Keep image questions grounded in image-backed chunks only.
+
+        The source rail is metadata-driven, while retrieval is chunk-text-driven.
+        Without this boundary, a query containing "list" can select an unrelated
+        table or PDF when the requested image terms are absent from OCR text.
+        """
+        image_candidates = [candidate for candidate in candidates if _is_image_chunk(candidate.chunk)]
+        chunk_ids_present = {candidate.chunk.chunk_id for candidate in image_candidates}
+        representative_documents: set[str] = set()
+        for chunk in self.chunks:
+            if not _is_image_chunk(chunk) or chunk.doc_id in representative_documents:
+                continue
+            if document_id is not None and chunk.doc_id != document_id:
+                continue
+            representative_documents.add(chunk.doc_id)
+            if chunk.chunk_id in chunk_ids_present:
+                continue
+            image_candidates.append(
+                RetrievedChunk(
+                    chunk=chunk,
+                    hybrid_score=0.0,
+                )
+            )
+            chunk_ids_present.add(chunk.chunk_id)
+        return image_candidates
+
+    def readiness(self) -> dict[str, object]:
         checks: dict[str, str] = {}
+        try:
+            self.warm_models()
+            checks['models'] = 'ready'
+        except (ProductionDependencyError, ProductionServiceError) as exc:
+            checks['models'] = str(exc)
+        except Exception:
+            checks['models'] = 'model warm-up failed'
         for name, check in (
             ('qdrant', self.retriever.ensure_collection),
             ('reranker', lambda: self.reranker.model),
@@ -189,8 +286,6 @@ class RuntimeBundle:
             source_name,
             **ingestion_kwargs,
         )
-        chunk_count = int(result.get('chunk_count', 0))
-        self._indexed_chunks += chunk_count
         document = result.get('document')
         if not isinstance(document, dict):
             document = summarize_document(
@@ -213,51 +308,39 @@ class RuntimeBundle:
                 ingestion_job_id=job_id,
             )
             self.refresh_index_snapshot()
-        if progress_callback:
-            progress_callback('graph_extraction', 'started', 0, 'Extracting document relationships into Kùzu.')
-        if self.graph_store is not None:
-            graph_chunks = [item for item in result.get('chunks', []) if isinstance(item, Chunk)]
-            if graph_chunks:
-                self.graph_store.sync_documents([document], graph_chunks)
-            if progress_callback:
-                progress_callback('graph_extraction', 'completed', 100, 'Document relationships indexed in Kùzu.')
-        elif progress_callback:
-            progress_callback('graph_extraction', 'completed', 100, 'Graph store unavailable; relationship indexing was skipped.')
+        ingested_chunks = [item for item in result.get('chunks', []) if isinstance(item, Chunk)]
+        if ingested_chunks:
+            self.chunks = (*self.chunks, *ingested_chunks)
         self._documents.append(document)
         return result
 
 
 def build_runtime() -> RuntimeBundle:
-    mode = os.getenv('FORGE_RUNTIME_MODE', 'demo').strip().casefold()
-    if mode not in {'demo', 'production'}:
-        raise RuntimeError('FORGE_RUNTIME_MODE must be either demo or production.')
-    graph_store = _build_graph_store()
-    if mode == 'demo':
-        chunks = tuple(load_source_pack_chunks())
-        documents = list_demo_documents(list(chunks))
-        if graph_store is not None:
-            graph_store.sync_documents(documents, chunks)
-        return RuntimeBundle(
-            mode='demo',
-            chunks=chunks,
-            retriever=HybridRetriever(chunks),
-            reranker=CrossEncoderReranker(),
-            answerer=GroundedAnswerer(),
-            graph_store=graph_store,
-        )
-
+    configured_mode = os.getenv('FORGE_RUNTIME_MODE', 'production').strip().casefold()
+    if configured_mode != 'production':
+        raise RuntimeError('FORGE_RUNTIME_MODE must be production; the demo runtime has been removed.')
     settings = ProductionSettings.from_env()
-    chunks = tuple(load_source_pack_chunks())
+    include_source_pack = os.getenv('FORGE_INCLUDE_SOURCE_PACK', '1').strip().casefold() not in {
+        '0', 'false', 'no', 'off'
+    }
+    chunks = tuple(load_source_pack_chunks()) if include_source_pack else ()
     state_store = LifecycleStore()
     state_store.initialize()
     state_store.requeue_processing_jobs()
-    source_documents = list_demo_documents(list(chunks))
+    source_documents = list_demo_documents(list(chunks)) if include_source_pack else []
     state_store.sync_documents(source_documents)
     retriever = ProductionHybridRetriever(settings)
-    visual_describer = GeminiVisualDescriber(
-        model=settings.llm_model,
-        api_key=settings.llm_api_key,
-    )
+    if settings.visual_provider == 'florence2':
+        visual_describer = Florence2VisualDescriber(model=settings.visual_model)
+    elif settings.visual_provider == 'gemini':
+        visual_describer = GeminiVisualDescriber(
+            model=settings.llm_model,
+            api_key=settings.llm_api_key,
+        )
+    else:
+        raise RuntimeError(
+            'FORGE_VISUAL_PROVIDER must be either florence2 or gemini.'
+        )
     ingestion_service = ProductionIngestionService(
         retriever,
         chunker=DoclingHybridChunkerAdapter(visual_describer=visual_describer),
@@ -266,22 +349,11 @@ def build_runtime() -> RuntimeBundle:
     production_reranker = ProductionCrossEncoderReranker(settings)
     production_answerer = GeminiGroundedAnswerer(settings)
     return RuntimeBundle(
-        mode='production',
         chunks=chunks,
         retriever=retriever,
         reranker=production_reranker,
         answerer=production_answerer,
         ingestion_service=ingestion_service,
         state_store=state_store,
-        graph_store=graph_store,
         _documents=source_documents,
     )
-
-
-def _build_graph_store() -> KuzuGraphStore | None:
-    configured_path = os.getenv('FORGE_GRAPH_DB_PATH', '').strip()
-    database_path = Path(configured_path) if configured_path else PROJECT_ROOT / 'data' / 'state' / 'forge.kuzu'
-    try:
-        return KuzuGraphStore(database_path)
-    except GraphStoreUnavailable:
-        return None

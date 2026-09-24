@@ -1,2 +1,2 @@
 docling>=2.0,<3.0
-transformers>=4.40,<5.0
+transformers>=4.40,<4.50

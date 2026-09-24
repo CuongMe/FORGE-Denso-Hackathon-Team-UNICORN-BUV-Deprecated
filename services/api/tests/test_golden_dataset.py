@@ -59,12 +59,17 @@ def test_golden_dataset_evidence_and_answerability_contract_is_valid():
 
 
 def test_human_review_log_covers_every_case():
-    cases = _cases()
+    cases = _cases() + [
+        json.loads(line)
+        for line in ABSTENTION_HOLDOUT_PATH.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
     with REVIEW_LOG_PATH.open(encoding="utf-8", newline="") as stream:
         review_rows = list(csv.DictReader(stream))
 
     assert [row["case_id"] for row in review_rows] == [case["case_id"] for case in cases]
-    assert all(row["review_status"] == "pending_human_signoff" for row in review_rows)
+    assert all(row["review_status"] in {"pending_human_signoff", "signed_off"} for row in review_rows)
+    assert all(not row["reviewer"] and not row["reviewed_at"] for row in review_rows if row["review_status"] == "pending_human_signoff")
 
 
 def test_abstention_holdout_remains_separate_from_answerable_dataset():

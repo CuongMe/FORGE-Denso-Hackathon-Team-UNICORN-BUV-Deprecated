@@ -124,8 +124,7 @@ def test_job_stage_timeline_is_seeded_and_persists_updates(tmp_path):
 
     assert [stage['stage'] for stage in stages] == [
         'queued', 'uploading', 'parsing', 'ocr', 'table_extraction',
-        'vlm_analysis', 'chunking', 'embedding', 'indexing',
-        'graph_extraction', 'completed',
+        'vlm_analysis', 'chunking', 'embedding', 'indexing', 'completed',
     ]
     assert stages[0]['status'] == 'completed'
     assert stages[1]['status'] == 'pending'

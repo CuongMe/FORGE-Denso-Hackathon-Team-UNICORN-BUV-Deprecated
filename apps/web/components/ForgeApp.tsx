@@ -10,50 +10,91 @@ import { AskWorkspace, type AskMessage } from "./forge/AskWorkspace";
 import { DocumentsRail, DocumentsWorkspace, type DocumentFilter } from "./forge/DocumentsWorkspace";
 import { ForgeRail } from "./forge/ForgeRail";
 import { ForgeShell, type ForgeView } from "./forge/ForgeShell";
-import { GraphWorkspace, GraphWorkspaceRail } from "./forge/GraphWorkspace";
+import { EvaluationRail, EvaluationWorkspace } from "./forge/EvaluationWorkspace";
+import { getMessages, type Language } from "@/lib/i18n";
+import { NextIntlClientProvider, useTranslations } from "next-intl";
 
-const welcomeMessage: AskMessage = {
-  id: "welcome",
-  role: "assistant",
-  content: "Ask me about the indexed factory documents. I will show the evidence I used, or say I don't know when the corpus cannot support an answer.",
-};
-
-const prompts = demoQueries;
+function welcomeMessage(t: (key: string) => string): AskMessage {
+  return { id: "welcome", role: "assistant", content: t("ask.welcome") };
+}
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function ForgeApp() {
+function pendingUploadJob(file: File): IngestionJob {
+  const now = new Date().toISOString();
+  return {
+    job_id: newId('local-upload'),
+    document_id: 'pending-upload',
+    original_filename: file.name,
+    status: 'processing',
+    stage: 'uploading',
+    attempts: 0,
+    error: null,
+    result: null,
+    queued_at: now,
+    started_at: now,
+    completed_at: null,
+    updated_at: now,
+    progress: 0,
+    stages: [],
+  };
+}
+
+function ForgeAppContent({ language, onLanguageChange }: { language: Language; onLanguageChange: (language: Language) => void }) {
+  const t = useTranslations();
   const [activeView, setActiveView] = useState<ForgeView>("ask");
   const [documentFilter, setDocumentFilter] = useState<DocumentFilter>("ALL");
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
-  const [messages, setMessages] = useState<AskMessage[]>([welcomeMessage]);
+  const [messages, setMessages] = useState<AskMessage[]>(() => [welcomeMessage(t)]);
   const [question, setQuestion] = useState("");
+  const [referencedDocumentId, setReferencedDocumentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
-  const [ingestionJob, setIngestionJob] = useState<IngestionJob | null>(null);
+  const prompts = demoQueries.map((_, index) => ({
+    label: t(`prompt.${index}.label`),
+    description: t(`prompt.${index}.description`),
+    question: t(`prompt.${index}.question`),
+  }));
+
+  useEffect(() => {
+    setMessages((current) => current.length === 1 && current[0].id === "welcome" ? [welcomeMessage(t)] : current);
+  }, [language, t]);
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([getHealth(), getDocuments()])
-      .then(([healthResponse, documentResponse]) => {
+    let refreshInFlight = false;
+
+    async function refreshCorpus() {
+      if (!mounted || refreshInFlight) return;
+      refreshInFlight = true;
+      try {
+        const [healthResponse, documentResponse] = await Promise.all([getHealth(), getDocuments()]);
         if (!mounted) return;
         setHealth(healthResponse);
         setDocuments(documentResponse);
         setConnectionError(null);
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!mounted) return;
-        setConnectionError(error instanceof Error ? error.message : "The API is offline.");
-      });
+        setConnectionError(error instanceof Error ? error.message : t("api.offline"));
+      } finally {
+        refreshInFlight = false;
+      }
+    }
+
+    void refreshCorpus();
+    const refreshTimer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshCorpus();
+    }, 5000);
 
     return () => {
       mounted = false;
+      window.clearInterval(refreshTimer);
     };
-  }, []);
+  }, [language, t]);
 
   async function submitQuestion(value = question) {
     const trimmed = value.trim();
@@ -61,6 +102,7 @@ export function ForgeApp() {
 
     const assistantId = newId("assistant");
     setQuestion("");
+    setReferencedDocumentId(null);
     setIsLoading(true);
     setConnectionError(null);
     setMessages((current) => [...current, { id: newId("user"), role: "user", content: trimmed }, { id: assistantId, role: "assistant", content: "" }]);
@@ -69,40 +111,35 @@ export function ForgeApp() {
       const response = await askQuestion(trimmed);
       setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: response.answer, response } : message));
     } catch (error: unknown) {
-      setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: error instanceof Error ? error.message : "The query could not be completed." } : message));
+      setMessages((current) => current.map((message) => message.id === assistantId ? { ...message, content: error instanceof Error ? error.message : t("ask.errorQuery") } : message));
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleUpload(file: File, kind: "document" | "image") {
-    setUploadStatus("Uploading " + file.name + "...");
+  async function handleUpload(file: File) {
+    const localJob = pendingUploadJob(file);
+    const uploadMessageId = newId("upload");
+    setMessages((current) => [...current, { id: uploadMessageId, role: "upload", content: file.name, ingestionJob: localJob }]);
+    setUploadStatus(t("ask.uploading", { name: file.name }));
     try {
       const result = await uploadDocument(file);
-      if (!result.job_id) {
-        setIngestionJob(null);
-        setUploadStatus(
-          result.filename + (kind === "image" ? " received for image ingestion." : " received for ingestion."),
-        );
-        return;
-      }
-
-      setUploadStatus(result.filename + " queued. Waiting for the indexer...");
-      setIngestionJob(result.job ?? null);
+      setUploadStatus(t("ask.queued", { name: result.filename }));
+      setMessages((current) => current.map((message) => message.id === uploadMessageId ? { ...message, content: result.filename, ingestionJob: result.job } : message));
       let completed = result.job;
       for (let attempt = 0; attempt < 120; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 500));
         completed = await getIngestionJob(result.job_id);
-        setIngestionJob(completed);
+        setMessages((current) => current.map((message) => message.id === uploadMessageId ? { ...message, ingestionJob: completed } : message));
         if (completed.status === "indexed" || completed.status === "failed") break;
-        setUploadStatus(result.filename + " " + completed.stage + "...");
+        setUploadStatus(t("ask.processing", { name: result.filename, stage: t('stage.' + completed.stage) }));
       }
 
       if (!completed || completed.status === "queued" || completed.status === "processing") {
-        throw new Error("The upload is still processing. Check the document library shortly.");
+        throw new Error(t("ask.stillProcessing"));
       }
       if (completed.status === "failed") {
-        throw new Error(completed.error ?? "Document ingestion failed.");
+        throw new Error(completed.error ?? t("ask.ingestionFailed"));
       }
 
       const [nextDocuments, nextHealth] = await Promise.all([getDocuments(), getHealth()]);
@@ -110,20 +147,57 @@ export function ForgeApp() {
       setHealth(nextHealth);
       const reviewCount = completed.result?.review_count ?? 0;
       setUploadStatus(
-        result.filename + " indexed" + (reviewCount ? " with " + reviewCount + " visual review item(s)." : "."),
+        t("ask.indexed", { name: result.filename, suffix: reviewCount ? t("ask.reviewItems", { count: reviewCount }) : t("ask.indexedPeriod") }),
       );
     } catch (error: unknown) {
-      setUploadStatus(error instanceof Error ? error.message : "Upload failed.");
+      setUploadStatus(error instanceof Error ? error.message : t("ask.uploadFailed"));
     }
   }
 
-  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow="SOURCE PREVIEW" helper="Indexed evidence available to chat" /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} active={documentFilter} onChange={setDocumentFilter} /> : <GraphWorkspaceRail documents={documents} health={health} />;
+  function referenceDocument(docId: string) {
+    setReferencedDocumentId(docId);
+    setQuestion((current) => {
+      const withoutDocumentReference = current.replace(/(^|\s)@[A-Za-z0-9][A-Za-z0-9_-]*/g, " ").trim();
+      return `${withoutDocumentReference}${withoutDocumentReference ? " " : ""}@${docId} `;
+    });
+    window.requestAnimationFrame(() => document.getElementById("question-input")?.focus());
+  }
+
+  function clearDocumentReference() {
+    setReferencedDocumentId(null);
+    setQuestion((current) => current.replace(/(^|\s)@[A-Za-z0-9][A-Za-z0-9_-]*/g, " ").replace(/\s{2,}/g, " ").trim());
+    window.requestAnimationFrame(() => document.getElementById("question-input")?.focus());
+  }
+
+  function handleQuestionChange(value: string) {
+    setQuestion(value);
+    const match = value.match(/(^|\s)@([A-Za-z0-9][A-Za-z0-9_-]*)/);
+    setReferencedDocumentId(match && documents.some((document) => document.doc_id === match[2]) ? match[2] : null);
+  }
+
+  function openDocument(docId: string) {
+    setDocumentFilter("ALL");
+    setActiveView("documents");
+    window.setTimeout(() => {
+      const row = document.getElementById(`document-${docId}`);
+      row?.scrollIntoView({ behavior: "smooth", block: "center" });
+      row?.click();
+    }, 0);
+  }
+
+  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow={t("rail.sources")} helper={t("rail.clickReference")} onReference={referenceDocument} /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} active={documentFilter} onChange={setDocumentFilter} /> : <EvaluationRail />;
 
   return (
-    <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail}>
-      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} ingestionJob={ingestionJob} prompts={prompts} onQuestionChange={setQuestion} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onReference={(docId) => setQuestion((current) => `${current}${current ? " " : ""}@${docId} `)} />}
+    <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail} language={language} onLanguageChange={onLanguageChange}>
+      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} referencedDocument={documents.find((document) => document.doc_id === referencedDocumentId) ?? null} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={handleQuestionChange} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onOpenDocument={openDocument} onClearReference={clearDocumentReference} />}
       {activeView === "documents" && <DocumentsWorkspace documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} />}
-      {activeView === "graph" && <GraphWorkspace documents={documents} health={health} />}
+      {(activeView === 'metrics' || activeView === 'evaluations') && <EvaluationWorkspace mode={activeView} />}
     </ForgeShell>
   );
+}
+
+export function ForgeApp() {
+  const [language, setLanguage] = useState<Language>("en");
+  useEffect(() => { document.documentElement.lang = language; }, [language]);
+  return <NextIntlClientProvider locale={language} timeZone='Asia/Ho_Chi_Minh' messages={getMessages(language)}><ForgeAppContent language={language} onLanguageChange={setLanguage} /></NextIntlClientProvider>;
 }
