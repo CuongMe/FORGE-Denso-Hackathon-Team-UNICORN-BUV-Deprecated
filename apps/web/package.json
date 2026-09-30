@@ -1,5 +1,6 @@
 {
   "name": "forge-web",
+  "packageManager": "pnpm@11.24.0",
   "private": true,
   "type": "module",
   "version": "0.1.0",

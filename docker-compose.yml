@@ -1,0 +1,78 @@
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    volumes:
+      - forge-qdrant:/qdrant/storage
+
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      FORGE_RUNTIME_MODE: production
+      FORGE_INCLUDE_SOURCE_PACK: "1"
+      FORGE_QDRANT_URL: http://qdrant:6333
+      FORGE_QDRANT_COLLECTION: forge_chunks
+      FORGE_STATE_DB_PATH: /workspace/data/.forge-state/forge.sqlite3
+      FORGE_HF_OFFLINE: ${FORGE_HF_OFFLINE:-0}
+      FORGE_VISUAL_PROVIDER: florence2
+      FORGE_VISUAL_MODEL: microsoft/Florence-2-base-ft
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
+      FORGE_ADMIN_API_KEY: ${FORGE_ADMIN_API_KEY:?Set FORGE_ADMIN_API_KEY in .env}
+      FORGE_ALLOWED_ORIGINS: ""
+    volumes:
+      - ./data/denso_factory_hack_data_prep:/workspace/data/denso_factory_hack_data_prep:ro
+      - forge-state:/workspace/data/.forge-state
+      - forge-uploads:/workspace/data/uploads
+      - forge-ingestion-cache:/workspace/data/.forge-cache
+      - forge-model-cache:/root/.cache
+    depends_on:
+      - qdrant
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=15))['ready']"]
+      interval: 60s
+      timeout: 20s
+      start_period: 15m
+      retries: 3
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_FORGE_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      FORGE_SITE_ADDRESS: ${FORGE_SITE_ADDRESS:?Set FORGE_SITE_ADDRESS in .env}
+    ports:
+      - "${FORGE_BIND_ADDRESS:-0.0.0.0}:80:80"
+      - "${FORGE_BIND_ADDRESS:-0.0.0.0}:443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - forge-caddy-data:/data
+      - forge-caddy-config:/config
+    depends_on:
+      - web
+      - api
+
+volumes:
+  forge-qdrant:
+  forge-state:
+  forge-uploads:
+  forge-ingestion-cache:
+  forge-model-cache:
+  forge-caddy-data:
+  forge-caddy-config:

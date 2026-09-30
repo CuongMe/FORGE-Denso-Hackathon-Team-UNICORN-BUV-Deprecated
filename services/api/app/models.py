@@ -28,6 +28,9 @@ class Chunk(BaseModel):
     region: str = 'document evidence'
     region_type: str = 'document'
     provenance: tuple[ChunkProvenance, ...] = ()
+    parent_id: str | None = None
+    parent_title: str | None = None
+    child_index: int | None = None
 
 
 class RetrievedChunk(BaseModel):
@@ -50,6 +53,8 @@ class Citation(BaseModel):
     provenance: tuple[ChunkProvenance, ...] = ()
     quote: str
     score: float
+    parent_id: str | None = None
+    parent_title: str | None = None
 
 
 class QueryRequest(BaseModel):
@@ -76,6 +81,9 @@ class RetrievalCandidate(BaseModel):
     region: str = 'document evidence'
     region_type: str = 'document'
     provenance: tuple[ChunkProvenance, ...] = ()
+    parent_id: str | None = None
+    parent_title: str | None = None
+    child_index: int | None = None
     lexical_score: float | None = None
     semantic_score: float | None = None
     hybrid_score: float
@@ -91,6 +99,10 @@ class RetrievalTrace(BaseModel):
     evidence_threshold: float
     latency_ms: float
     candidates: list[RetrievalCandidate] = Field(default_factory=list)
+    route: Literal['rag', 'aggregation', 'visual'] = 'rag'
+    cache_hit: bool = False
+    request_id: str | None = None
+    prompt_version: str = 'grounded-answer-v2'
 
 
 class TokenUsage(BaseModel):
@@ -100,6 +112,17 @@ class TokenUsage(BaseModel):
     estimated_cost_usd: float = Field(default=0.0, ge=0)
 
 
+class AggregationSummary(BaseModel):
+    operation: Literal['count', 'sum', 'average', 'min', 'max']
+    value: int | float
+    source_doc_id: str
+    source_name: str
+    column: str | None = None
+    filter_text: str | None = None
+    rows_considered: int = Field(ge=0)
+    rows_matched: int = Field(ge=0)
+
+
 class QueryResponse(BaseModel):
     answer: str
     abstained: bool
@@ -107,6 +130,7 @@ class QueryResponse(BaseModel):
     citations: list[Citation]
     trace: RetrievalTrace
     usage: TokenUsage = Field(default_factory=TokenUsage)
+    aggregation: AggregationSummary | None = None
 
 
 class IngestionStage(BaseModel):

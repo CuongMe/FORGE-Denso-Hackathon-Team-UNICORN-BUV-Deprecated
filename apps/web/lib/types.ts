@@ -80,6 +80,19 @@ export type Citation = {
   provenance: ChunkProvenance[];
   quote: string;
   score: number;
+  parent_id?: string | null;
+  parent_title?: string | null;
+};
+
+export type AggregationSummary = {
+  operation: 'count' | 'sum' | 'average' | 'min' | 'max';
+  value: number;
+  source_doc_id: string;
+  source_name: string;
+  column: string | null;
+  filter_text: string | null;
+  rows_considered: number;
+  rows_matched: number;
 };
 
 export type QueryResponse = {
@@ -101,7 +114,12 @@ export type QueryResponse = {
     evidence_threshold: number;
     latency_ms: number;
     candidates: RetrievalCandidate[];
+    route: 'rag' | 'aggregation' | 'visual';
+    cache_hit: boolean;
+    request_id: string | null;
+    prompt_version: string;
   };
+  aggregation?: AggregationSummary | null;
 };
 
 export type RetrievalCandidate = {
@@ -121,6 +139,9 @@ export type RetrievalCandidate = {
   hybrid_score: number;
   rerank_score: number | null;
   selected_for_answer: boolean;
+  parent_id?: string | null;
+  parent_title?: string | null;
+  child_index?: number | null;
 };
 
 export type HealthResponse = {

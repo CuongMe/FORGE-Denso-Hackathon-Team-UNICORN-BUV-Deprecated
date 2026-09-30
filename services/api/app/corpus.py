@@ -16,7 +16,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PACK_ROOT = PROJECT_ROOT / 'data' / 'denso_factory_hack_data_prep'
 CURATED_ROOT = PROJECT_ROOT / 'data' / 'curated_documents'
 DEFAULT_CACHE_PATH = PROJECT_ROOT / 'data' / '.forge-cache' / 'source_pack_chunks_v2.json'
-CACHE_SCHEMA_VERSION = 2
+CACHE_SCHEMA_VERSION = 3
 
 
 def _curated_enabled() -> bool:

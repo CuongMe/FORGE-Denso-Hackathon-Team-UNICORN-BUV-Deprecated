@@ -126,16 +126,31 @@ flowchart TB
 
 The API reports `ready: false` until Qdrant is reachable and the source index has been built.
 
-### Demo hosting
+### Cloud demo hosting
 
-The demo is designed to run on a single [AWS EC2 Free Tier–eligible instance](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-free-tier-usage.html). For newer AWS accounts, `m7i-flex.large` provides 2 vCPUs and 8 GiB RAM—enough for the FastAPI API, Next.js frontend, Docker-hosted Qdrant, SQLite, and cached local models. Confirm the Free Tier label in the AWS console before launch; eligibility, credits, storage, public IPv4, and data-transfer charges are account- and region-dependent.
+The included Compose stack runs on one Linux VM. It publishes only Caddy on TCP 80/443; Caddy serves the web app and `/api` from the same HTTPS origin. Qdrant, the API, and Next.js stay on the private Compose network. The source documents are mounted read-only; Qdrant, SQLite, uploads, model downloads, and TLS certificates use persistent volumes. This is a small demonstration with one API process because jobs and SQLite are local. Queries are public and can consume Gemini quota; the admin key protects write operations.
 
-- Keep Qdrant private at `127.0.0.1:6333` and persist its storage on EBS.
-- Run one API process because the demo uses SQLite, local files, and an in-process worker.
-- Set `FORGE_QDRANT_URL=http://127.0.0.1:6333`, configure `FORGE_ALLOWED_ORIGINS`, and keep secrets in `.env`.
-- Add an AWS Budget alert before deployment; this is a time-limited demo plan, not permanent free hosting.
+Start with a VM that has about 4 vCPUs, 16 GiB RAM, and enough SSD space for Docker images, models, and uploaded documents. For example, AWS lists `m7i-flex.xlarge` as 4 vCPUs and 16 GiB; check regional price and storage separately. Set a cloud budget alert. Point a domain's A record at the VM, allow inbound TCP 80/443, and restrict SSH to your own IP. Install Docker Engine and the Compose plugin on the VM. Commit and push the deployment files and source pack, then clone the repository on the VM.
 
-See the [EC2 instance specifications](https://docs.aws.amazon.com/ec2/latest/instancetypes/gp.html) and [VPC pricing](https://aws.amazon.com/vpc/pricing/) before deploying.
+```sh
+cp .env.cloud.example .env
+```
+
+Edit `.env`: set `FORGE_SITE_ADDRESS` to the domain, set a random `FORGE_ADMIN_API_KEY`, and set `GEMINI_API_KEY`. Keep `.env` private and restrict its file permissions (`chmod 600 .env`). The admin key is for write operations in the evaluation UI. Never put either key in `NEXT_PUBLIC_*` variables.
+
+```sh
+docker compose config --quiet
+docker compose build
+docker compose up -d qdrant
+docker compose run --rm api python -m app.index_demo
+docker compose up -d
+docker compose ps
+curl "https://YOUR_DOMAIN/api/health"
+```
+
+The first index and model downloads can take several minutes. In the health JSON, wait for `"ready": true` before demonstrating queries. Keep `FORGE_HF_OFFLINE=0`; the sparse model still needs to resolve its metadata on restart. For troubleshooting, use `docker compose logs --tail=100 api web caddy qdrant`. Before updating images or code, stop the stack and snapshot the VM disk containing the named volumes; restore that snapshot if an update breaks the demo. Avoid `docker compose down -v`, which deletes the persisted index and uploads.
+
+The stack has not been configured for a specific cloud account or domain. DNS, the VM, Gemini credentials, and a real end-to-end smoke test are still required before sharing a link.
 
 ### Design principles
 
@@ -168,7 +183,7 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 | Metadata | SQLite · PostgreSQL-ready | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/sqlite/003B57' alt='SQLite' title='SQLite' height='20' /> |
 | Storage | Local filesystem | Uploads and processed artifacts | — |
 | Jobs | Python worker | Background ingestion and re-indexing | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> |
-| Generation | Gemini 2.5 Flash-Lite (free tier for demo) · `google-genai` | Grounded answer generation | <img src='https://cdn.simpleicons.org/googlegemini/8E75B2' alt='Gemini' title='Gemini' height='20' /> |
+| Generation | Configurable Gemini model · `google-genai` | Grounded answer generation | <img src='https://cdn.simpleicons.org/googlegemini/8E75B2' alt='Gemini' title='Gemini' height='20' /> |
 | Tooling | `uv` · `pnpm` | Python and Node.js dependencies | <img src='https://cdn.simpleicons.org/uv/6E56CF' alt='uv' title='uv' height='20' /> <img src='https://cdn.simpleicons.org/pnpm/F69220' alt='pnpm' title='pnpm' height='20' /> |
 
 ## Evaluation framework
@@ -195,34 +210,7 @@ Each run records the corpus, parser, chunker, embedding model, reranker, LLM, pr
 
 #### Cost accounting
 
-These are demo estimates; production reporting should use the model, token, image, and infrastructure usage recorded for each run.
-
-##### 1. Cost per query
-
-| Assumption | Estimate |
-|---|---:|
-| Average input tokens (question + five chunks) | ~2,000 |
-| Average output tokens | ~200 |
-| Gemini Flash-Lite input price | $0.075 / 1M tokens |
-| Gemini Flash-Lite output price | $0.30 / 1M tokens |
-
-**Estimated cost per query** = `(2,000 × $0.075 + 200 × $0.30) / 1,000,000` = **$0.00021** (approximately **$0.0002**).
-
-##### 2. Cost per document
-
-When Docling, BGE-M3, Qdrant, Florence-2, and local storage run on the demo EC2 instance, ingestion and visual analysis are approximately **$0.00 per document** aside from the instance and storage allowance. Gemini remains an optional visual fallback; its usage is provider-priced.
-
-##### 3. Monthly demo TCO
-
-| Component | Monthly estimate |
-|---|---:|
-| AWS EC2 Free Tier–eligible demo instance | $0 while eligible* |
-| Gemini API (10,000 queries) | $2.10 |
-| Florence-2 visual analysis (local) | $0 |
-| Docker Qdrant and SQLite | Included on the instance* |
-| **Estimated demo total** | **$2.10/month + AWS usage outside the allowance** |
-
-\* AWS Free Tier eligibility, credits, EBS storage, public IPv4, and data transfer depend on the account and region. The total excludes paid VLM overages, evaluation calls, and future managed-service costs.
+Before hosting, check the current Gemini price for the configured model and the VM, disk, IPv4, and transfer prices in the chosen cloud region. Record actual token and infrastructure usage during the demo. Local inference still consumes paid VM time and storage; there is no guaranteed free monthly total.
 
 ### License
 

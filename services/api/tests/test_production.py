@@ -55,6 +55,19 @@ def _candidate() -> RetrievedChunk:
     )
 
 
+def test_chunks_from_docling_groups_children_under_parent_context():
+    records = [
+        IngestedChunk(0, "first", (1,), ("Torque",), ()),
+        IngestedChunk(1, "second", (1,), ("Torque",), ()),
+    ]
+
+    chunks = chunks_from_docling("doc-1", "manual.pdf", "pdf", records)
+
+    assert chunks[0].parent_id == chunks[1].parent_id
+    assert chunks[0].parent_title == "Torque"
+    assert [chunk.child_index for chunk in chunks] == [0, 1]
+
+
 def test_production_settings_reads_gemini_key_and_default_model(monkeypatch):
     monkeypatch.delenv("FORGE_GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("FORGE_LLM_API_KEY", raising=False)

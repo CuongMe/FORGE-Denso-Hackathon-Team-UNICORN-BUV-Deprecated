@@ -59,6 +59,6 @@ print(json.dumps({'status': response.status_code, 'elapsed': time.perf_counter()
     completed = run_isolated(code)
 
     assert completed.returncode == 0, completed.stderr
-    result = json.loads(completed.stdout)
+    result = json.loads(completed.stdout.splitlines()[-1])
     assert result['status'] == 200
     assert result['elapsed'] < 0.35

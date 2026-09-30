@@ -16,6 +16,7 @@ from app.ingestion import DoclingHybridChunkerAdapter, IngestedChunk
 from app.models import Chunk, ChunkProvenance, Citation, RetrievedChunk, TokenUsage
 from app.pipeline import StageCallback
 from app.persistence import LifecycleStore
+from app.prompts import GROUNDED_PROMPT_VERSION, grounded_system_prompt
 
 
 DEFAULT_DENSE_MODEL = "BAAI/bge-m3"
@@ -550,6 +551,10 @@ class GeminiGroundedAnswerer:
         return f"gemini:{self.settings.llm_model}"
 
     @property
+    def prompt_version(self) -> str:
+        return GROUNDED_PROMPT_VERSION
+
+    @property
     def client(self) -> Any:
         if self._client is None:
             if not self.settings.llm_api_key:
@@ -612,13 +617,7 @@ class GeminiGroundedAnswerer:
                 model=self.settings.llm_model,
                 contents=f"Question:\n{question}\n\nEvidence:\n{evidence}",
                 config=types.GenerateContentConfig(
-                    system_instruction=(
-                        "You are FORGE, a factory operations assistant. "
-                        "Answer only from the supplied evidence. "
-                        "If the evidence is weak or incomplete, clearly state that uncertainty. "
-                        "If the evidence cannot answer the question, reply exactly: ABSTAIN. "
-                        "Never invent procedures, values, units, dates, or citations."
-                    ),
+                    system_instruction=grounded_system_prompt(),
                     temperature=0.1,
                     max_output_tokens=800,
                 ),
@@ -652,6 +651,8 @@ class GeminiGroundedAnswerer:
                 provenance=candidate.chunk.provenance,
                 quote=candidate.chunk.content[:500],
                 score=candidate.rerank_score or candidate.hybrid_score,
+                parent_id=candidate.chunk.parent_id,
+                parent_title=candidate.chunk.parent_title,
             )
             for candidate in self._citation_candidates(
                 answer,
@@ -733,12 +734,17 @@ def chunks_from_docling(
 ) -> list[Chunk]:
     """Map Docling output into the API's stable chunk contract."""
     chunks: list[Chunk] = []
+    parent_counts: dict[str, int] = {}
     for record in records:
         content = record.text.strip()
         if not content:
             continue
         heading = " > ".join(record.headings)
         caption = "; ".join(record.captions)
+        parent_title = heading or "document"
+        parent_id = f"{document_id}:parent-{uuid5(NAMESPACE_URL, parent_title).hex[:12]}"
+        child_index = parent_counts.get(parent_id, 0)
+        parent_counts[parent_id] = child_index + 1
         pages = tuple(record.page_numbers)
         provenance = tuple(
             ChunkProvenance(
@@ -767,6 +773,9 @@ def chunks_from_docling(
                 region=heading or caption or "document evidence",
                 region_type=region_type,
                 provenance=provenance,
+                parent_id=parent_id,
+                parent_title=parent_title,
+                child_index=child_index,
             )
         )
     return chunks

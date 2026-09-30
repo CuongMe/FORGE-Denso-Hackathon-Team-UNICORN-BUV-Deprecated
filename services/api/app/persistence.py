@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import sqlite3
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Mapping
@@ -158,6 +159,18 @@ class LifecycleStore:
                     indexed_chunks INTEGER NOT NULL,
                     updated_at TEXT NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS query_cache (
+                    cache_key TEXT PRIMARY KEY,
+                    corpus_version TEXT NOT NULL,
+                    prompt_version TEXT NOT NULL,
+                    response_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    expires_at REAL NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_query_cache_expiry
+                    ON query_cache(expires_at);
                 '''
             )
         finally:
@@ -953,6 +966,62 @@ class LifecycleStore:
                 f'{row["doc_id"]}:{row["content_hash"]}' for row in rows
             )
             return hashlib.sha256(material.encode('utf-8')).hexdigest()
+        finally:
+            connection.close()
+
+    def get_query_cache(self, cache_key: str) -> dict[str, object] | None:
+        self.initialize()
+        connection = self._connect()
+        try:
+            now = time.time()
+            row = connection.execute(
+                'SELECT response_json, expires_at FROM query_cache WHERE cache_key = ?',
+                (cache_key,),
+            ).fetchone()
+            if row is None:
+                return None
+            if float(row['expires_at']) <= now:
+                connection.execute('DELETE FROM query_cache WHERE cache_key = ?', (cache_key,))
+                return None
+            value = _loads(row['response_json'], None)
+            return value if isinstance(value, dict) else None
+        finally:
+            connection.close()
+
+    def put_query_cache(
+        self,
+        cache_key: str,
+        *,
+        corpus_version: str,
+        prompt_version: str,
+        response: Mapping[str, object],
+        ttl_seconds: int,
+    ) -> None:
+        self.initialize()
+        connection = self._connect()
+        try:
+            connection.execute(
+                '''
+                INSERT INTO query_cache (
+                    cache_key, corpus_version, prompt_version, response_json,
+                    created_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(cache_key) DO UPDATE SET
+                    corpus_version = excluded.corpus_version,
+                    prompt_version = excluded.prompt_version,
+                    response_json = excluded.response_json,
+                    created_at = excluded.created_at,
+                    expires_at = excluded.expires_at
+                ''',
+                (
+                    cache_key,
+                    corpus_version,
+                    prompt_version,
+                    _json(response),
+                    _now(),
+                    time.time() + max(1, ttl_seconds),
+                ),
+            )
         finally:
             connection.close()
 

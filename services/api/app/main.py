@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from xml.etree import ElementTree
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,9 +25,21 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from app.corpus import PROJECT_ROOT
 from app.ingestion import SUPPORTED_INPUT_EXTENSIONS
-from app.models import QueryRequest, QueryResponse, RetrievalCandidate, RetrievalTrace
+from app.aggregation import aggregate_rows
+from app.models import Citation, QueryRequest, QueryResponse, RetrievalCandidate, RetrievalTrace
 from app.models import ReviewDecision
+from app.observability import (
+    bind_request_id,
+    configure_json_logging,
+    current_request_id,
+    log_event,
+    new_request_id,
+    reset_request_id,
+)
 from app.persistence import LifecycleStore
+from app.query_cache import build_cache_key
+from app.query_router import QueryRoute, classify_query
+from app.tabular import read_table_rows, read_table_sheets
 from app.production import ProductionDependencyError, ProductionServiceError
 from app.runtime import build_runtime
 from app.worker import IngestionWorker
@@ -37,6 +49,8 @@ from app.evaluation import EvaluationStore, EvaluationWorker, evaluation_router
 UPLOAD_ROOT = PROJECT_ROOT / "data" / "uploads"
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 DOCUMENT_REFERENCE_PATTERN = re.compile(r'(?<!\S)@([A-Za-z0-9][A-Za-z0-9_-]*)')
+FORGE_LOGGER = logging.getLogger('forge.api')
+configure_json_logging()
 
 
 def _relative_source_path(source: Path) -> str:
@@ -208,8 +222,43 @@ app.add_middleware(
     allow_origins=allowed_origins,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PATCH"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-Request-ID"],
 )
+
+
+@app.middleware("http")
+async def request_observability(request: Request, call_next):
+    supplied_request_id = (request.headers.get("X-Request-ID") or "").strip()
+    request_id = supplied_request_id[:128] if 0 < len(supplied_request_id) <= 128 else new_request_id()
+    request.state.request_id = request_id
+    request_token = bind_request_id(request_id)
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        log_event(
+            FORGE_LOGGER,
+            "api_request_failed",
+            request_id=request_id,
+            method=request.method,
+            route=request.url.path,
+            latency_ms=round((time.perf_counter() - started) * 1000, 2),
+            exception=type(exc).__name__,
+        )
+        raise
+    finally:
+        reset_request_id(request_token)
+    response.headers["X-Request-ID"] = request_id
+    log_event(
+        FORGE_LOGGER,
+        "api_request_completed",
+        request_id=request_id,
+        method=request.method,
+        route=request.url.path,
+        status_code=response.status_code,
+        latency_ms=round((time.perf_counter() - started) * 1000, 2),
+    )
+    return response
 
 
 def _error(code: str, message: str, status_code: int, details: object | None = None) -> JSONResponse:
@@ -275,11 +324,216 @@ def _split_document_reference(question: str) -> tuple[str, str | None]:
     return cleaned or 'Explain this source.', match.group(1)
 
 
-def _execute_query(payload: QueryRequest) -> QueryResponse:
+def _resolve_project_source(source_path: str) -> Path | None:
+    candidate = Path(source_path)
+    if not candidate.is_absolute():
+        candidate = PROJECT_ROOT / candidate
+    try:
+        resolved = candidate.resolve()
+        resolved.relative_to(PROJECT_ROOT.resolve())
+    except (OSError, ValueError):
+        return None
+    return resolved if resolved.is_file() else None
+
+
+def _tabular_source(active_runtime, question: str, document_id: str | None) -> dict[str, object] | None:
+    documents = active_runtime.document_list()
+    tabular = [
+        item for item in documents
+        if str(item.get('format') or '').casefold() in {'csv', 'xlsx', 'xls'}
+        and str(item.get('status') or 'indexed').casefold() in {'indexed', 'ready'}
+    ]
+    if document_id:
+        return next((item for item in tabular if item.get('doc_id') == document_id), None)
+    if len(tabular) == 1:
+        return tabular[0]
+    lowered = question.casefold()
+    named = [item for item in tabular if str(item.get('source_name') or '').casefold() in lowered]
+    if len(named) == 1:
+        return named[0]
+    query_tokens = set(re.findall(r'\w+', lowered, flags=re.UNICODE))
+    scored = []
+    for item in tabular:
+        source_tokens = set(re.findall(r'\w+', str(item.get('source_name') or '').casefold(), flags=re.UNICODE))
+        overlap = len(query_tokens & source_tokens)
+        if overlap:
+            scored.append((overlap, item))
+    if not scored:
+        return None
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return scored[0][1] if len(scored) == 1 or scored[0][0] > scored[1][0] else None
+
+
+def _query_cache_ttl_seconds() -> int:
+    try:
+        return max(1, int(os.getenv('FORGE_QUERY_CACHE_TTL_SECONDS', '900')))
+    except ValueError:
+        return 900
+
+
+def _cache_query_response(
+    active_runtime,
+    cache_key: str,
+    *,
+    corpus_version: str,
+    prompt_version: str,
+    response: QueryResponse,
+) -> None:
+    if active_runtime.state_store is None:
+        return
+    active_runtime.state_store.put_query_cache(
+        cache_key,
+        corpus_version=corpus_version,
+        prompt_version=prompt_version,
+        response=response.model_dump(mode='json'),
+        ttl_seconds=_query_cache_ttl_seconds(),
+    )
+
+
+def _aggregation_response(
+    active_runtime,
+    question: str,
+    source: dict[str, object] | None,
+    *,
+    request_id: str | None,
+    started: float,
+) -> QueryResponse | None:
+    if source is None:
+        return None
+    source_path = str(source.get('source_path') or '')
+    path = _resolve_project_source(source_path)
+    if path is None:
+        return None
+    try:
+        rows = read_table_rows(path)
+        result = aggregate_rows(
+            question,
+            rows,
+            source_doc_id=str(source.get('doc_id') or ''),
+            source_name=str(source.get('source_name') or path.name),
+        )
+    except (OSError, UnicodeError, csv.Error, KeyError, ValueError, zipfile.BadZipFile, ElementTree.ParseError):
+        return None
+    if result is None:
+        return None
+    prompt_version = getattr(active_runtime.answerer, 'prompt_version', 'grounded-answer-v2')
+    citation = Citation(
+        chunk_id=f"{source.get('doc_id')}:aggregate",
+        doc_id=str(source.get('doc_id') or ''),
+        source_name=str(source.get('source_name') or path.name),
+        source_path=source_path,
+        region='full table',
+        region_type='table',
+        quote=result.answer,
+        score=1.0,
+    )
+    trace = RetrievalTrace(
+        candidates_considered=0,
+        reranked_count=0,
+        reranker='not used (structured aggregation)',
+        evidence_threshold=0.0,
+        latency_ms=round((time.perf_counter() - started) * 1000, 2),
+        route='aggregation',
+        request_id=request_id,
+        prompt_version=prompt_version,
+    )
+    return QueryResponse(
+        answer=result.answer,
+        abstained=False,
+        grounding='grounded',
+        citations=[citation],
+        trace=trace,
+        aggregation=result.summary,
+    )
+
+
+def _execute_query(payload: QueryRequest, *, request_id: str | None = None) -> QueryResponse:
     active_runtime = get_runtime()
+    request_id = request_id or current_request_id()
     started = time.perf_counter()
     try:
         question, document_id = _split_document_reference(payload.question)
+        referenced = active_runtime.state_store.get_document(document_id) if document_id and active_runtime.state_store else None
+        source = _tabular_source(active_runtime, question, document_id)
+        route = classify_query(
+            question,
+            tabular_available=source is not None or any(
+                str(item.get('format') or '').casefold() in {'csv', 'xlsx', 'xls'}
+                for item in active_runtime.document_list()
+            ),
+            referenced_format=str(referenced.get('format') or '') if referenced else None,
+        )
+        prompt_version = getattr(active_runtime.answerer, 'prompt_version', 'grounded-answer-v2')
+        corpus_version = active_runtime.state_store.indexed_corpus_version() if active_runtime.state_store else 'no-state'
+        runtime_signature = '|'.join(
+            str(value)
+            for value in (
+                getattr(active_runtime.reranker, 'name', ''),
+                getattr(getattr(active_runtime.answerer, 'settings', None), 'llm_model', ''),
+            )
+        )
+        cache_key = build_cache_key(
+            question,
+            document_id,
+            corpus_version,
+            prompt_version,
+            route.kind,
+            runtime_signature,
+        )
+        if active_runtime.state_store:
+            cached = active_runtime.state_store.get_query_cache(cache_key)
+            if cached:
+                cached_response = QueryResponse.model_validate(cached)
+                elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
+                cached_response.trace = cached_response.trace.model_copy(update={
+                    'cache_hit': True,
+                    'latency_ms': elapsed_ms,
+                    'request_id': request_id,
+                })
+                log_event(
+                    FORGE_LOGGER,
+                    'query_cache_hit',
+                    request_id=request_id,
+                    route=route.kind,
+                    route_reason=route.reason,
+                )
+                return cached_response
+        if route.kind == 'aggregation':
+            response = _aggregation_response(
+                active_runtime,
+                question,
+                source,
+                request_id=request_id,
+                started=started,
+            )
+            if response is not None:
+                _cache_query_response(
+                    active_runtime,
+                    cache_key,
+                    corpus_version=corpus_version,
+                    prompt_version=prompt_version,
+                    response=response,
+                )
+                log_event(
+                    FORGE_LOGGER,
+                    'query_completed',
+                    request_id=request_id,
+                    route='aggregation',
+                    route_reason=route.reason,
+                    cache_hit=False,
+                    candidates=0,
+                    latency_ms=response.trace.latency_ms,
+                )
+                return response
+            route = QueryRoute('rag', 'aggregation was not provably executable')
+            cache_key = build_cache_key(
+                question,
+                document_id,
+                corpus_version,
+                prompt_version,
+                route.kind,
+                runtime_signature,
+            )
         if document_id:
             execution = active_runtime.execute_query(question, document_id=document_id)
         else:
@@ -312,6 +566,9 @@ def _execute_query(payload: QueryRequest) -> QueryResponse:
             region=candidate.chunk.region,
             region_type=candidate.chunk.region_type,
             provenance=candidate.chunk.provenance,
+            parent_id=candidate.chunk.parent_id,
+            parent_title=candidate.chunk.parent_title,
+            child_index=candidate.chunk.child_index,
             lexical_score=candidate.lexical_score,
             semantic_score=candidate.semantic_score,
             hybrid_score=candidate.hybrid_score,
@@ -327,8 +584,11 @@ def _execute_query(payload: QueryRequest) -> QueryResponse:
         evidence_threshold=active_runtime.answerer.evidence_threshold,
         latency_ms=elapsed_ms,
         candidates=trace_candidates,
+        route=route.kind,
+        request_id=request_id,
+        prompt_version=prompt_version,
     )
-    return QueryResponse(
+    response = QueryResponse(
         answer=draft.answer,
         abstained=draft.abstained,
         grounding=draft.grounding,
@@ -336,6 +596,24 @@ def _execute_query(payload: QueryRequest) -> QueryResponse:
         trace=trace,
         usage=draft.usage,
     )
+    _cache_query_response(
+        active_runtime,
+        cache_key,
+        corpus_version=corpus_version,
+        prompt_version=prompt_version,
+        response=response,
+    )
+    log_event(
+        FORGE_LOGGER,
+        'query_completed',
+        request_id=request_id,
+        route=route.kind,
+        route_reason=route.reason,
+        cache_hit=False,
+        candidates=len(candidates),
+        latency_ms=elapsed_ms,
+    )
+    return response
 
 
 def require_admin(
@@ -484,78 +762,10 @@ def _preview_table_html(rows: list[list[object]]) -> str:
     )
 
 
-def _csv_preview_tables(source: Path) -> list[tuple[str, list[list[object]]]]:
-    with source.open(encoding='utf-8-sig', newline='') as stream:
-        return [('CSV', list(csv.reader(stream))[:PREVIEW_MAX_ROWS])]
-
-
-def _xlsx_preview_tables(source: Path) -> list[tuple[str, list[list[object]]]]:
-    namespace = {'main': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'}
-    relationship_namespace = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
-    package_namespace = 'http://schemas.openxmlformats.org/package/2006/relationships'
-    with zipfile.ZipFile(source) as archive:
-        shared_strings: list[str] = []
-        if 'xl/sharedStrings.xml' in archive.namelist():
-            shared_root = ElementTree.fromstring(archive.read('xl/sharedStrings.xml'))
-            shared_strings = [
-                ''.join(item.text or '' for item in node.findall('.//main:t', namespace))
-                for node in shared_root.findall('main:si', namespace)
-            ]
-        workbook = ElementTree.fromstring(archive.read('xl/workbook.xml'))
-        relationships = ElementTree.fromstring(archive.read('xl/_rels/workbook.xml.rels'))
-        relationship_map = {
-            rel.attrib.get('Id', ''): rel.attrib.get('Target', '')
-            for rel in relationships.findall(f'.//{{{package_namespace}}}Relationship')
-        }
-        tables: list[tuple[str, list[list[object]]]] = []
-        for sheet in workbook.findall('.//main:sheet', namespace):
-            relation_id = sheet.attrib.get(f'{{{relationship_namespace}}}id', '')
-            target = relationship_map.get(relation_id, '')
-            if not target:
-                continue
-            if target.startswith('/'):
-                sheet_path = target.lstrip('/')
-            elif target.startswith('xl/'):
-                sheet_path = target
-            else:
-                sheet_path = f'xl/{target}'
-            root = ElementTree.fromstring(archive.read(sheet_path))
-            rows: list[list[object]] = []
-            for row_node in root.findall('.//main:sheetData/main:row', namespace):
-                values: dict[int, object] = {}
-                for cell in row_node.findall('main:c', namespace):
-                    match = re.match(r'([A-Za-z]+)', cell.attrib.get('r', ''))
-                    if not match:
-                        continue
-                    column = 0
-                    for letter in match.group(1).upper():
-                        column = column * 26 + ord(letter) - ord('A') + 1
-                    column -= 1
-                    if column >= PREVIEW_MAX_COLUMNS:
-                        continue
-                    cell_type = cell.attrib.get('t', '')
-                    if cell_type == 'inlineStr':
-                        value = ''.join(item.text or '' for item in cell.findall('.//main:t', namespace))
-                    else:
-                        value_node = cell.find('main:v', namespace)
-                        value = value_node.text if value_node is not None else ''
-                        if cell_type == 's' and value:
-                            value = shared_strings[int(value)] if int(value) < len(shared_strings) else value
-                        elif cell_type == 'b':
-                            value = 'TRUE' if value == '1' else 'FALSE'
-                    values[column] = value
-                width = max(values.keys(), default=-1) + 1
-                rows.append([values.get(index, '') for index in range(width)])
-                if len(rows) >= PREVIEW_MAX_ROWS:
-                    break
-            tables.append((str(sheet.attrib.get('name') or 'Sheet'), rows))
-        return tables
-
-
 def _render_document_preview(source: Path, filename: str) -> HTMLResponse:
     suffix = source.suffix.casefold()
     try:
-        tables = _csv_preview_tables(source) if suffix == '.csv' else _xlsx_preview_tables(source)
+        tables = read_table_sheets(source)
     except (OSError, UnicodeError, csv.Error, KeyError, ValueError, zipfile.BadZipFile, ElementTree.ParseError) as exc:
         raise HTTPException(status_code=422, detail={
             'code': 'DOCUMENT_PREVIEW_UNAVAILABLE',
