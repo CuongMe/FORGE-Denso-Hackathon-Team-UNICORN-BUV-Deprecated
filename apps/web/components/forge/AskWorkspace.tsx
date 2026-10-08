@@ -4,6 +4,7 @@ import { useRef, type ChangeEvent, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 
 import type { DocumentSummary, HealthResponse, IngestionJob, QueryResponse } from '@/lib/types';
+import { demoAnswers } from '@/lib/demo-answers';
 
 import { ArrowUpIcon, ImageIcon, UploadIcon } from './ForgeIcons';
 import { ForgeCitationCard } from './ForgeCitationCard';
@@ -34,6 +35,7 @@ type AskWorkspaceProps = {
   onUpload: (file: File, kind: 'document' | 'image') => Promise<void>;
   onOpenDocument: (docId: string) => void;
   onClearReference: () => void;
+  vercelDemo?: boolean;
 };
 
 function renderQuestion(content: string) {
@@ -57,7 +59,7 @@ function citationLocation(citation: QueryResponse['citations'][number] | null, f
   return format === 'CSV' || format === 'XLSX' ? t('ask.locationNotRecorded') : t('ask.pageNotRecorded');
 }
 
-function SourceDetails({ documents, response, onOpenDocument }: { documents: DocumentSummary[]; response: QueryResponse | null; onOpenDocument: (docId: string) => void }) {
+function SourceDetails({ documents, response, onOpenDocument, vercelDemo }: { documents: DocumentSummary[]; response: QueryResponse | null; onOpenDocument: (docId: string) => void; vercelDemo: boolean }) {
   const t = useTranslations();
   const citation = response?.citations[0] ?? null;
   const current = documents.find((document) => document.doc_id === citation?.doc_id) ?? null;
@@ -84,7 +86,7 @@ function SourceDetails({ documents, response, onOpenDocument }: { documents: Doc
         <span>{format} / {(current.factory_topic || t('ask.workInstruction')).toUpperCase()}</span>
         <span>{citationLocation(citation, format, t)} / {citation.region_type.toUpperCase()} / {citation.chunk_id}</span>
         <b>{citation.region}</b>
-        <button type="button" className="forge-side-link" onClick={() => onOpenDocument(current.doc_id)}>OPEN REFERENCED DOCUMENT →</button>
+        {!vercelDemo && <button type="button" className="forge-side-link" onClick={() => onOpenDocument(current.doc_id)}>OPEN REFERENCED DOCUMENT →</button>}
       </div> : <div className="forge-current-reference is-empty">
         <p className="forge-eyebrow">{t('ask.currentReference')}</p>
         <strong>{t('ask.noSource')}</strong>
@@ -118,6 +120,7 @@ export function AskWorkspace({
   onUpload,
   onOpenDocument,
   onClearReference,
+  vercelDemo = false,
 }: AskWorkspaceProps) {
   const t = useTranslations();
   const documentInput = useRef<HTMLInputElement>(null);
@@ -152,6 +155,22 @@ export function AskWorkspace({
             {!hasConversation && <PromptTable prompts={prompts} disabled={isLoading} onSelect={(value) => onSubmit(value)} />}
             {hasConversation && <div className="forge-conversation-heading"><span /><h2 id="conversation-heading">{t('ask.conversation')}</h2><span /></div>}
             <div className="forge-message-list">
+              {vercelDemo && !hasConversation && <article className='forge-message is-assistant'>
+                <div className='forge-message-meta'><span className='forge-avatar'>F</span><span>{t('ask.assistant')}</span><em className='is-grounded'>{t('ask.sampleLabel')}</em></div>
+                <div className='forge-message-card'>
+                  <p className='forge-answer-label'>{t('ask.sampleQuestion')}</p>
+                  <p className='forge-answer-text'>{t('ask.sampleAnswer')}</p>
+                  <section className='forge-evidence-block' aria-label={t('ask.sourceEvidence')}><div className='forge-evidence-heading'><strong>{t('ask.sourceEvidence')}</strong></div><p>{t('ask.sampleSources')}</p></section>
+                </div>
+              </article>}
+              {vercelDemo && !hasConversation && demoAnswers.map((sample) => <article key={sample.id} className='forge-message is-assistant'>
+                <div className='forge-message-meta'><span className='forge-avatar'>F</span><span>{t('ask.assistant')}</span><em className='is-grounded'>{t('ask.sampleLabel')}</em></div>
+                <div className='forge-message-card'>
+                  <p className='forge-answer-label'>{t(sample.questionKey)}</p>
+                  <p className='forge-answer-text'>{t(sample.answerKey)}</p>
+                  <section className='forge-evidence-block' aria-label={t('ask.sourceEvidence')}><div className='forge-evidence-heading'><strong>{t('ask.sourceEvidence')}</strong></div><p>{t(sample.sourcesKey)}</p></section>
+                </div>
+              </article>)}
               {messages.filter((message) => message.id !== 'welcome').map((message) => {
                 if (message.role === 'upload') {
                   return (
@@ -204,22 +223,24 @@ export function AskWorkspace({
               </div>}
               <form className="forge-composer" onSubmit={handleSubmit}>
                 <div className="forge-composer-tools">
-                  <button type="button" className="forge-icon-button" aria-label={t('ask.uploadDocument')} title={t('ask.uploadDocument')} onClick={() => documentInput.current?.click()} disabled={isLoading}><UploadIcon /></button>
-                  <button type="button" className="forge-icon-button" aria-label={t('ask.uploadImage')} title={t('ask.uploadImage')} onClick={() => imageInput.current?.click()} disabled={isLoading}><ImageIcon /></button>
-                  <input ref={documentInput} type="file" className="forge-hidden-input" accept=".pdf,.xlsx,.csv" onChange={(event) => handleFile('document', event)} />
-                  <input ref={imageInput} type="file" className="forge-hidden-input" accept=".png,.jpg,.jpeg,.bmp,.webp" onChange={(event) => handleFile('image', event)} />
+                  {!vercelDemo && <>
+                    <button type="button" className="forge-icon-button" aria-label={t('ask.uploadDocument')} title={t('ask.uploadDocument')} onClick={() => documentInput.current?.click()} disabled={isLoading}><UploadIcon /></button>
+                    <button type="button" className="forge-icon-button" aria-label={t('ask.uploadImage')} title={t('ask.uploadImage')} onClick={() => imageInput.current?.click()} disabled={isLoading}><ImageIcon /></button>
+                    <input ref={documentInput} type="file" className="forge-hidden-input" accept=".pdf,.xlsx,.csv" onChange={(event) => handleFile('document', event)} />
+                    <input ref={imageInput} type="file" className="forge-hidden-input" accept=".png,.jpg,.jpeg,.bmp,.webp" onChange={(event) => handleFile('image', event)} />
+                  </>}
                 </div>
                 <label className="forge-sr-only" htmlFor="question-input">{t('ask.questionLabel')}</label>
                 <textarea id="question-input" value={question} onChange={(event) => onQuestionChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); onSubmit(); } }} placeholder={t('ask.questionPlaceholder')} maxLength={500} disabled={isLoading} />
                 <button type="submit" className="forge-send-button" aria-label={isLoading ? t('ask.working') : t('ask.ask')} disabled={isLoading || !question.trim()}><span>{isLoading ? t('ask.working') : t('ask.ask')}</span><ArrowUpIcon /></button>
               </form>
-              <div className="forge-composer-footer"><span>Attach image · Click a source to reference it · Shift + Enter</span><span>{uploadStatus ?? question.length + '/500'}</span></div>
+              <div className="forge-composer-footer"><span>{vercelDemo ? 'Ask about pre-indexed Denso sources · Shift + Enter' : 'Attach image · Click a source to reference it · Shift + Enter'}</span><span>{uploadStatus ?? question.length + '/500'}</span></div>
             </footer>
           </section>
         </div>
 
         <aside className="ask-side">
-          <SourceDetails documents={documents} response={latestResponse} onOpenDocument={onOpenDocument} />
+          <SourceDetails documents={documents} response={latestResponse} onOpenDocument={onOpenDocument} vercelDemo={vercelDemo} />
           {latestResponse ? <RetrievalTrace response={latestResponse} /> : <section className="forge-side-card forge-trace-card"><p className="forge-eyebrow">{t('ask.retrievalTrace')}</p><p className="forge-trace-flow">{t('ask.traceFlow')}</p><p className="forge-side-helper">{t('ask.traceHelper')}</p></section>}
         </aside>
       </div>

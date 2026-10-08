@@ -47,7 +47,7 @@ export function RetrievalTrace({ response }: { response: QueryResponse }) {
       <div className='forge-trace-scroll'>
         <table className='forge-trace-table'>
           <thead>
-            <tr><th>#</th><th>{t('trace.sourceChunk')}</th><th>{t('trace.location')}</th><th>{t('trace.hybrid')}</th><th>{t('trace.rerank')}</th><th>{t('trace.answer')}</th></tr>
+            <tr><th>#</th><th>{t('trace.sourceChunk')}</th><th>{t('trace.location')}</th><th>{response.trace.retrieval_mode === 'bm25' ? 'BM25 score' : t('trace.hybrid')}</th><th>{t('trace.rerank')}</th><th>{t('trace.answer')}</th></tr>
           </thead>
           <tbody>
             {candidates.length ? candidates.map((candidate) => (

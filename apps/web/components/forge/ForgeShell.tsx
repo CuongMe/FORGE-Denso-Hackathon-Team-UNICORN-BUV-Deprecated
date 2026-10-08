@@ -18,6 +18,7 @@ type ForgeShellProps = {
   connectionError: string | null;
   rail: ReactNode;
   children: ReactNode;
+  vercelDemo?: boolean;
 };
 
 const navItems: Array<{ id: ForgeView; label: string; icon?: typeof TableIcon }> = [
@@ -33,7 +34,7 @@ const languageOptions = [
   { id: 'vi', label: 'language.vi', Flag: VietnamFlagIcon },
 ] as const;
 
-export function ForgeShell({ activeView, onViewChange, health, connectionError, rail, children, language, onLanguageChange }: ForgeShellProps & { language: Language; onLanguageChange: (language: Language) => void }) {
+export function ForgeShell({ activeView, onViewChange, health, connectionError, rail, children, language, onLanguageChange, vercelDemo = false }: ForgeShellProps & { language: Language; onLanguageChange: (language: Language) => void }) {
   const t = useTranslations();
   const apiState = connectionError ? t('api.offline') : health ? (health.ready ? t('api.ready') : t('api.degraded')) : t('api.connecting');
   const statusClass = connectionError ? 'is-warning' : health?.ready ? 'is-ready' : 'is-loading';
@@ -42,7 +43,7 @@ export function ForgeShell({ activeView, onViewChange, health, connectionError, 
     <main className='forge-app'>
       <header className='forge-header'>
         <div className='forge-brand' aria-label='FORGE Factory Operations Retrieval Generation Engine'>
-          <div className='forge-mark'><Image src='/forge-mark.svg' alt='' className='forge-logo' width={38} height={38} priority /></div>
+          <div className='forge-mark'><Image src='/forge-mark.png' alt='' className='forge-logo' width={38} height={38} priority /></div>
           <div className='forge-brand-copy'>
             <div className='forge-wordmark'>FORGE</div>
             <div className='forge-descriptor' aria-label='Factory Operations Retrieval Generation Engine'>
@@ -54,7 +55,7 @@ export function ForgeShell({ activeView, onViewChange, health, connectionError, 
         <div className='forge-navigation-wrap'>
           <span className='forge-workspace-label'>{t('workspace')}</span>
           <nav className='forge-navigation' aria-label='Workspace navigation'>
-            {navItems.map(({ id, label, icon: Icon }) => (
+            {navItems.filter(({ id }) => !vercelDemo || id !== 'evaluations').map(({ id, label, icon: Icon }) => (
               <button key={id} type='button' className={'forge-nav-item ' + (activeView === id ? 'is-active' : '')} onClick={() => onViewChange(id)} aria-current={activeView === id ? 'page' : undefined}>
                 {Icon && <Icon className='forge-nav-icon' />}{t(label)}
               </button>

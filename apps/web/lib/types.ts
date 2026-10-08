@@ -104,10 +104,10 @@ export type QueryResponse = {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
-    estimated_cost_usd: number;
+    estimated_cost_usd: number | null;
   };
   trace: {
-    retrieval_mode: "hybrid";
+    retrieval_mode: "hybrid" | "bm25";
     candidates_considered: number;
     reranked_count: number;
     reranker: string;
@@ -175,6 +175,15 @@ export type DocumentSummary = {
   column_count: number;
   image_count: number;
   region_types: string[];
+};
+
+export type DocumentChunkPreview = {
+  chunk_id: string;
+  content: string;
+  page: number | null;
+  pages: number[];
+  region: string;
+  region_type: string;
 };
 
 export type UploadResponse = {

@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 
-import type { DocumentSummary, HealthResponse } from '@/lib/types';
+import type { DocumentChunkPreview, DocumentSummary, HealthResponse } from '@/lib/types';
 
-import { getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
+import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
 import { FileIcon, SearchIcon } from './ForgeIcons';
 
 export type DocumentFilter = 'ALL' | 'PDF' | 'XLSX' | 'CSV' | 'IMAGE';
@@ -16,6 +16,7 @@ type DocumentsWorkspaceProps = {
   health: HealthResponse | null;
   filter?: DocumentFilter;
   onFilterChange?: (filter: DocumentFilter) => void;
+  vercelDemo?: boolean;
 };
 
 function typeFor(document: DocumentSummary): Exclude<DocumentFilter, 'ALL'> {
@@ -84,14 +85,14 @@ export function DocumentsRail({ documents, health, active, onChange }: { documen
   );
 }
 
-function Preview({ document }: { document: DocumentSummary | null }) {
+function Preview({ document, chunks, chunksLoading, chunksError, vercelDemo }: { document: DocumentSummary | null; chunks: DocumentChunkPreview[]; chunksLoading: boolean; chunksError: boolean; vercelDemo: boolean }) {
   const t = useTranslations();
   if (!document) return <aside className='forge-document-preview'><p className='forge-eyebrow'>{t('documents.preview')}</p><p className='forge-empty-copy'>{t('documents.selectSource')}</p></aside>;
   const type = typeFor(document);
   return (
     <aside className='forge-document-side'>
       <section className='forge-document-preview'>
-        <div className='forge-preview-heading'><div><p className='forge-eyebrow'>{t('documents.preview')}</p><p className='forge-side-helper'>{t('documents.previewHelper')}</p></div><span className='forge-side-pill'>{document.status.toUpperCase()}</span></div>
+        <div className='forge-preview-heading'><div><p className='forge-eyebrow'>{vercelDemo ? t('documents.extractedText') : t('documents.preview')}</p><p className='forge-side-helper'>{vercelDemo ? t('documents.extractedHelper') : t('documents.previewHelper')}</p></div><span className='forge-side-pill'>{document.status.toUpperCase()}</span></div>
         <div className='forge-current-reference forge-document-selected'>
           <p className='forge-eyebrow'>{t('documents.selected')}</p>
           <strong>{document.doc_id}</strong>
@@ -111,6 +112,16 @@ function Preview({ document }: { document: DocumentSummary | null }) {
         </div>
         <small className='forge-side-helper'>{t('documents.healthHelper')}</small>
       </section>
+      {(chunks.length > 0 || chunksLoading || chunksError) && <section className='forge-document-preview'>
+        <p className='forge-eyebrow'>{t('documents.extractedText')}</p>
+        {chunksLoading && <p role='status'>{t('documents.loadingExtracted')}</p>}
+        {chunksError && <p role='alert'>{t('documents.extractedUnavailable')}</p>}
+        {chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}>
+          <strong>{chunk.region || chunk.chunk_id}</strong>
+          <span>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</span>
+          <p>{chunk.content}</p>
+        </article>)}
+      </section>}
     </aside>
   );
 }
@@ -147,12 +158,13 @@ function RawDocumentModal({ document, onClose }: { document: DocumentSummary; on
   );
 }
 
-export function DocumentsWorkspace({ documents, health, filter: controlledFilter, onFilterChange }: DocumentsWorkspaceProps) {
+export function DocumentsWorkspace({ documents, health, filter: controlledFilter, onFilterChange, vercelDemo = false }: DocumentsWorkspaceProps) {
   const t = useTranslations();
   const [internalFilter, setInternalFilter] = useState<DocumentFilter>('ALL');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(documents[0]?.doc_id ?? null);
   const [rawDocument, setRawDocument] = useState<DocumentSummary | null>(null);
+  const [demoChunksResult, setDemoChunksResult] = useState<{ docId: string; chunks: DocumentChunkPreview[]; error: boolean } | null>(null);
   const filter = controlledFilter ?? internalFilter;
   const setFilter = (nextFilter: DocumentFilter) => { setInternalFilter(nextFilter); onFilterChange?.(nextFilter); };
   const filteredDocuments = useMemo(() => {
@@ -163,6 +175,22 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
     });
   }, [documents, filter, search]);
   const selected = documents.find((document) => document.doc_id === selectedId) ?? filteredDocuments[0] ?? null;
+  const selectedDocId = selected?.doc_id ?? null;
+
+  useEffect(() => {
+    if (!vercelDemo || !selectedDocId) return;
+    let active = true;
+    void getDocumentChunks(selectedDocId).then(({ chunks }) => {
+      if (active) setDemoChunksResult({ docId: selectedDocId, chunks, error: false });
+    }).catch(() => {
+      if (active) setDemoChunksResult({ docId: selectedDocId, chunks: [], error: true });
+    });
+    return () => { active = false; };
+  }, [selectedDocId, vercelDemo]);
+
+  const demoChunks = demoChunksResult?.docId === selectedDocId ? demoChunksResult.chunks : [];
+  const demoChunksLoading = Boolean(vercelDemo && selectedDocId && demoChunksResult?.docId !== selectedDocId);
+  const demoChunksError = Boolean(vercelDemo && selectedDocId && demoChunksResult?.docId === selectedDocId && demoChunksResult.error);
 
   return (
     <div className='forge-workspace documents-workspace'>
@@ -178,13 +206,13 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
         <section className='forge-document-table-card' aria-label={t('documents.library')}>
           <div className='forge-table-heading'><span>Showing {Math.min(filteredDocuments.length, 5)} of {documents.length || 0} documents · scroll for more</span></div>
           <div className='forge-document-table-scroll'>
-            <table className='forge-document-table'><thead><tr><th>{t('documents.source')}</th><th>{t('documents.type')}</th><th>{t('documents.pagesSheets')}</th><th>{t('documents.chunks')}</th><th>{t('documents.status')}</th><th>{t('documents.raw')}</th></tr></thead>
+            <table className='forge-document-table'><thead><tr><th>{t('documents.source')}</th><th>{t('documents.type')}</th><th>{t('documents.pagesSheets')}</th><th>{t('documents.chunks')}</th><th>{t('documents.status')}</th><th>{t(vercelDemo ? 'documents.extractedText' : 'documents.raw')}</th></tr></thead>
               <tbody>
                 {filteredDocuments.map((document) => {
                   const type = typeFor(document);
                   return <tr id={'document-' + document.doc_id} className={'forge-document-row ' + (selected?.doc_id === document.doc_id ? 'is-selected' : '')} key={document.doc_id} onClick={() => setSelectedId(document.doc_id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(document.doc_id); }} tabIndex={0}>
                     <td className='forge-document-cell'><div className='forge-document-name'><span className={'forge-file-dot ' + type.toLowerCase()}>{labelFor(document)}</span><div><strong>{document.doc_id}</strong><small>{document.factory_topic || 'Factory operations source'}</small></div></div></td>
-                    <td className='forge-document-cell'>{type}</td><td className='forge-document-cell'>{locationFor(document, t)}</td><td className='forge-document-cell'><strong>{document.chunk_count}</strong></td><td className='forge-document-cell'><span className='forge-document-status'>{document.status.toUpperCase()}</span></td><td className='forge-document-cell'><button type='button' className='forge-raw-link' aria-label={'View raw ' + document.source_name} onClick={(event) => { event.stopPropagation(); setRawDocument(document); }}>VIEW</button></td>
+                    <td className='forge-document-cell'>{type}</td><td className='forge-document-cell'>{locationFor(document, t)}</td><td className='forge-document-cell'><strong>{document.chunk_count}</strong></td><td className='forge-document-cell'><span className='forge-document-status'>{document.status.toUpperCase()}</span></td><td className='forge-document-cell'><button type='button' className='forge-raw-link' aria-label={vercelDemo ? t('documents.viewExtracted', { name: document.source_name }) : 'View raw ' + document.source_name} onClick={(event) => { event.stopPropagation(); if (vercelDemo) setSelectedId(document.doc_id); else setRawDocument(document); }}>{t(vercelDemo ? 'documents.viewText' : 'documents.viewRaw')}</button></td>
                   </tr>;
                 })}
                 {!filteredDocuments.length && <tr><td colSpan={6} className='forge-document-cell'>{t('documents.noMatch')}</td></tr>}
@@ -192,9 +220,9 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
             </table>
           </div>
         </section>
-        <Preview document={selected} />
+        <Preview document={selected} chunks={vercelDemo ? demoChunks : []} chunksLoading={vercelDemo && demoChunksLoading} chunksError={vercelDemo && demoChunksError} vercelDemo={vercelDemo} />
       </div>
-      {rawDocument && <RawDocumentModal document={rawDocument} onClose={() => setRawDocument(null)} />}
+      {!vercelDemo && rawDocument && <RawDocumentModal document={rawDocument} onClose={() => setRawDocument(null)} />}
     </div>
   );
 }

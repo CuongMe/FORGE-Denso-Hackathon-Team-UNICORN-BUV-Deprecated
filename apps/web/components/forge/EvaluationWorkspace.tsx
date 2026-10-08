@@ -3,7 +3,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { getEvaluation, getEvaluationDatasets, getEvaluations, getMetrics, setAdminKey, startEvaluation } from '@/lib/api';
-import type { EvaluationDataset, EvaluationRun, QueryMetrics } from '@/lib/types';
+import type { EvaluationDataset, EvaluationRun, HealthResponse, QueryMetrics } from '@/lib/types';
+import { vercelDemoLimits } from '@/lib/vercel-demo-config';
 import styles from './EvaluationWorkspace.module.css';
 
 const datasetLabels = { all: 'eval.mixedBenchmark', golden: 'eval.goldenDataset', abstention: 'eval.abstentionHoldout' } as const;
@@ -12,15 +13,17 @@ const duration = (value: number | null | undefined) => value == null ? '—' : (
 const tokens = (value: number | null | undefined) => value == null ? '—' : new Intl.NumberFormat().format(value);
 const cost = (value: number | null | undefined) => value == null ? '—' : '$' + value.toFixed(value < 0.01 ? 4 : 2);
 const formatValue = (value: string) => value.replaceAll('_', ' ');
-export function EvaluationRail() {
+export function EvaluationRail({ vercelDemo = false }: { vercelDemo?: boolean }) {
   const t = useTranslations();
   return <div className='forge-rail-content'>
     <p className='forge-eyebrow'>{t('eval.qualityLab')}</p><h2>{t('eval.title')}</h2>
-    <p className={styles.muted}>{t('eval.helper')}</p>
-    <div className={styles.railNote}><strong>{t('eval.observe')}</strong><p>{t('eval.observeText')}</p></div>
-    <div className={styles.railNote}><strong>{t('eval.evaluate')}</strong><p>{t('eval.evaluateText')}</p></div>
-    <div className={styles.railNote}><strong>{t('eval.inspect')}</strong><p>{t('eval.inspectText')}</p></div>
-    <p className={styles.note}>{t('eval.pendingNote')}</p>
+    <p className={styles.muted}>{vercelDemo ? t('eval.demoMetricsNote') : t('eval.helper')}</p>
+    {!vercelDemo && <>
+      <div className={styles.railNote}><strong>{t('eval.observe')}</strong><p>{t('eval.observeText')}</p></div>
+      <div className={styles.railNote}><strong>{t('eval.evaluate')}</strong><p>{t('eval.evaluateText')}</p></div>
+      <div className={styles.railNote}><strong>{t('eval.inspect')}</strong><p>{t('eval.inspectText')}</p></div>
+      <p className={styles.note}>{t('eval.pendingNote')}</p>
+    </>}
   </div>;
 }
 
@@ -28,7 +31,7 @@ function Stat({ label, value, hint }: { label: string; value: string; hint: stri
   return <article className={styles.stat}><span>{label}</span><strong>{value}</strong><small>{hint}</small></article>;
 }
 
-export function EvaluationWorkspace({ mode }: { mode: 'metrics' | 'evaluations' }) {
+export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode: 'metrics' | 'evaluations'; vercelDemo?: boolean; health: HealthResponse | null }) {
   const t = useTranslations();
   const [metrics, setMetrics] = useState<QueryMetrics | null>(null);
   const [runs, setRuns] = useState<EvaluationRun[]>([]);
@@ -39,11 +42,12 @@ export function EvaluationWorkspace({ mode }: { mode: 'metrics' | 'evaluations' 
   const [run, setRun] = useState<EvaluationRun | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!vercelDemo);
   const [refresh, setRefresh] = useState(0);
   const [accessKey, setAccessKey] = useState('');
 
   useEffect(() => {
+    if (vercelDemo) return;
     let active = true;
     let inFlight = false;
     async function poll() {
@@ -66,7 +70,7 @@ export function EvaluationWorkspace({ mode }: { mode: 'metrics' | 'evaluations' 
     void poll();
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void poll(); }, 3000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [selectedId, refresh, t]);
+  }, [selectedId, refresh, t, vercelDemo]);
 
   const available = datasets.find(item => item.id === dataset)?.count ?? 0;
   const running = runs.some(item => item.status === 'queued' || item.status === 'running') || run?.status === 'queued' || run?.status === 'running';
@@ -101,15 +105,23 @@ export function EvaluationWorkspace({ mode }: { mode: 'metrics' | 'evaluations' 
   return <div className={styles.workspace}>
     <header className={styles.heading}><div><p className='forge-eyebrow'>{t('eval.qualityPerformance')}</p>
       <h1>{mode === 'metrics' ? t('eval.metricsTitle') : t('eval.evaluationTitle')}</h1>
-      <p>{mode === 'metrics' ? t('eval.metricsHelper') : t('eval.evaluationHelper')}</p>
-    </div><span className={styles.badge}>{running ? t('eval.inProgress') : t('eval.qualityLabBadge')}</span></header>
+      <p>{vercelDemo ? t('eval.demoHelper') : mode === 'metrics' ? t('eval.metricsHelper') : t('eval.evaluationHelper')}</p>
+    </div><span className={styles.badge}>{vercelDemo ? t('eval.demoSnapshot') : running ? t('eval.inProgress') : t('eval.qualityLabBadge')}</span></header>
 
-    <details className={styles.access}><summary>{t('eval.protectedAccess')}</summary><form onSubmit={unlock}><label htmlFor='forge-admin-key'>{t('eval.adminKey')}</label><input id='forge-admin-key' type='password' autoComplete='off' value={accessKey} onChange={event => setAccessKey(event.target.value)} placeholder={t('eval.optionalDemo')} /><button type='submit'>{t('eval.applyKey')}</button></form><p>{t('eval.keyMemory')}</p></details>
+    {!vercelDemo && <details className={styles.access}><summary>{t('eval.protectedAccess')}</summary><form onSubmit={unlock}><label htmlFor='forge-admin-key'>{t('eval.adminKey')}</label><input id='forge-admin-key' type='password' autoComplete='off' value={accessKey} onChange={event => setAccessKey(event.target.value)} placeholder={t('eval.optionalDemo')} /><button type='submit'>{t('eval.applyKey')}</button></form><p>{t('eval.keyMemory')}</p></details>}
 
-    {error && <div className={styles.error} role='alert'>{error} <button onClick={() => setRefresh(value => value + 1)}>{t('eval.retry')}</button></div>}
-    {loading && <p role='status'>{t('eval.loading')}</p>}
+    {!vercelDemo && error && <div className={styles.error} role='alert'>{error} <button onClick={() => setRefresh(value => value + 1)}>{t('eval.retry')}</button></div>}
+    {!vercelDemo && loading && <p role='status'>{t('eval.loading')}</p>}
 
-    {mode === 'metrics' ? <>
+    {vercelDemo ? <>
+      <div className={styles.stats}>
+        <Stat label={t('eval.demoSources')} value={String(health?.documents_count ?? '—')} hint={t('eval.demoSourceHint')} />
+        <Stat label={t('eval.demoChunks')} value={String(health?.chunks_count ?? '—')} hint={t('eval.demoChunkHint')} />
+        <Stat label={t('eval.demoPerMinute')} value={String(vercelDemoLimits.perMinute)} hint={t('eval.demoMinuteHint')} />
+        <Stat label={t('eval.demoDailyCap')} value={String(vercelDemoLimits.perDay)} hint={t('eval.demoDayHint')} />
+      </div>
+      <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>
+    </> : mode === 'metrics' ? <>
       <div className={styles.stats}>
         <Stat label={t('eval.totalQueries')} value={metrics ? String(metrics.total_queries) : '—'} hint={t('eval.persistedAsk')} />
         <Stat label={t('eval.successRate')} value={percent(metrics?.success_rate)} hint={t('eval.completedNoErrors')} />

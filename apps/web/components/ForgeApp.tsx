@@ -14,6 +14,8 @@ import { EvaluationRail, EvaluationWorkspace } from "./forge/EvaluationWorkspace
 import { getMessages, type Language } from "@/lib/i18n";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 
+const VERCEL_DEMO = process.env.NEXT_PUBLIC_FORGE_VERCEL_DEMO === "1";
+
 function welcomeMessage(t: (key: string) => string): AskMessage {
   return { id: "welcome", role: "assistant", content: t("ask.welcome") };
 }
@@ -88,7 +90,7 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
     void refreshCorpus();
     const refreshTimer = window.setInterval(() => {
       if (document.visibilityState === "visible") void refreshCorpus();
-    }, 5000);
+    }, VERCEL_DEMO ? 60_000 : 5000);
 
     return () => {
       mounted = false;
@@ -185,13 +187,13 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
     }, 0);
   }
 
-  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow={t("rail.sources")} helper={t("rail.clickReference")} onReference={referenceDocument} /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} active={documentFilter} onChange={setDocumentFilter} /> : <EvaluationRail />;
+  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow={t("rail.sources")} helper={t("rail.clickReference")} onReference={referenceDocument} /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} active={documentFilter} onChange={setDocumentFilter} /> : <EvaluationRail vercelDemo={VERCEL_DEMO} />;
 
   return (
-    <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail} language={language} onLanguageChange={onLanguageChange}>
-      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} referencedDocument={documents.find((document) => document.doc_id === referencedDocumentId) ?? null} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={handleQuestionChange} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onOpenDocument={openDocument} onClearReference={clearDocumentReference} />}
-      {activeView === "documents" && <DocumentsWorkspace documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} />}
-      {(activeView === 'metrics' || activeView === 'evaluations') && <EvaluationWorkspace mode={activeView} />}
+    <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail} language={language} onLanguageChange={onLanguageChange} vercelDemo={VERCEL_DEMO}>
+      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} referencedDocument={documents.find((document) => document.doc_id === referencedDocumentId) ?? null} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={handleQuestionChange} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onOpenDocument={openDocument} onClearReference={clearDocumentReference} vercelDemo={VERCEL_DEMO} />}
+      {activeView === "documents" && <DocumentsWorkspace documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} vercelDemo={VERCEL_DEMO} />}
+      {(activeView === 'metrics' || activeView === 'evaluations') && <EvaluationWorkspace mode={activeView} health={health} vercelDemo={VERCEL_DEMO} />}
     </ForgeShell>
   );
 }

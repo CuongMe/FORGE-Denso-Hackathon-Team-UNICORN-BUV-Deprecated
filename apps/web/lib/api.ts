@@ -3,13 +3,14 @@ import type {
   EvaluationRun,
   QueryMetrics,
   DocumentSummary,
+  DocumentChunkPreview,
   HealthResponse,
   IngestionJob,
   QueryResponse,
   UploadResponse,
 } from "./types";
 
-const API_BASE = process.env.NEXT_PUBLIC_FORGE_API_URL ?? "http://127.0.0.1:8000/api";
+const API_BASE = process.env.NEXT_PUBLIC_FORGE_API_URL ?? (process.env.NEXT_PUBLIC_FORGE_VERCEL_DEMO === "1" ? "/api" : "http://127.0.0.1:8000/api");
 let adminKey = "";
 
 export function setAdminKey(value: string) {
@@ -80,6 +81,10 @@ export function startEvaluation(dataset: EvaluationDataset, limit: number) {
 export async function getDocuments() {
   const response = await request<{ data: DocumentSummary[] }>("/documents");
   return response.data;
+}
+
+export function getDocumentChunks(documentId: string) {
+  return request<{ document: DocumentSummary; chunks: DocumentChunkPreview[] }>(`/documents/${encodeURIComponent(documentId)}/chunks`);
 }
 
 export function askQuestion(question: string) {

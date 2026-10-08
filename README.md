@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./apps/web/public/forge-mark.svg" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" width="120" height="120" />
+  <img src="./apps/web/public/forge-mark.png" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" width="120" height="120" />
 </p>
 
 <h1 align="center">FORGE: Factory Operations Retrieval &amp; Generation Engine</h1>
@@ -151,6 +151,19 @@ curl "https://YOUR_DOMAIN/api/health"
 The first index and model downloads can take several minutes. In the health JSON, wait for `"ready": true` before demonstrating queries. Keep `FORGE_HF_OFFLINE=0`; the sparse model still needs to resolve its metadata on restart. For troubleshooting, use `docker compose logs --tail=100 api web caddy qdrant`. Before updating images or code, stop the stack and snapshot the VM disk containing the named volumes; restore that snapshot if an update breaks the demo. Avoid `docker compose down -v`, which deletes the persisted index and uploads.
 
 The stack has not been configured for a specific cloud account or domain. DNS, the VM, Gemini credentials, and a real end-to-end smoke test are still required before sharing a link.
+
+### Vercel demo hosting
+
+The Vercel option hosts the existing Next.js frontend and its same-origin `/api` demo routes. It does not replace or connect to the system FastAPI backend. Before deployment, preprocess the 17 manifest-listed Denso source files (PDF, XLSX, CSV, and image files) into the bundled 49-chunk index; ground-truth evaluation files and the duplicate ZIP are deliberately excluded.
+
+```sh
+cd services/api
+uv run python -m app.export_vercel_demo
+```
+
+In Vercel, import the repository with `apps/web` as the Root Directory. Set `NEXT_PUBLIC_FORGE_VERCEL_DEMO=1`, server-only `GEMINI_API_KEY`, and `UPSTASH_REDIS_REST_URL` plus `UPSTASH_REDIS_REST_TOKEN` from a shared Upstash Redis database. Optionally set `FORGE_GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`). The query route fails closed if the shared limiter is missing or unavailable; it allows up to 8 queries per IP per minute and 100 total queries per UTC day. Never expose these keys with a `NEXT_PUBLIC_` prefix. For local testing, copy `apps/web/.env.vercel.example` to `apps/web/.env.local` and fill in the server-only keys; local development bypasses the shared limiter.
+
+This lightweight demo uses the preprocessed Docling text with BM25 lexical retrieval and Gemini answer generation. Ask, Documents, and Metrics are available; Documents shows the extracted indexed text rather than original file downloads. The Metrics view reports corpus size and configured query limits; it does not claim live quality or latency measurements. A prebuilt torque answer is shown without using Gemini. Weak lexical matches abstain, and returned citations must match evidence labels in the generated answer. Uploads, raw file previews, evaluations, and the production Qdrant/reranker pipeline remain on the separate system backend. Gemini API quota and usage limits still apply to public queries.
 
 ### Design principles
 
