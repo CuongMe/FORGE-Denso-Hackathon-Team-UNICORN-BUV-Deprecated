@@ -168,6 +168,21 @@
 .forge-raw-modal-viewer iframe { display: block; width: 100%; height: 100%; min-height: 540px; border: 0; background: white; }
 .forge-raw-modal-viewer.is-image img { object-fit: contain; }
 .forge-raw-modal-note { margin: 0; padding: 9px 19px 12px; color: var(--forge-muted); font-size: 9px; }
+.forge-demo-document-content { display: grid; align-content: start; gap: 12px; padding: 18px; background: #f4f7f9; }
+.forge-demo-document-content > .forge-current-reference { margin: 0; padding: 16px 18px; background: white; }
+.forge-demo-image-frame { position: relative; width: 100%; height: min(52vh, 520px); min-height: 240px; overflow: hidden; border: 1px solid var(--forge-line); border-radius: 10px; background: #e8eef1; }
+.forge-demo-image-frame img { object-fit: contain; }
+.forge-demo-sheets { display: grid; gap: 12px; }
+.forge-demo-sheet { overflow: hidden; border: 1px solid var(--forge-line); border-radius: 9px; background: white; }
+.forge-demo-sheet summary, .forge-demo-extracted summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 15px; color: var(--forge-ink); cursor: pointer; font-size: 12px; font-weight: 800; }
+.forge-demo-sheet summary span { color: var(--forge-muted); font-size: 10px; font-weight: 600; }
+.forge-demo-table-scroll { max-width: 100%; overflow: auto; border-top: 1px solid var(--forge-line); }
+.forge-demo-preview-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 11px; white-space: nowrap; }
+.forge-demo-preview-table th { position: sticky; top: 0; z-index: 1; padding: 10px 12px; background: #eaf1f4; color: #334d5b; text-align: left; font-size: 10px; font-weight: 800; }
+.forge-demo-preview-table td { padding: 9px 12px; border-top: 1px solid #edf1f3; color: #334955; }
+.forge-demo-preview-table tbody tr:nth-child(even) { background: #f8fafb; }
+.forge-demo-extracted { overflow: hidden; border: 1px solid var(--forge-line); border-radius: 9px; background: white; }
+.forge-demo-extracted > .forge-current-reference { margin: 0 12px 12px; }
 .forge-document-preview { position: sticky; top: 18px; padding: 17px; }
 .forge-preview-heading { display: flex; justify-content: space-between; gap: 10px; }
 .forge-preview-type { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 10px; background: var(--forge-soft); color: var(--forge-indigo); font-size: 10px; font-weight: 900; }
