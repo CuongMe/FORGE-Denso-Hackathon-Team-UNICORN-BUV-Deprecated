@@ -35,6 +35,7 @@ type AskWorkspaceProps = {
   onUpload: (file: File, kind: 'document' | 'image') => Promise<void>;
   onOpenDocument: (docId: string) => void;
   onClearReference: () => void;
+  onClearChat: () => void;
   vercelDemo?: boolean;
 };
 
@@ -120,6 +121,7 @@ export function AskWorkspace({
   onUpload,
   onOpenDocument,
   onClearReference,
+  onClearChat,
   vercelDemo = false,
 }: AskWorkspaceProps) {
   const t = useTranslations();
@@ -130,6 +132,7 @@ export function AskWorkspace({
     if (message.response) latestResponse = message.response;
   });
   const hasConversation = messages.some((message) => message.role === 'user' || message.role === 'upload');
+  const hasPendingUpload = messages.some((message) => message.role === 'upload' && ['queued', 'processing'].includes(message.ingestionJob?.status ?? ''));
 
   function handleFile(kind: 'document' | 'image', event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -153,7 +156,7 @@ export function AskWorkspace({
               <div className="forge-corpus-summary"><strong>{health?.chunks_count ?? '--'}</strong><span>{t('ask.corpus', { count: health?.documents_count ?? (documents.length || '--') })}</span></div>
             </div>}
             {!hasConversation && <PromptTable prompts={prompts} disabled={isLoading} onSelect={(value) => onSubmit(value)} />}
-            {hasConversation && <div className="forge-conversation-heading"><span /><h2 id="conversation-heading">{t('ask.conversation')}</h2><span /></div>}
+            {hasConversation && <div className="forge-conversation-toolbar"><h2 id="conversation-heading">{t('ask.conversation')}</h2><button type="button" className="forge-clear-chat-button" onClick={onClearChat} disabled={isLoading || hasPendingUpload}>{t('ask.clearChat')}</button></div>}
             <div className="forge-message-list">
               {vercelDemo && !hasConversation && <article className='forge-message is-assistant'>
                 <div className='forge-message-meta'><span className='forge-avatar'>F</span><span>{t('ask.assistant')}</span><em className='is-grounded'>{t('ask.sampleLabel')}</em></div>

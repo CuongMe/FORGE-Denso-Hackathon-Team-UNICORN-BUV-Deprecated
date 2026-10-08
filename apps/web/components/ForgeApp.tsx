@@ -171,6 +171,13 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
     window.requestAnimationFrame(() => document.getElementById("question-input")?.focus());
   }
 
+  function clearChat() {
+    setMessages([welcomeMessage(t)]);
+    setQuestion("");
+    setReferencedDocumentId(null);
+    setUploadStatus(null);
+  }
+
   function handleQuestionChange(value: string) {
     setQuestion(value);
     const match = value.match(/(^|\s)@([A-Za-z0-9][A-Za-z0-9_-]*)/);
@@ -191,7 +198,7 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
 
   return (
     <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail} language={language} onLanguageChange={onLanguageChange} vercelDemo={VERCEL_DEMO}>
-      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} referencedDocument={documents.find((document) => document.doc_id === referencedDocumentId) ?? null} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={handleQuestionChange} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onOpenDocument={openDocument} onClearReference={clearDocumentReference} vercelDemo={VERCEL_DEMO} />}
+      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} referencedDocument={documents.find((document) => document.doc_id === referencedDocumentId) ?? null} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={handleQuestionChange} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onOpenDocument={openDocument} onClearReference={clearDocumentReference} onClearChat={clearChat} vercelDemo={VERCEL_DEMO} />}
       {activeView === "documents" && <DocumentsWorkspace documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} vercelDemo={VERCEL_DEMO} />}
       {(activeView === 'metrics' || activeView === 'evaluations') && <EvaluationWorkspace mode={activeView} health={health} vercelDemo={VERCEL_DEMO} />}
     </ForgeShell>
