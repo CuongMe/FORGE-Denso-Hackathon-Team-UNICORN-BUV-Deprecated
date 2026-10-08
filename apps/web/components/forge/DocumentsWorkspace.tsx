@@ -164,6 +164,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(documents[0]?.doc_id ?? null);
   const [rawDocument, setRawDocument] = useState<DocumentSummary | null>(null);
+  const [demoDocument, setDemoDocument] = useState<DocumentSummary | null>(null);
   const [demoChunksResult, setDemoChunksResult] = useState<{ docId: string; chunks: DocumentChunkPreview[]; error: boolean } | null>(null);
   const filter = controlledFilter ?? internalFilter;
   const setFilter = (nextFilter: DocumentFilter) => { setInternalFilter(nextFilter); onFilterChange?.(nextFilter); };
@@ -212,7 +213,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
                   const type = typeFor(document);
                   return <tr id={'document-' + document.doc_id} className={'forge-document-row ' + (selected?.doc_id === document.doc_id ? 'is-selected' : '')} key={document.doc_id} onClick={() => setSelectedId(document.doc_id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(document.doc_id); }} tabIndex={0}>
                     <td className='forge-document-cell'><div className='forge-document-name'><span className={'forge-file-dot ' + type.toLowerCase()}>{labelFor(document)}</span><div><strong>{document.doc_id}</strong><small>{document.factory_topic || 'Factory operations source'}</small></div></div></td>
-                    <td className='forge-document-cell'>{type}</td><td className='forge-document-cell'>{locationFor(document, t)}</td><td className='forge-document-cell'><strong>{document.chunk_count}</strong></td><td className='forge-document-cell'><span className='forge-document-status'>{document.status.toUpperCase()}</span></td><td className='forge-document-cell'><button type='button' className='forge-raw-link' aria-label={vercelDemo ? t('documents.viewExtracted', { name: document.source_name }) : 'View raw ' + document.source_name} onClick={(event) => { event.stopPropagation(); if (vercelDemo) setSelectedId(document.doc_id); else setRawDocument(document); }}>{t(vercelDemo ? 'documents.viewText' : 'documents.viewRaw')}</button></td>
+                    <td className='forge-document-cell'>{type}</td><td className='forge-document-cell'>{locationFor(document, t)}</td><td className='forge-document-cell'><strong>{document.chunk_count}</strong></td><td className='forge-document-cell'><span className='forge-document-status'>{document.status.toUpperCase()}</span></td><td className='forge-document-cell'><button type='button' className='forge-raw-link' aria-label={vercelDemo ? t('documents.viewExtracted', { name: document.source_name }) : 'View raw ' + document.source_name} onClick={(event) => { event.stopPropagation(); if (vercelDemo) { setSelectedId(document.doc_id); setDemoDocument(document); } else setRawDocument(document); }}>{t(vercelDemo ? 'documents.viewText' : 'documents.viewRaw')}</button></td>
                   </tr>;
                 })}
                 {!filteredDocuments.length && <tr><td colSpan={6} className='forge-document-cell'>{t('documents.noMatch')}</td></tr>}
@@ -223,6 +224,28 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
         <Preview document={selected} chunks={vercelDemo ? demoChunks : []} chunksLoading={vercelDemo && demoChunksLoading} chunksError={vercelDemo && demoChunksError} vercelDemo={vercelDemo} />
       </div>
       {!vercelDemo && rawDocument && <RawDocumentModal document={rawDocument} onClose={() => setRawDocument(null)} />}
+      {vercelDemo && demoDocument && <DemoDocumentModal document={demoDocument} chunks={demoChunksResult?.docId === demoDocument.doc_id ? demoChunksResult.chunks : []} loading={demoChunksResult?.docId !== demoDocument.doc_id} error={demoChunksResult?.docId === demoDocument.doc_id && demoChunksResult.error} onClose={() => setDemoDocument(null)} />}
     </div>
   );
+}
+
+function DemoDocumentModal({ document, chunks, loading, error, onClose }: { document: DocumentSummary; chunks: DocumentChunkPreview[]; loading: boolean; error: boolean; onClose: () => void }) {
+  const t = useTranslations();
+  const closeButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    closeButton.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+  return <div className='forge-raw-modal-backdrop' onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className='forge-raw-modal' role='dialog' aria-modal='true' aria-labelledby='demo-document-title'>
+      <header className='forge-raw-modal-header'><div><p className='forge-eyebrow'>{t('documents.extractedText')}</p><h2 id='demo-document-title'>{document.source_name}</h2><span>{document.doc_id}</span></div><button ref={closeButton} type='button' className='forge-raw-modal-close' aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button></header>
+      <div className='forge-raw-modal-viewer' aria-live='polite'>
+        {loading && <p role='status'>{t('documents.loadingExtracted')}</p>}
+        {error && <p role='alert'>{t('documents.extractedUnavailable')}</p>}
+        {!loading && !error && chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><span>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</span><p>{chunk.content}</p></article>)}
+      </div>
+    </section>
+  </div>;
 }
