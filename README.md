@@ -126,44 +126,25 @@ flowchart TB
 
 The API reports `ready: false` until Qdrant is reachable and the source index has been built.
 
-### Cloud demo hosting
+### Real service engine
 
-The included Compose stack runs on one Linux VM. It publishes only Caddy on TCP 80/443; Caddy serves the web app and `/api` from the same HTTPS origin. Qdrant, the API, and Next.js stay on the private Compose network. The source documents are mounted read-only; Qdrant, SQLite, uploads, model downloads, and TLS certificates use persistent volumes. This is a small demonstration with one API process because jobs and SQLite are local. Queries are public and can consume Gemini quota; the admin key protects write operations.
+The real service engine is planned for future implementation in the [`services/`](services/) folder. The live Vercel site is a preprocessed demo and is separate from that backend.
 
-Start with a VM that has about 4 vCPUs, 16 GiB RAM, and enough SSD space for Docker images, models, and uploaded documents. For example, AWS lists `m7i-flex.xlarge` as 4 vCPUs and 16 GiB; check regional price and storage separately. Set a cloud budget alert. Point a domain's A record at the VM, allow inbound TCP 80/443, and restrict SSH to your own IP. Install Docker Engine and the Compose plugin on the VM. Commit and push the deployment files and source pack, then clone the repository on the VM.
+### Vercel demo
 
-```sh
-cp .env.cloud.example .env
-```
+Live demo: [https://forge-factory-demo.vercel.app](https://forge-factory-demo.vercel.app/)
 
-Edit `.env`: set `FORGE_SITE_ADDRESS` to the domain, set a random `FORGE_ADMIN_API_KEY`, and set `GEMINI_API_KEY`. Keep `.env` private and restrict its file permissions (`chmod 600 .env`). The admin key is for write operations in the evaluation UI. Never put either key in `NEXT_PUBLIC_*` variables.
+Run it locally from Git:
 
 ```sh
-docker compose config --quiet
-docker compose build
-docker compose up -d qdrant
-docker compose run --rm api python -m app.index_demo
-docker compose up -d
-docker compose ps
-curl "https://YOUR_DOMAIN/api/health"
+git clone https://github.com/CuongMe/FORGE-Denso-Hackathon-Team-UNICORN-BUV-ongoing.git
+cd FORGE-Denso-Hackathon-Team-UNICORN-BUV-ongoing/apps/web
+cp .env.vercel.example .env.local
+pnpm install
+pnpm dev
 ```
 
-The first index and model downloads can take several minutes. In the health JSON, wait for `"ready": true` before demonstrating queries. Keep `FORGE_HF_OFFLINE=0`; the sparse model still needs to resolve its metadata on restart. For troubleshooting, use `docker compose logs --tail=100 api web caddy qdrant`. Before updating images or code, stop the stack and snapshot the VM disk containing the named volumes; restore that snapshot if an update breaks the demo. Avoid `docker compose down -v`, which deletes the persisted index and uploads.
-
-The stack has not been configured for a specific cloud account or domain. DNS, the VM, Gemini credentials, and a real end-to-end smoke test are still required before sharing a link.
-
-### Vercel demo hosting
-
-The Vercel option hosts the existing Next.js frontend and its same-origin `/api` demo routes. It does not replace or connect to the system FastAPI backend. Before deployment, preprocess the 17 manifest-listed Denso source files (PDF, XLSX, CSV, and image files) into the bundled 49-chunk index; ground-truth evaluation files and the duplicate ZIP are deliberately excluded.
-
-```sh
-cd services/api
-uv run python -m app.export_vercel_demo
-```
-
-In Vercel, import the repository with `apps/web` as the Root Directory. Set `NEXT_PUBLIC_FORGE_VERCEL_DEMO=1`, server-only `GEMINI_API_KEY`, and `UPSTASH_REDIS_REST_URL` plus `UPSTASH_REDIS_REST_TOKEN` from a shared Upstash Redis database. Optionally set `FORGE_GEMINI_MODEL` (defaults to `gemini-3.5-flash-lite`). The query route fails closed if the shared limiter is missing or unavailable; it allows up to 8 queries per IP per minute and 100 total queries per UTC day. Never expose these keys with a `NEXT_PUBLIC_` prefix. For local testing, copy `apps/web/.env.vercel.example` to `apps/web/.env.local` and fill in the server-only keys; local development bypasses the shared limiter.
-
-This lightweight demo uses the preprocessed Docling text with BM25 lexical retrieval and Gemini answer generation. Ask, Documents, and Metrics are available; Documents shows the extracted indexed text rather than original file downloads. The Metrics view reports corpus size and configured query limits; it does not claim live quality or latency measurements. A prebuilt torque answer is shown without using Gemini. Weak lexical matches abstain, and returned citations must match evidence labels in the generated answer. Uploads, raw file previews, evaluations, and the production Qdrant/reranker pipeline remain on the separate system backend. Gemini API quota and usage limits still apply to public queries.
+Set `GEMINI_API_KEY` in `.env.local` to enable live Gemini answers; Upstash credentials are only needed when deployed. The demo uses a preprocessed corpus and BM25 retrieval, separate from the system backend in `services/`.
 
 ### Design principles
 
@@ -238,7 +219,7 @@ Run both systems on the same corpus and golden dataset:
 
 The results dashboard should show measured values and the change from baseline. Until the experiment is run, use `TBD` rather than presenting sample numbers as results.
 
-| Category | Metric | Naive baseline | FORGE | Change |
+| Category | Metric | baseline | FORGE | Change |
 |---|---|---:|---:|---:|
 | Retrieval | Context recall | TBD | TBD | TBD |
 | Retrieval | Reranker lift, MRR | N/A | TBD | TBD |
