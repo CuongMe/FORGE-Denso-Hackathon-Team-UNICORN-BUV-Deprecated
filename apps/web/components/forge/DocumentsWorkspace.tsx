@@ -7,7 +7,7 @@ import documentPreviews from '@/data/document-previews.json';
 
 import type { DocumentChunkPreview, DocumentSummary, HealthResponse } from '@/lib/types';
 
-import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
+import { getDocumentChunks, getDocumentRawUrl } from '@/lib/api';
 import { FileIcon, SearchIcon } from './ForgeIcons';
 
 export type DocumentFilter = 'ALL' | 'PDF' | 'XLSX' | 'CSV' | 'IMAGE';
@@ -127,44 +127,11 @@ function Preview({ document, chunks, chunksLoading, chunksError, vercelDemo }: {
   );
 }
 
-function RawDocumentModal({ document, onClose }: { document: DocumentSummary; onClose: () => void }) {
-  const t = useTranslations();
-  const closeButton = useRef<HTMLButtonElement>(null);
-  const type = typeFor(document);
-  const rawUrl = getDocumentRawUrl(document.doc_id);
-  const viewerUrl = type === 'CSV' || type === 'XLSX' ? getDocumentPreviewUrl(document.doc_id) : rawUrl;
-
-  useEffect(() => {
-    closeButton.current?.focus();
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
-
-  return (
-    <div className='forge-raw-modal-backdrop' onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className='forge-raw-modal' role='dialog' aria-modal='true' aria-labelledby='raw-document-title'>
-        <header className='forge-raw-modal-header'>
-          <div><p className='forge-eyebrow'>RAW DOCUMENT</p><h2 id='raw-document-title'>{document.source_name}</h2><span>{type} · {document.doc_id}</span></div>
-          <button ref={closeButton} type='button' className='forge-raw-modal-close' aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button>
-        </header>
-        <div className={'forge-raw-modal-viewer is-' + type.toLowerCase()}>
-          {type === 'IMAGE' ? <Image src={rawUrl} alt={document.source_name} fill unoptimized sizes='100vw' /> : <iframe src={viewerUrl} title={t('documents.browserPreview', { name: document.source_name })} />}
-        </div>
-        <p className='forge-raw-modal-note'>{type === 'CSV' || type === 'XLSX' ? t('documents.csvPreview') : t('documents.originalFile')}</p>
-      </section>
-    </div>
-  );
-}
-
 export function DocumentsWorkspace({ documents, health, filter: controlledFilter, onFilterChange, vercelDemo = false }: DocumentsWorkspaceProps) {
   const t = useTranslations();
   const [internalFilter, setInternalFilter] = useState<DocumentFilter>('ALL');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(documents[0]?.doc_id ?? null);
-  const [rawDocument, setRawDocument] = useState<DocumentSummary | null>(null);
   const [demoDocument, setDemoDocument] = useState<DocumentSummary | null>(null);
   const [demoChunksResult, setDemoChunksResult] = useState<{ docId: string; chunks: DocumentChunkPreview[]; error: boolean } | null>(null);
   const filter = controlledFilter ?? internalFilter;
@@ -178,9 +145,10 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
   }, [documents, filter, search]);
   const selected = documents.find((document) => document.doc_id === selectedId) ?? filteredDocuments[0] ?? null;
   const selectedDocId = selected?.doc_id ?? null;
+  const shouldLoadChunks = vercelDemo || Boolean(demoDocument);
 
   useEffect(() => {
-    if (!vercelDemo || !selectedDocId) return;
+    if (!shouldLoadChunks || !selectedDocId) return;
     let active = true;
     void getDocumentChunks(selectedDocId).then(({ chunks }) => {
       if (active) setDemoChunksResult({ docId: selectedDocId, chunks, error: false });
@@ -188,7 +156,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
       if (active) setDemoChunksResult({ docId: selectedDocId, chunks: [], error: true });
     });
     return () => { active = false; };
-  }, [selectedDocId, vercelDemo]);
+  }, [selectedDocId, shouldLoadChunks]);
 
   const demoChunks = demoChunksResult?.docId === selectedDocId ? demoChunksResult.chunks : [];
   const demoChunksLoading = Boolean(vercelDemo && selectedDocId && demoChunksResult?.docId !== selectedDocId);
@@ -208,13 +176,16 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
         <section className='forge-document-table-card' aria-label={t('documents.library')}>
           <div className='forge-table-heading'><span>Showing {Math.min(filteredDocuments.length, 5)} of {documents.length || 0} documents · scroll for more</span></div>
           <div className='forge-document-table-scroll'>
-            <table className='forge-document-table'><thead><tr><th>{t('documents.source')}</th><th>{t('documents.type')}</th><th>{t('documents.pagesSheets')}</th><th>{t('documents.chunks')}</th><th>{t('documents.status')}</th><th>{t(vercelDemo ? 'documents.extractedText' : 'documents.raw')}</th></tr></thead>
+            <table className='forge-document-table'><thead><tr><th>{t('documents.source')}</th><th>{t('documents.type')}</th><th>{t('documents.pagesSheets')}</th><th>{t('documents.chunks')}</th><th>{t('documents.status')}</th><th>{t('documents.actions')}</th></tr></thead>
               <tbody>
                 {filteredDocuments.map((document) => {
                   const type = typeFor(document);
                   return <tr id={'document-' + document.doc_id} className={'forge-document-row ' + (selected?.doc_id === document.doc_id ? 'is-selected' : '')} key={document.doc_id} onClick={() => setSelectedId(document.doc_id)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setSelectedId(document.doc_id); }} tabIndex={0}>
                     <td className='forge-document-cell'><div className='forge-document-name'><span className={'forge-file-dot ' + type.toLowerCase()}>{labelFor(document)}</span><div><strong>{document.doc_id}</strong><small>{document.factory_topic || 'Factory operations source'}</small></div></div></td>
-                    <td className='forge-document-cell'>{type}</td><td className='forge-document-cell'>{locationFor(document, t)}</td><td className='forge-document-cell'><strong>{document.chunk_count}</strong></td><td className='forge-document-cell'><span className='forge-document-status'>{document.status.toUpperCase()}</span></td><td className='forge-document-cell'><button type='button' className='forge-raw-link' aria-label={vercelDemo ? t('documents.viewExtracted', { name: document.source_name }) : 'View raw ' + document.source_name} onClick={(event) => { event.stopPropagation(); if (vercelDemo) { setSelectedId(document.doc_id); setDemoDocument(document); } else setRawDocument(document); }}>{t(vercelDemo ? 'documents.viewText' : 'documents.viewRaw')}</button></td>
+                    <td className='forge-document-cell'>{type}</td><td className='forge-document-cell'>{locationFor(document, t)}</td><td className='forge-document-cell'><strong>{document.chunk_count}</strong></td><td className='forge-document-cell'><span className='forge-document-status'>{document.status.toUpperCase()}</span></td><td className='forge-document-cell'><div className='forge-document-actions'>
+                      <button type='button' className='forge-raw-link' aria-label={t('documents.viewExtracted', { name: document.source_name })} onClick={(event) => { event.stopPropagation(); setSelectedId(document.doc_id); setDemoDocument(document); }}>{t('documents.viewText')}</button>
+                      <a className='forge-raw-link' href={vercelDemo ? `/demo-documents/${encodeURIComponent(document.source_name)}` : getDocumentRawUrl(document.doc_id)} target='_blank' rel='noopener noreferrer' aria-label={t('documents.viewRaw', { name: document.source_name })} onClick={(event) => event.stopPropagation()}>{t('documents.viewRawLabel')}</a>
+                    </div></td>
                   </tr>;
                 })}
                 {!filteredDocuments.length && <tr><td colSpan={6} className='forge-document-cell'>{t('documents.noMatch')}</td></tr>}
@@ -224,8 +195,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
         </section>
         <Preview document={selected} chunks={vercelDemo ? demoChunks : []} chunksLoading={vercelDemo && demoChunksLoading} chunksError={vercelDemo && demoChunksError} vercelDemo={vercelDemo} />
       </div>
-      {!vercelDemo && rawDocument && <RawDocumentModal document={rawDocument} onClose={() => setRawDocument(null)} />}
-      {vercelDemo && demoDocument && <DemoDocumentModal document={demoDocument} chunks={demoChunksResult?.docId === demoDocument.doc_id ? demoChunksResult.chunks : []} loading={demoChunksResult?.docId !== demoDocument.doc_id} error={demoChunksResult?.docId === demoDocument.doc_id && demoChunksResult.error} onClose={() => setDemoDocument(null)} />}
+      {demoDocument && <DemoDocumentModal document={demoDocument} chunks={demoChunksResult?.docId === demoDocument.doc_id ? demoChunksResult.chunks : []} loading={demoChunksResult?.docId !== demoDocument.doc_id} error={demoChunksResult?.docId === demoDocument.doc_id && demoChunksResult.error} onClose={() => setDemoDocument(null)} />}
     </div>
   );
 }

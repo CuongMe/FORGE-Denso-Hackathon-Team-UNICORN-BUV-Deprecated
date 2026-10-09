@@ -156,6 +156,7 @@
 .forge-file-dot.image, .forge-file-type-dot.image { color: var(--forge-warning); background: #fff6e8; }
 .forge-document-status { display: inline-flex; padding: 4px 7px; border-radius: 999px; background: var(--forge-green-soft); color: var(--forge-green); font-size: 8px; font-weight: 800; }
 .forge-raw-link { display: inline-flex; padding: 5px 8px; border: 1px solid #c5dce3; border-radius: 6px; background: var(--forge-soft); color: var(--forge-indigo); font-size: 8px; font-weight: 800; letter-spacing: .04em; text-decoration: none; }
+.forge-document-actions { display: flex; align-items: center; gap: 6px; }
 .forge-raw-link:hover, .forge-raw-link:focus-visible { border-color: var(--forge-indigo); background: #edf3ff; outline: none; }
 .forge-raw-modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: rgba(19, 40, 52, .42); }
 .forge-raw-modal { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; width: min(100%, 980px); height: min(88vh, 820px); overflow: hidden; border: 1px solid #b8d2db; border-radius: 12px; background: var(--forge-surface); box-shadow: 0 24px 70px rgba(19, 40, 52, .25); }

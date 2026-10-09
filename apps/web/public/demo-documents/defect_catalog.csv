@@ -1,0 +1,6 @@
+﻿defect_code,english_name,vietnamese_name,severity,acceptance_criteria
+D01,Surface scratch,Vết xước bề mặt,Major,Reject if length > 0.5 mm
+D07,Bent terminal,Chân terminal cong,Critical,Any visible permanent bend
+D12,Connector latch crack,Nứt lẫy connector,Critical,Any crack through latch root
+D21,Unreadable traceability label,Nhãn truy xuất mờ,Major,Barcode/QR not readable after 2 attempts
+D31,Seal not fully seated,Gioăng chưa vào hết,Major,Seal lip must be flush within 0.3 mm
