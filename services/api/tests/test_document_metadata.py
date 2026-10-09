@@ -30,3 +30,27 @@ def test_csv_summary_uses_source_shape_and_chunk_count(tmp_path):
     assert summary['column_count'] == 2
     assert summary['chunk_count'] == 1
     assert summary['page_count'] == 0
+
+
+def test_xls_summary_includes_sheet_and_table_shape(tmp_path, monkeypatch):
+    from app import document_metadata
+
+    source = tmp_path / 'inspection.xls'
+    source.write_bytes(b'xls fixture')
+    sheet = type('Sheet', (), {'nrows': 3, 'ncols': 2})()
+    workbook = type('Workbook', (), {
+        'sheet_names': lambda self: ['Inspection'],
+        'sheets': lambda self: [sheet],
+        'release_resources': lambda self: None,
+    })()
+    monkeypatch.setattr(document_metadata.xlrd, 'open_workbook', lambda **_: workbook)
+
+    summary = summarize_document(
+        source=source, doc_id='xls', source_name=source.name,
+        source_path='uploads/inspection.xls', file_format='xls', modality='xls',
+        language='en', factory_topic='inspection', chunks=[],
+    )
+
+    assert summary['sheet_count'] == 1
+    assert summary['row_count'] == 3
+    assert summary['column_count'] == 2

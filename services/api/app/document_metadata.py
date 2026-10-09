@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Iterable
 from xml.etree import ElementTree
 
+import xlrd
+
 from app.models import Chunk
 
 
@@ -84,6 +86,22 @@ def _xlsx_shape(source: Path) -> tuple[int, int]:
         return 0, 0
 
 
+def _xls_shape(source: Path) -> tuple[int, int, int]:
+    try:
+        workbook = xlrd.open_workbook(filename=str(source), on_demand=True)
+        try:
+            sheets = workbook.sheets()
+            return (
+                len(workbook.sheet_names()),
+                max((sheet.nrows for sheet in sheets), default=0),
+                max((sheet.ncols for sheet in sheets), default=0),
+            )
+        finally:
+            workbook.release_resources()
+    except (xlrd.XLRDError, OSError, ValueError):
+        return 0, 0, 0
+
+
 def summarize_document(
     *,
     source: Path,
@@ -131,6 +149,8 @@ def summarize_document(
     if suffix == '.xlsx':
         summary['sheet_count'] = _xlsx_sheet_count(source)
         summary['row_count'], summary['column_count'] = _xlsx_shape(source)
+    elif suffix == '.xls':
+        summary['sheet_count'], summary['row_count'], summary['column_count'] = _xls_shape(source)
     elif suffix == '.csv':
         summary['row_count'], summary['column_count'] = _csv_shape(source)
     return summary

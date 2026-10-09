@@ -78,6 +78,8 @@ def _content_matches_extension(extension: str, data: bytes) -> bool:
             return '[Content_Types].xml' in names and any(name.startswith('xl/') for name in names)
         except (OSError, ValueError, zipfile.BadZipFile):
             return False
+    if extension == '.xls':
+        return data.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1')
     if extension == '.csv':
         try:
             data.decode('utf-8-sig')
@@ -750,7 +752,7 @@ def _preview_table_html(rows: list[list[object]]) -> str:
     head_html = ''.join(f'<th>{html.escape(str(value or ""))}</th>' for value in header)
     body_html = ''.join(
         '<tr>' + ''.join(
-            f'<td>{html.escape(str(value or ""))}</td>'
+            f'<td>{html.escape(str(value if value is not None else ""))}</td>'
             for value in row[:len(header)]
         ) + '</tr>'
         for row in body
@@ -808,7 +810,7 @@ def preview_document(document_id: str) -> HTMLResponse:
             'message': 'The document was not found.',
         })
     source = _document_source_file(document)
-    if source.suffix.casefold() not in {'.csv', '.xlsx'}:
+    if source.suffix.casefold() not in {'.csv', '.xlsx', '.xls'}:
         raise HTTPException(status_code=415, detail={
             'code': 'DOCUMENT_PREVIEW_NOT_REQUIRED',
             'message': 'This document type should be rendered using its native browser viewer.',
@@ -933,7 +935,7 @@ async def upload_document(
             status_code=422,
             detail={
                 "code": "UNSUPPORTED_FILE_TYPE",
-                "message": "Supported files are PDF, PNG, JPG, BMP, WEBP, XLSX, and CSV.",
+                "message": "Supported files are PDF, PNG, JPG, BMP, WEBP, XLS, XLSX, and CSV.",
             },
         )
 

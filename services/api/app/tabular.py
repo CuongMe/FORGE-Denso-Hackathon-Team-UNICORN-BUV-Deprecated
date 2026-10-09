@@ -6,6 +6,8 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
 
+import xlrd
+
 
 PREVIEW_MAX_ROWS = 200
 PREVIEW_MAX_COLUMNS = 40
@@ -21,6 +23,23 @@ def read_table_sheets(
         with source.open(encoding='utf-8-sig', newline='') as stream:
             rows = list(csv.reader(stream))
             return [('CSV', rows if max_rows is None else rows[:max_rows])]
+    if source.suffix.casefold() == '.xls':
+        try:
+            workbook = xlrd.open_workbook(filename=str(source), on_demand=True)
+            try:
+                tables = []
+                for sheet in workbook.sheets():
+                    width = sheet.ncols if max_columns is None else min(sheet.ncols, max_columns)
+                    height = sheet.nrows if max_rows is None else min(sheet.nrows, max_rows)
+                    tables.append((sheet.name, [
+                        [sheet.cell_value(row, column) for column in range(width)]
+                        for row in range(height)
+                    ]))
+                return tables
+            finally:
+                workbook.release_resources()
+        except (xlrd.XLRDError, OSError, ValueError) as exc:
+            raise ValueError('Could not read legacy Excel workbook.') from exc
     if source.suffix.casefold() != '.xlsx':
         return []
 

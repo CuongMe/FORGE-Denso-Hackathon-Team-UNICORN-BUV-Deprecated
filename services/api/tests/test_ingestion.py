@@ -13,7 +13,29 @@ def test_ingestion_status_exposes_supported_formats_and_chunker():
     assert ".pdf" in status["supported_extensions"]
     assert ".png" in status["supported_extensions"]
     assert ".bmp" in status["supported_extensions"]
+    assert ".xls" in status["supported_extensions"]
     assert status["backend"] in {"unavailable", "docling-hybridchunker"}
+
+
+def test_xls_ingestion_chunks_rows_without_requiring_docling(tmp_path, monkeypatch):
+    from app import tabular
+
+    source = tmp_path / 'inspection.xls'
+    source.write_bytes(b'xls fixture')
+    monkeypatch.setattr(tabular, 'read_table_sheets', lambda *_args, **_kwargs: [
+        ('Inspection', [['part', 'status'], ['M6 bolt', 'ok']]),
+    ])
+    adapter = DoclingHybridChunkerAdapter(max_tokens=32)
+    monkeypatch.setattr(adapter, '_tokenizer', lambda: SimpleNamespace(
+        count_tokens=lambda text: len(text.split()),
+    ))
+
+    records = adapter.convert_and_chunk(source)
+
+    assert len(records) == 1
+    assert 'Sheet: Inspection' in records[0].text
+    assert 'Row 2: part = M6 bolt; status = ok' in records[0].text
+    assert records[0].provenance[0].kind == 'table'
 
 
 def test_extract_chunk_provenance_keeps_table_ref_page_and_coordinates():

@@ -16,7 +16,7 @@ from app.pipeline import StageCallback
 DEFAULT_TOKENIZER = "local-whitespace"
 DEFAULT_MAX_TOKENS = 384
 SUPPORTED_INPUT_EXTENSIONS = frozenset(
-    {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".xlsx", ".csv"}
+    {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".xlsx", ".xls", ".csv"}
 )
 
 
@@ -422,6 +422,51 @@ class DoclingHybridChunkerAdapter:
             max_tokens=max_tokens,
         )
 
+    def _xls_records(self, tables: list[tuple[str, list[list[object]]]]) -> list[IngestedChunk]:
+        tokenizer = self._tokenizer()
+        max_tokens = self._max_tokens()
+        records: list[IngestedChunk] = []
+        for sheet_name, rows in tables:
+            if not rows:
+                continue
+            headers = [str(value or f"column_{index + 1}") for index, value in enumerate(rows[0])]
+            lines = [(row_number, "; ".join(
+                f"{header} = {row[index] if index < len(row) else ''}"
+                for index, header in enumerate(headers)
+            )) for row_number, row in enumerate(rows[1:], start=2)]
+            if not lines:
+                lines = [(1, "; ".join(headers))]
+            pending: list[tuple[int, str]] = []
+            pending_tokens = 0
+
+            def flush() -> None:
+                if not pending:
+                    return
+                start, end = pending[0][0], pending[-1][0]
+                records.append(IngestedChunk(
+                    chunk_index=len(records),
+                    text=f"Sheet: {sheet_name}\n" + "\n".join(line for _, line in pending),
+                    page_numbers=(),
+                    headings=(f"Sheet: {sheet_name}",),
+                    captions=(),
+                    provenance=(IngestedProvenance(
+                        ref=f"xls/{sheet_name}/rows/{start}-{end}", kind="table",
+                        page=None, bbox=None, coord_origin=None,
+                    ),),
+                ))
+                pending.clear()
+
+            for row_number, line in lines:
+                chunk_line = f"Row {row_number}: {line}"
+                row_tokens = tokenizer.count_tokens(chunk_line)
+                if pending and pending_tokens + row_tokens > max_tokens:
+                    flush()
+                    pending_tokens = 0
+                pending.append((row_number, chunk_line))
+                pending_tokens += row_tokens
+            flush()
+        return records
+
     def _document_converter(self) -> Any:
         if self._converter is None:
             from docling.document_converter import DocumentConverter
@@ -439,6 +484,21 @@ class DoclingHybridChunkerAdapter:
             raise ValueError(f"Unsupported ingestion format: {source.suffix}")
         if not source.is_file():
             raise FileNotFoundError(source)
+        if source.suffix.casefold() == ".xls":
+            from app.tabular import read_table_sheets
+
+            if progress_callback:
+                progress_callback('parsing', 'started', 0, 'Reading legacy Excel workbook.')
+            tables = read_table_sheets(source, max_rows=None, max_columns=None)
+            if progress_callback:
+                progress_callback('parsing', 'completed', 100, 'Excel workbook parsed.')
+                progress_callback('table_extraction', 'started', 0, 'Extracting spreadsheet rows.')
+                progress_callback('table_extraction', 'completed', 100, 'Spreadsheet tables extracted.')
+                progress_callback('chunking', 'started', 0, 'Grouping spreadsheet rows into searchable chunks.')
+            records = self._xls_records(tables)
+            if progress_callback:
+                progress_callback('chunking', 'completed', 100, f'Created {len(records)} spreadsheet chunk(s).')
+            return records
         if not docling_available():
             raise RuntimeError(
                 "The optional Docling ingestion extra is not installed. "

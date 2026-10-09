@@ -219,6 +219,11 @@ def test_upload_rejects_content_that_does_not_match_extension(client):
     assert response.json()['error']['code'] == 'INVALID_FILE_CONTENT'
 
 
+def test_xls_signature_is_accepted():
+    assert main._content_matches_extension('.xls', b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1workbook')
+    assert not main._content_matches_extension('.xls', b'not an xls workbook')
+
+
 def test_upload_accepts_bmp_signature(client, tmp_path, monkeypatch):
     store = LifecycleStore(tmp_path / 'forge.sqlite3')
     store.initialize()
@@ -355,3 +360,25 @@ def test_csv_preview_renders_in_browser(client, tmp_path, monkeypatch):
     assert response.headers['content-type'].startswith('text/html')
     assert 'M6 bolt' in response.text
     assert 'inspection.csv' in response.text
+
+
+def test_xls_preview_renders_sheets_as_tables(client, tmp_path, monkeypatch):
+    store = LifecycleStore(tmp_path / 'forge.sqlite3')
+    source = tmp_path / 'inspection.xls'
+    source.write_bytes(b'xls fixture')
+    store.upsert_document({
+        'doc_id': 'preview-xls', 'source_name': source.name,
+        'source_path': source.name, 'format': 'XLS', 'modality': 'table',
+        'language': 'en', 'factory_topic': 'inspection',
+    }, status='indexed')
+    monkeypatch.setattr(main, 'runtime', type('Runtime', (), {'state_store': store})())
+    monkeypatch.setattr(main, 'PROJECT_ROOT', tmp_path)
+    monkeypatch.setattr(main, 'read_table_sheets', lambda *_args, **_kwargs: [
+        ('Inspection', [['part', 'status'], ['M6 bolt', 'ok']]),
+    ])
+
+    response = client.get('/api/documents/preview-xls/preview')
+
+    assert response.status_code == 200
+    assert 'Inspection' in response.text
+    assert 'M6 bolt' in response.text
