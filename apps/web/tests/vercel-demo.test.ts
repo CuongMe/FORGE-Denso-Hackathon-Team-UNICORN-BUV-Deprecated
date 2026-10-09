@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { checkDemoRateLimit, getDemoDocuments, normalizeDemoQuestion, queryDemo, rankDemoChunks } from '@/lib/vercel-demo';
+import { checkDemoRateLimit, getDemoDocument, getDemoDocuments, normalizeDemoQuestion, queryDemo, rankDemoChunks } from '@/lib/vercel-demo';
 import { POST } from '@/app/api/query/route';
 import { GET as getDocumentChunks } from '@/app/api/documents/[docId]/chunks/route';
 
@@ -20,6 +20,13 @@ describe('pre-indexed Vercel demo corpus', () => {
     const [result] = rankDemoChunks('bilingual forklift safety poster', 1);
     expect(result?.chunk.doc_id).toBe('IMG-SAFE-001');
     expect(result?.chunk.provenance.length).toBeGreaterThan(0);
+  });
+
+  it('uses verified Vietnamese text for the synthetic forklift poster', () => {
+    const content = getDemoDocument('IMG-SAFE-001')?.chunks.map((chunk) => chunk.content).join(' ') ?? '';
+    expect(content).toContain('Giới hạn tốc độ trong xưởng');
+    expect(content).toContain('Dừng và báo cáo nếu đèn cảnh báo không hoạt động');
+    expect(content).not.toContain('Gii hn tc');
   });
 
   it('normalizes and bounds user questions at the route boundary', () => {
