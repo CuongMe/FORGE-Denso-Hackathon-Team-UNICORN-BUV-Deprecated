@@ -1,4 +1,4 @@
-import { checkDemoRateLimit, DemoInputError, DemoRateLimitError, DemoServiceError, normalizeDemoQuestion, queryDemo } from '@/lib/vercel-demo';
+import { checkDemoRateLimit, DemoInputError, DemoRateLimitError, DemoServiceError, normalizeDemoQuestion, queryDemo, recordDemoQueryMetric } from '@/lib/vercel-demo';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -21,13 +21,29 @@ export async function POST(request: Request) {
     return Response.json({ error: { code: 'INVALID_QUESTION', message: 'Question must be a string between 2 and 500 characters.' } }, { status: 400 });
   }
 
+  let queryStartedAt: number | null = null;
   try {
     const rateLimit = await checkDemoRateLimit(request);
     if (rateLimit.limited) {
       return Response.json({ error: { code: 'RATE_LIMITED', message: 'Demo query limit reached. Please try again later.' } }, { status: 429, headers: { 'Cache-Control': 'no-store', 'Retry-After': String(rateLimit.retryAfter) } });
     }
-    return Response.json(await queryDemo(question), { headers: { 'Cache-Control': 'no-store' } });
+    queryStartedAt = performance.now();
+    const response = await queryDemo(question);
+    await recordDemoQueryMetric({
+      latency_ms: Math.round(performance.now() - queryStartedAt),
+      succeeded: 1,
+      abstained: response.abstained || response.grounding === 'no_match' ? 1 : 0,
+      citations: response.citations.length,
+      prompt_tokens: response.usage.prompt_tokens,
+      completion_tokens: response.usage.completion_tokens,
+      total_tokens: response.usage.total_tokens,
+      estimated_cost_usd: response.usage.estimated_cost_usd,
+    });
+    return Response.json(response, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error) {
+    if (queryStartedAt !== null) {
+      await recordDemoQueryMetric({ latency_ms: Math.round(performance.now() - queryStartedAt), succeeded: 0, abstained: 0, citations: 0, prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, estimated_cost_usd: null });
+    }
     if (error instanceof DemoRateLimitError) {
       return Response.json({ error: { code: 'RATE_LIMIT_UNAVAILABLE', message: 'This demo is temporarily unable to accept queries.' } }, { status: 503, headers: { 'Cache-Control': 'no-store' } });
     }

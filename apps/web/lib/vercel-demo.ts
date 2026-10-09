@@ -1,6 +1,6 @@
 import corpusData from '@/data/denso-corpus.json';
 import jaBusinessCorpusData from '@/data/ja-business-doc-rq-bench.json';
-import type { Citation, DocumentSummary, HealthResponse, QueryResponse, RetrievalCandidate } from './types';
+import type { Citation, DocumentSummary, HealthResponse, QueryMetrics, QueryResponse, RetrievalCandidate } from './types';
 import { createHash } from 'node:crypto';
 import { vercelDemoLimits } from './vercel-demo-config';
 
@@ -38,6 +38,9 @@ const corpus: DemoCorpus = {
   chunks: [...densoCorpus.chunks, ...jaBusinessCorpus.chunks],
 };
 const commonQuestionTerms = new Set('a an and are as at be by do does for from how i in is it of on or the this to was what when where which who why with you'.split(' '));
+const queryMetricsKey = 'forge:demo:query-metrics:v1';
+const queryMetricsRetentionDays = 7;
+const localQueryMetrics: QueryMetrics['recent'] = [];
 
 export class DemoInputError extends Error {}
 export class DemoServiceError extends Error {}
@@ -51,6 +54,84 @@ function hasRateLimitConfiguration() {
   } catch {
     return false;
   }
+}
+
+async function redisCommand(command: unknown[], timeoutMs = 3_000) {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!hasRateLimitConfiguration() || !redisUrl || !redisToken) throw new Error('Demo Redis is not configured.');
+  const response = await fetch(new URL(redisUrl), {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${redisToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(command),
+    cache: 'no-store',
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!response.ok) throw new Error('Demo Redis request failed.');
+  const payload = await response.json() as { result?: unknown; error?: string };
+  if (payload.error) throw new Error('Demo Redis request failed.');
+  return payload.result;
+}
+
+type DemoQueryMetric = Omit<QueryMetrics['recent'][number], 'id' | 'created_at'>;
+
+export async function recordDemoQueryMetric(metric: DemoQueryMetric) {
+  const now = Date.now();
+  const record = { id: crypto.randomUUID(), created_at: new Date(now).toISOString(), ...metric };
+  if (!hasRateLimitConfiguration()) {
+    if (process.env.VERCEL !== '1') localQueryMetrics.unshift(record);
+    localQueryMetrics.splice(1_000);
+    return;
+  }
+  const entry = JSON.stringify(record);
+  const script = "redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',ARGV[1]); redis.call('ZADD',KEYS[1],ARGV[2],ARGV[3]); redis.call('EXPIRE',KEYS[1],ARGV[4]); return 1";
+  try {
+    await redisCommand(['EVAL', script, 1, queryMetricsKey, now - queryMetricsRetentionDays * 86_400_000, now, entry, (queryMetricsRetentionDays + 1) * 86_400], 1_000);
+  } catch (error) {
+    console.error('Could not record Vercel demo query metrics.', error);
+  }
+}
+
+function percentile(values: number[], fraction: number) {
+  return values.length ? [...values].sort((a, b) => a - b)[Math.max(0, Math.ceil(values.length * fraction) - 1)] : null;
+}
+
+function summarizeQueryMetrics(records: QueryMetrics['recent']): QueryMetrics {
+  const successful = records.filter((record) => record.succeeded === 1);
+  const sum = (key: 'prompt_tokens' | 'completion_tokens' | 'total_tokens') => records.reduce((total, record) => total + record[key], 0);
+  return {
+    total_queries: records.length,
+    window_size: records.length,
+    retention_days: queryMetricsRetentionDays,
+    success_rate: records.length ? successful.length / records.length : null,
+    abstention_rate: successful.length ? successful.filter((record) => record.abstained === 1).length / successful.length : null,
+    citation_rate: successful.length ? successful.filter((record) => record.citations > 0).length / successful.length : null,
+    p50_latency_ms: percentile(records.map((record) => record.latency_ms), 0.5),
+    p95_latency_ms: percentile(records.map((record) => record.latency_ms), 0.95),
+    prompt_tokens: sum('prompt_tokens'),
+    completion_tokens: sum('completion_tokens'),
+    total_tokens: sum('total_tokens'),
+    estimated_cost_usd: records.length && records.every((record) => record.estimated_cost_usd !== null) ? records.reduce((total, record) => total + record.estimated_cost_usd!, 0) : null,
+    recent: records.slice(0, 20),
+  };
+}
+
+export async function getDemoQueryMetrics(): Promise<QueryMetrics> {
+  const cutoff = Date.now() - queryMetricsRetentionDays * 86_400_000;
+  if (!hasRateLimitConfiguration()) {
+    if (process.env.VERCEL === '1') throw new Error('Demo Redis is not configured.');
+    return summarizeQueryMetrics(localQueryMetrics.filter((record) => Date.parse(record.created_at) >= cutoff));
+  }
+  const script = "redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',ARGV[1]); return redis.call('ZREVRANGE',KEYS[1],0,-1)";
+  const result = await redisCommand(['EVAL', script, 1, queryMetricsKey, cutoff]);
+  if (!Array.isArray(result)) throw new Error('Demo Redis returned invalid metrics.');
+  const records = result.map((item) => {
+    if (typeof item !== 'string') throw new Error('Demo Redis returned invalid metrics.');
+    const record = JSON.parse(item) as QueryMetrics['recent'][number];
+    if (typeof record.latency_ms !== 'number' || typeof record.succeeded !== 'number') throw new Error('Demo Redis returned invalid metrics.');
+    return record;
+  });
+  return summarizeQueryMetrics(records);
 }
 
 export async function checkDemoRateLimit(request: Request) {
@@ -164,7 +245,7 @@ export function getDemoHealth(): HealthResponse {
       backend: 'preprocessed demo corpora',
       docling_available: false,
       chunker: 'Docling HybridChunker (offline index)',
-      supported_extensions: ['PDF', 'XLSX', 'CSV', 'PNG', 'JPG'],
+      supported_extensions: ['PDF', 'XLS', 'XLSX', 'CSV', 'PNG', 'JPG'],
     },
   };
 }
@@ -191,6 +272,13 @@ function readGeminiResponse(value: unknown) {
     completionTokens: numberOrZero(usage.candidatesTokenCount),
     totalTokens: numberOrZero(usage.totalTokenCount),
   };
+}
+
+function estimateGeminiCost(promptTokens: number, completionTokens: number) {
+  const inputRate = Number(process.env.FORGE_GEMINI_INPUT_USD_PER_MILLION);
+  const outputRate = Number(process.env.FORGE_GEMINI_OUTPUT_USD_PER_MILLION);
+  if (!process.env.FORGE_GEMINI_INPUT_USD_PER_MILLION || !process.env.FORGE_GEMINI_OUTPUT_USD_PER_MILLION || !Number.isFinite(inputRate) || !Number.isFinite(outputRate) || inputRate < 0 || outputRate < 0) return null;
+  return (promptTokens * inputRate + completionTokens * outputRate) / 1_000_000;
 }
 
 function responseFromAnswer(
@@ -243,7 +331,7 @@ function responseFromAnswer(
       prompt_tokens: usage.promptTokens,
       completion_tokens: usage.completionTokens,
       total_tokens: usage.totalTokens,
-      estimated_cost_usd: null,
+      estimated_cost_usd: estimateGeminiCost(usage.promptTokens, usage.completionTokens),
     },
     trace: {
       retrieval_mode: 'bm25',

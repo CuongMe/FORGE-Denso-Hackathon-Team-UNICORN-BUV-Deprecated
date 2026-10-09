@@ -7,10 +7,10 @@ import documentPreviews from '@/data/document-previews.json';
 
 import type { DocumentChunkPreview, DocumentSummary, HealthResponse } from '@/lib/types';
 
-import { getDocumentChunks, getDocumentRawUrl } from '@/lib/api';
+import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
 import { FileIcon, SearchIcon } from './ForgeIcons';
 
-export type DocumentFilter = 'ALL' | 'PDF' | 'XLSX' | 'CSV' | 'IMAGE';
+export type DocumentFilter = 'ALL' | 'PDF' | 'XLS' | 'XLSX' | 'CSV' | 'IMAGE';
 
 type DocumentsWorkspaceProps = {
   documents: DocumentSummary[];
@@ -24,6 +24,7 @@ function typeFor(document: DocumentSummary): Exclude<DocumentFilter, 'ALL'> {
   const value = (document.format + ' ' + document.modality).toLowerCase();
   if (value.includes('image') || ['png', 'jpg', 'jpeg', 'bmp', 'webp'].some((type) => value.includes(type))) return 'IMAGE';
   if (value.includes('xlsx') || value.includes('excel')) return 'XLSX';
+  if (value.includes('xls')) return 'XLS';
   if (value.includes('csv')) return 'CSV';
   return 'PDF';
 }
@@ -35,7 +36,7 @@ function labelFor(document: DocumentSummary) {
 function locationFor(document: DocumentSummary, t: (key: string, values?: Record<string, string | number>) => string) {
   const type = typeFor(document);
   if (type === 'PDF') return document.page_count ? t('documents.pages', { count: document.page_count }) : t('documents.pagesMissing');
-  if (type === 'XLSX') return document.sheet_count ? t('documents.sheets', { count: document.sheet_count }) : t('documents.sheetsMissing');
+  if (type === 'XLSX' || type === 'XLS') return document.sheet_count ? t('documents.sheets', { count: document.sheet_count }) : t('documents.sheetsMissing');
   if (type === 'CSV') {
     const rows = document.row_count ? t('documents.rows', { count: document.row_count }) : t('documents.rowsMissing');
     const columns = document.column_count ? t('documents.columns', { count: document.column_count }) : t('documents.columnsMissing');
@@ -50,7 +51,7 @@ function regionLabel(document: DocumentSummary, t: (key: string) => string) {
 
 function RailFilters({ documents, active, onChange }: { documents: DocumentSummary[]; active: DocumentFilter; onChange: (filter: DocumentFilter) => void }) {
   const t = useTranslations();
-  const filters: DocumentFilter[] = ['ALL', 'PDF', 'XLSX', 'CSV', 'IMAGE'];
+  const filters: DocumentFilter[] = ['ALL', 'PDF', 'XLS', 'XLSX', 'CSV', 'IMAGE'];
   return (
     <div className='forge-rail-filter-stack' aria-label={t('documents.filterLabel')}>
       {filters.map((filter) => {
@@ -167,7 +168,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
       <div className='forge-workspace-heading documents-heading'><div><p className='forge-eyebrow'>{t('documents.eyebrow')}</p><h1>{t('documents.title')}</h1><p className='forge-workspace-helper'>{t('documents.helper')}</p></div><div className='forge-corpus-summary'><strong>{health?.documents_count ?? documents.length}</strong><span>{t('documents.sources')}</span></div></div>
       <div className='forge-search-bar'><SearchIcon /><input aria-label={t('documents.searchLabel')} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('documents.search')} /><strong>{filteredDocuments.length} {t('documents.sources')}</strong></div>
       <div className='forge-filter-row documents-filter-row' aria-label={t('documents.filterLabel')}>
-        {(['ALL', 'PDF', 'XLSX', 'CSV', 'IMAGE'] as DocumentFilter[]).map((item) => {
+        {(['ALL', 'PDF', 'XLS', 'XLSX', 'CSV', 'IMAGE'] as DocumentFilter[]).map((item) => {
           const count = item === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === item).length;
           return <button key={item} type='button' className={'forge-filter-chip ' + (filter === item ? 'is-active' : '')} onClick={() => setFilter(item)}>{item} {count}</button>;
         })}
@@ -195,12 +196,12 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
         </section>
         <Preview document={selected} chunks={vercelDemo ? demoChunks : []} chunksLoading={vercelDemo && demoChunksLoading} chunksError={vercelDemo && demoChunksError} vercelDemo={vercelDemo} />
       </div>
-      {demoDocument && <DemoDocumentModal document={demoDocument} chunks={demoChunksResult?.docId === demoDocument.doc_id ? demoChunksResult.chunks : []} loading={demoChunksResult?.docId !== demoDocument.doc_id} error={demoChunksResult?.docId === demoDocument.doc_id && demoChunksResult.error} onClose={() => setDemoDocument(null)} />}
+      {demoDocument && <DemoDocumentModal document={demoDocument} chunks={demoChunksResult?.docId === demoDocument.doc_id ? demoChunksResult.chunks : []} loading={demoChunksResult?.docId !== demoDocument.doc_id} error={demoChunksResult?.docId === demoDocument.doc_id && demoChunksResult.error} vercelDemo={vercelDemo} onClose={() => setDemoDocument(null)} />}
     </div>
   );
 }
 
-function DemoDocumentModal({ document, chunks, loading, error, onClose }: { document: DocumentSummary; chunks: DocumentChunkPreview[]; loading: boolean; error: boolean; onClose: () => void }) {
+function DemoDocumentModal({ document, chunks, loading, error, vercelDemo, onClose }: { document: DocumentSummary; chunks: DocumentChunkPreview[]; loading: boolean; error: boolean; vercelDemo: boolean; onClose: () => void }) {
   const t = useTranslations();
   const closeButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -213,13 +214,14 @@ function DemoDocumentModal({ document, chunks, loading, error, onClose }: { docu
   const sheets = documentPreviews[document.doc_id as keyof typeof documentPreviews] ?? [];
   return <div className='forge-raw-modal-backdrop' onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className='forge-raw-modal' role='dialog' aria-modal='true' aria-labelledby='demo-document-title'>
-      <header className='forge-raw-modal-header'><div><p className='forge-eyebrow'>{type === 'IMAGE' ? 'IMAGE SOURCE · EXTRACTED TEXT' : type === 'XLSX' || type === 'CSV' ? 'SPREADSHEET PREVIEW' : t('documents.extractedText')}</p><h2 id='demo-document-title'>{document.source_name}</h2><span>{document.doc_id} · {document.factory_topic}</span></div><button ref={closeButton} type='button' className='forge-raw-modal-close' aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button></header>
+      <header className='forge-raw-modal-header'><div><p className='forge-eyebrow'>{type === 'IMAGE' ? 'IMAGE SOURCE · EXTRACTED TEXT' : type === 'XLS' || type === 'XLSX' || type === 'CSV' ? 'SPREADSHEET PREVIEW' : t('documents.extractedText')}</p><h2 id='demo-document-title'>{document.source_name}</h2><span>{document.doc_id} · {document.factory_topic}</span></div><button ref={closeButton} type='button' className='forge-raw-modal-close' aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button></header>
       <div className='forge-raw-modal-viewer forge-demo-document-content' aria-live='polite'>
         {type === 'IMAGE' && <div className='forge-demo-image-frame'><Image src={`/demo-documents/${encodeURIComponent(document.source_name)}`} alt={document.source_name} fill sizes='(max-width: 900px) 90vw, 850px' unoptimized /></div>}
-        {(type === 'XLSX' || type === 'CSV') && sheets.length > 0 && <div className='forge-demo-sheets'>{sheets.map((sheet, index) => <details className='forge-demo-sheet' key={sheet.name} open={index === 0}><summary>{sheet.name}<span>{sheet.rows.length - 1} rows · {sheet.rows[0]?.length ?? 0} columns</span></summary><div className='forge-demo-table-scroll'><table className='forge-demo-preview-table'><thead><tr>{sheet.rows[0]?.map((heading, column) => <th key={`${column}-${heading}`}>{heading || `Column ${column + 1}`}</th>)}</tr></thead><tbody>{sheet.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{sheet.rows[0]?.map((_, column) => <td key={column}>{row[column] || '—'}</td>)}</tr>)}</tbody></table></div></details>)}</div>}
+        {type === 'XLS' && !vercelDemo && <iframe title={document.source_name} src={getDocumentPreviewUrl(document.doc_id)} sandbox='' style={{ width: '100%', minHeight: '65vh', border: 0, background: '#fff' }} />}
+        {(type === 'XLS' || type === 'XLSX' || type === 'CSV') && sheets.length > 0 && <div className='forge-demo-sheets'>{sheets.map((sheet, index) => <details className='forge-demo-sheet' key={sheet.name} open={index === 0}><summary>{sheet.name}<span>{sheet.rows.length - 1} rows · {sheet.rows[0]?.length ?? 0} columns</span></summary><div className='forge-demo-table-scroll'><table className='forge-demo-preview-table'><thead><tr>{sheet.rows[0]?.map((heading, column) => <th key={`${column}-${heading}`}>{heading || `Column ${column + 1}`}</th>)}</tr></thead><tbody>{sheet.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{sheet.rows[0]?.map((_, column) => <td key={column}>{row[column] ?? '—'}</td>)}</tr>)}</tbody></table></div></details>)}</div>}
         {loading && <p role='status'>{t('documents.loadingExtracted')}</p>}
         {error && <p role='alert'>{t('documents.extractedUnavailable')}</p>}
-        {!loading && !error && (type === 'XLSX' || type === 'CSV') && sheets.length > 0 ? <details className='forge-demo-extracted'><summary>{t('documents.extractedText')} · {chunks.length} chunks</summary>{chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><p>{chunk.content}</p></article>)}</details> : !loading && !error && chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><span>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</span><p>{chunk.content}</p></article>)}
+        {!loading && !error && (type === 'XLS' || type === 'XLSX' || type === 'CSV') && sheets.length > 0 ? <details className='forge-demo-extracted'><summary>{t('documents.extractedText')} · {chunks.length} chunks</summary>{chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><p>{chunk.content}</p></article>)}</details> : !loading && !error && chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><span>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</span><p>{chunk.content}</p></article>)}
       </div>
     </section>
   </div>;

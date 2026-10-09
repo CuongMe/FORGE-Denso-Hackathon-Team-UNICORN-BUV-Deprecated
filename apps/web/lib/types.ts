@@ -56,8 +56,8 @@ export type QueryMetrics = {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
-  estimated_cost_usd: number;
-  recent: { id: number; created_at: string; latency_ms: number; succeeded: number; abstained: number; citations: number; prompt_tokens: number; completion_tokens: number; total_tokens: number; estimated_cost_usd: number }[];
+  estimated_cost_usd: number | null;
+  recent: { id: number | string; created_at: string; latency_ms: number; succeeded: number; abstained: number; citations: number; prompt_tokens: number; completion_tokens: number; total_tokens: number; estimated_cost_usd: number | null }[];
 };
 
 export type ChunkProvenance = {

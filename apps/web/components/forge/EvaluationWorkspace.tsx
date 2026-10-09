@@ -42,12 +42,32 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
   const [run, setRun] = useState<EvaluationRun | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [loading, setLoading] = useState(!vercelDemo);
+  const [loading, setLoading] = useState(!vercelDemo || mode === 'metrics');
   const [refresh, setRefresh] = useState(0);
   const [accessKey, setAccessKey] = useState('');
 
   useEffect(() => {
-    if (vercelDemo) return;
+    if (vercelDemo) {
+      if (mode !== 'metrics') return;
+      let active = true;
+      let inFlight = false;
+      async function pollDemoMetrics() {
+        if (inFlight) return;
+        inFlight = true;
+        try {
+          const nextMetrics = await getMetrics();
+          if (active) { setMetrics(nextMetrics); setError(null); }
+        } catch (cause) {
+          if (active) setError(cause instanceof Error ? cause.message : t('error.loadEval'));
+        } finally {
+          inFlight = false;
+          if (active) setLoading(false);
+        }
+      }
+      void pollDemoMetrics();
+      const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void pollDemoMetrics(); }, 15_000);
+      return () => { active = false; window.clearInterval(timer); };
+    }
     let active = true;
     let inFlight = false;
     async function poll() {
@@ -70,7 +90,7 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
     void poll();
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void poll(); }, 3000);
     return () => { active = false; window.clearInterval(timer); };
-  }, [selectedId, refresh, t, vercelDemo]);
+  }, [selectedId, refresh, t, vercelDemo, mode]);
 
   const available = datasets.find(item => item.id === dataset)?.count ?? 0;
   const running = runs.some(item => item.status === 'queued' || item.status === 'running') || run?.status === 'queued' || run?.status === 'running';
@@ -110,10 +130,10 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
 
     {!vercelDemo && <details className={styles.access}><summary>{t('eval.protectedAccess')}</summary><form onSubmit={unlock}><label htmlFor='forge-admin-key'>{t('eval.adminKey')}</label><input id='forge-admin-key' type='password' autoComplete='off' value={accessKey} onChange={event => setAccessKey(event.target.value)} placeholder={t('eval.optionalDemo')} /><button type='submit'>{t('eval.applyKey')}</button></form><p>{t('eval.keyMemory')}</p></details>}
 
-    {!vercelDemo && error && <div className={styles.error} role='alert'>{error} <button onClick={() => setRefresh(value => value + 1)}>{t('eval.retry')}</button></div>}
-    {!vercelDemo && loading && <p role='status'>{t('eval.loading')}</p>}
+    {(!vercelDemo || mode === 'metrics') && error && <div className={styles.error} role='alert'>{error} <button onClick={() => setRefresh(value => value + 1)}>{t('eval.retry')}</button></div>}
+    {(!vercelDemo || mode === 'metrics') && loading && <p role='status'>{t('eval.loading')}</p>}
 
-    {vercelDemo ? <>
+    {vercelDemo && mode !== 'metrics' ? <>
       <div className={styles.stats}>
         <Stat label={t('eval.demoSources')} value={String(health?.documents_count ?? '—')} hint={t('eval.demoSourceHint')} />
         <Stat label={t('eval.demoChunks')} value={String(health?.chunks_count ?? '—')} hint={t('eval.demoChunkHint')} />
@@ -138,6 +158,7 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
       <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.recentRequests')}</h2><span>{t('eval.evaluationExcluded')}</span></div>
         {metrics?.recent.length ? <div className={styles.scroll}><table><thead><tr><th>{t('eval.time')}</th><th>{t('eval.result')}</th><th>{t('eval.duration')}</th><th>{t('eval.citations')}</th><th>{t('eval.tokens')}</th><th>{t('eval.estimatedCost')}</th></tr></thead><tbody>{metrics.recent.map(item => <tr key={item.id}><td>{new Date(item.created_at).toLocaleString()}</td><td>{item.succeeded ? (item.abstained ? t('eval.noAnswer') : t('eval.answered')) : t('eval.failed')}</td><td>{duration(item.latency_ms)}</td><td>{item.citations}</td><td>{tokens(item.total_tokens)}</td><td>{cost(item.estimated_cost_usd)}</td></tr>)}</tbody></table></div> : <div className={styles.empty}><strong>{t('eval.firstQuery')}</strong><p>{t('eval.firstQueryText')}</p></div>}
       </section>
+      {vercelDemo && <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>}
     </> : <>
       <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.runBenchmark')}</h2><span>{t('eval.availableCases', { count: datasets.find(item => item.id === 'all')?.count ?? '—' })}</span></div>
         <div className={styles.reviewStatus}><strong>{datasets.find(item => item.id === 'all')?.signed_off ?? 0} / {datasets.find(item => item.id === 'all')?.count ?? 34}</strong><span>{t('eval.humanSigned')}</span><small>{datasets.find(item => item.id === 'all')?.pending_review ?? 34} {t('eval.awaitingReview')}</small></div>

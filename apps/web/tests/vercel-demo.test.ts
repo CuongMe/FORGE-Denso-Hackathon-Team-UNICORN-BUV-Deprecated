@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { checkDemoRateLimit, getDemoDocument, getDemoDocuments, normalizeDemoQuestion, queryDemo, rankDemoChunks } from '@/lib/vercel-demo';
+import { checkDemoRateLimit, getDemoDocument, getDemoDocuments, getDemoQueryMetrics, normalizeDemoQuestion, queryDemo, rankDemoChunks, recordDemoQueryMetric } from '@/lib/vercel-demo';
 import { POST } from '@/app/api/query/route';
 import { GET as getDocumentChunks } from '@/app/api/documents/[docId]/chunks/route';
 
@@ -43,6 +43,8 @@ describe('pre-indexed Vercel demo corpus', () => {
 
   it('sends the server-only key to Gemini and returns cited evidence', async () => {
     vi.stubEnv('GEMINI_API_KEY', 'test-only-key');
+    vi.stubEnv('FORGE_GEMINI_INPUT_USD_PER_MILLION', '2.5');
+    vi.stubEnv('FORGE_GEMINI_OUTPUT_USD_PER_MILLION', '10');
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
       candidates: [{ content: { parts: [{ text: 'Use the posted forklift safety guidance. [E1]' }] } }],
       usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 8, totalTokenCount: 18 },
@@ -55,6 +57,33 @@ describe('pre-indexed Vercel demo corpus', () => {
     expect(new Headers(init?.headers).get('x-goog-api-key')).toBe('test-only-key');
     expect(response.citations[0]?.doc_id).toBe('IMG-SAFE-001');
     expect(response.usage.total_tokens).toBe(18);
+    expect(response.usage.estimated_cost_usd).toBe(0.000105);
+  });
+
+  it('stores privacy-safe query metrics in Redis and aggregates the seven-day window', async () => {
+    vi.stubEnv('VERCEL', '1');
+    vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://redis.example.test');
+    vi.stubEnv('UPSTASH_REDIS_REST_TOKEN', 'test-only-token');
+    const records = [
+      { id: 'q2', created_at: '2026-10-09T10:00:00.000Z', latency_ms: 200, succeeded: 1, abstained: 0, citations: 1, prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, estimated_cost_usd: 0.001 },
+      { id: 'q1', created_at: '2026-10-09T09:00:00.000Z', latency_ms: 100, succeeded: 0, abstained: 0, citations: 0, prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, estimated_cost_usd: null },
+    ];
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({ result: 1 }))
+      .mockResolvedValueOnce(Response.json({ result: records.map(record => JSON.stringify(record)) }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await recordDemoQueryMetric({ latency_ms: 125, succeeded: 1, abstained: 0, citations: 1, prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, estimated_cost_usd: 0.001 });
+    const metrics = await getDemoQueryMetrics();
+    const writeCommand = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+
+    expect(metrics.total_queries).toBe(2);
+    expect(metrics.success_rate).toBe(0.5);
+    expect(metrics.p50_latency_ms).toBe(100);
+    expect(metrics.p95_latency_ms).toBe(200);
+    expect(metrics.total_tokens).toBe(15);
+    expect(metrics.estimated_cost_usd).toBeNull();
+    expect(JSON.stringify(writeCommand)).not.toContain('question');
   });
 
   it('does not call Gemini when the query only matches common words', async () => {

@@ -57,7 +57,7 @@ function RelatedSource({ docId, label, score }: { docId: string; label: string; 
 function citationLocation(citation: QueryResponse['citations'][number] | null, format: string, t: (key: string, values?: Record<string, string | number>) => string) {
   if (citation?.page != null) return t('ask.page', { value: citation.page });
   if (citation?.pages.length) return t('ask.pages', { value: citation.pages.join(', ') });
-  return format === 'CSV' || format === 'XLSX' ? t('ask.locationNotRecorded') : t('ask.pageNotRecorded');
+  return format === 'CSV' || format === 'XLS' || format === 'XLSX' ? t('ask.locationNotRecorded') : t('ask.pageNotRecorded');
 }
 
 function SourceDetails({ documents, response, onOpenDocument, vercelDemo }: { documents: DocumentSummary[]; response: QueryResponse | null; onOpenDocument: (docId: string) => void; vercelDemo: boolean }) {
@@ -228,7 +228,7 @@ export function AskWorkspace({
                 <div className="forge-composer-tools">
                   <button type="button" className="forge-icon-button" aria-label={t('ask.uploadDocument')} title={t('ask.uploadDocument')} onClick={() => documentInput.current?.click()} disabled={isLoading}><UploadIcon /></button>
                   <button type="button" className="forge-icon-button" aria-label={t('ask.uploadImage')} title={t('ask.uploadImage')} onClick={() => imageInput.current?.click()} disabled={isLoading}><ImageIcon /></button>
-                  <input ref={documentInput} type="file" className="forge-hidden-input" accept=".pdf,.xlsx,.csv" onChange={(event) => handleFile('document', event)} />
+                  <input ref={documentInput} type="file" className="forge-hidden-input" accept=".pdf,.xls,.xlsx,.csv" onChange={(event) => handleFile('document', event)} />
                   <input ref={imageInput} type="file" className="forge-hidden-input" accept=".png,.jpg,.jpeg,.bmp,.webp" onChange={(event) => handleFile('image', event)} />
                 </div>
                 <label className="forge-sr-only" htmlFor="question-input">{t('ask.questionLabel')}</label>

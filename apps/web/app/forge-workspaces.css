@@ -152,7 +152,7 @@
 .forge-file-dot, .forge-file-type-dot { display: inline-grid; place-items: center; flex: 0 0 auto; width: 25px; height: 25px; border-radius: 7px; background: var(--forge-soft); color: var(--forge-indigo); font-size: 8px; font-weight: 800; }
 .forge-file-dot.pdf, .forge-file-type-dot.pdf { color: var(--forge-red); background: #fff0f3; }
 .forge-file-dot.csv, .forge-file-type-dot.csv { color: var(--forge-green); background: var(--forge-green-soft); }
-.forge-file-dot.xlsx, .forge-file-type-dot.xlsx { color: var(--forge-blue); background: #edf3ff; }
+.forge-file-dot.xls, .forge-file-type-dot.xls, .forge-file-dot.xlsx, .forge-file-type-dot.xlsx { color: var(--forge-blue); background: #edf3ff; }
 .forge-file-dot.image, .forge-file-type-dot.image { color: var(--forge-warning); background: #fff6e8; }
 .forge-document-status { display: inline-flex; padding: 4px 7px; border-radius: 999px; background: var(--forge-green-soft); color: var(--forge-green); font-size: 8px; font-weight: 800; }
 .forge-raw-link { display: inline-flex; padding: 5px 8px; border: 1px solid #c5dce3; border-radius: 6px; background: var(--forge-soft); color: var(--forge-indigo); font-size: 8px; font-weight: 800; letter-spacing: .04em; text-decoration: none; }
