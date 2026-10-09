@@ -12,8 +12,14 @@ afterEach(() => {
 describe('pre-indexed Vercel demo corpus', () => {
   it('contains every manifest-listed source with searchable chunks', () => {
     const documents = getDemoDocuments();
-    expect(documents).toHaveLength(17);
+    expect(documents).toHaveLength(47);
     expect(documents.every((document) => document.chunk_count > 0)).toBe(true);
+  });
+
+  it('indexes the selected Japanese business document benchmark with source references', () => {
+    const [result] = rankDemoChunks('以下の条件をすべて満たす輸送モードを特定せよ。', 1);
+    expect(result?.chunk.doc_id).toBe('JA-BIZ-0001');
+    expect(getDemoDocument('JA-BIZ-0001')?.chunks).toHaveLength(2);
   });
 
   it('ranks the safety poster for a matching question and preserves provenance', () => {
