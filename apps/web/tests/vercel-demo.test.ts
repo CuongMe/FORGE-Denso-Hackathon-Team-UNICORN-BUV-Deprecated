@@ -60,6 +60,48 @@ describe('pre-indexed Vercel demo corpus', () => {
     expect(response.usage.estimated_cost_usd).toBe(0.000105);
   });
 
+  it('runs spreadsheet totals through SQLite and cites the source table without calling Gemini', async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await queryDemo('What is the sum of actual pcs in production log?');
+
+    expect(response.aggregation).toMatchObject({
+      operation: 'sum',
+      value: 4820,
+      source_doc_id: 'TBL-PROD-001',
+      source_name: 'production_log.xlsx',
+      column: 'Actual pcs',
+      rows_considered: 7,
+    });
+    expect(response.trace.route).toBe('aggregation');
+    expect(response.citations[0]?.doc_id).toBe('TBL-PROD-001');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('counts matching spreadsheet rows with a SQL filter', async () => {
+    const response = await queryDemo('How many inspection results are FAIL?');
+
+    expect(response.aggregation).toMatchObject({
+      operation: 'count',
+      source_doc_id: 'TBL-QLT-001',
+      filter_text: 'FAIL',
+    });
+    expect(response.aggregation?.value).toBe(3);
+    expect(response.trace.route).toBe('aggregation');
+  });
+
+  it('treats "min" in a column label as a unit when the question requests a total', async () => {
+    const response = await queryDemo('What is the total downtime min for maintenance history?');
+
+    expect(response.aggregation).toMatchObject({
+      operation: 'sum',
+      value: 75,
+      source_doc_id: 'TBL-MNT-001',
+      column: 'Downtime min',
+    });
+  });
+
   it('stores privacy-safe query metrics in Redis and aggregates the seven-day window', async () => {
     vi.stubEnv('VERCEL', '1');
     vi.stubEnv('UPSTASH_REDIS_REST_URL', 'https://redis.example.test');

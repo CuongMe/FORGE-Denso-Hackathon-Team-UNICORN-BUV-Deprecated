@@ -1,0 +1,478 @@
+{
+  "tables": [
+    {
+      "doc_id": "TBL-DICT-001",
+      "source_name": "bilingual_term_dictionary.xlsx",
+      "source_path": "data/denso_factory_hack_data_prep/tables/bilingual_term_dictionary.xlsx",
+      "columns": [
+        "Term ID",
+        "English",
+        "Vietnamese",
+        "Factory context / example"
+      ],
+      "rows": [
+        {
+          "Term ID": "T001",
+          "English": "quarantine tray",
+          "Vietnamese": "khay cách ly",
+          "Factory context / example": "Place suspect parts in the red quarantine tray."
+        },
+        {
+          "Term ID": "T002",
+          "English": "nonconformance report (NCR)",
+          "Vietnamese": "báo cáo không phù hợp (NCR)",
+          "Factory context / example": "Create an NCR for a critical defect."
+        },
+        {
+          "Term ID": "T003",
+          "English": "torque",
+          "Vietnamese": "mô-men siết",
+          "Factory context / example": "Target torque is 9.5 ± 0.5 N·m."
+        },
+        {
+          "Term ID": "T004",
+          "English": "traceability label",
+          "Vietnamese": "nhãn truy xuất",
+          "Factory context / example": "Scan the traceability label before release."
+        },
+        {
+          "Term ID": "T005",
+          "English": "lockout/tagout (LOTO)",
+          "Vietnamese": "khóa và treo thẻ (LOTO)",
+          "Factory context / example": "Verify zero energy before work begins."
+        },
+        {
+          "Term ID": "T006",
+          "English": "downtime",
+          "Vietnamese": "thời gian dừng máy",
+          "Factory context / example": "Downtime caused by Sensor S12 was 18 minutes."
+        },
+        {
+          "Term ID": "T007",
+          "English": "preventive maintenance",
+          "Vietnamese": "bảo trì phòng ngừa",
+          "Factory context / example": "Monthly preventive maintenance for SP-04."
+        },
+        {
+          "Term ID": "T008",
+          "English": "bent terminal",
+          "Vietnamese": "chân terminal cong",
+          "Factory context / example": "Bent terminal is defect code D07."
+        },
+        {
+          "Term ID": "T009",
+          "English": "first-piece approval",
+          "Vietnamese": "phê duyệt sản phẩm đầu tiên",
+          "Factory context / example": "Restart only after first-piece approval."
+        },
+        {
+          "Term ID": "T010",
+          "English": "changeover",
+          "Vietnamese": "chuyển đổi model",
+          "Factory context / example": "Model changeover X2 to X3 at 13:20."
+        },
+        {
+          "Term ID": "T011",
+          "English": "scrap",
+          "Vietnamese": "phế phẩm",
+          "Factory context / example": "Scrap was 31 pieces on Shift 1."
+        },
+        {
+          "Term ID": "T012",
+          "English": "andon alarm",
+          "Vietnamese": "cảnh báo andon",
+          "Factory context / example": "Andon alarm A-214 occurred at Station S40."
+        }
+      ]
+    },
+    {
+      "doc_id": "TBL-DEF-001",
+      "source_name": "defect_catalog.csv",
+      "source_path": "data/denso_factory_hack_data_prep/tables/defect_catalog.csv",
+      "columns": [
+        "defect_code",
+        "english_name",
+        "vietnamese_name",
+        "severity",
+        "acceptance_criteria"
+      ],
+      "rows": [
+        {
+          "defect_code": "D01",
+          "english_name": "Surface scratch",
+          "vietnamese_name": "Vết xước bề mặt",
+          "severity": "Major",
+          "acceptance_criteria": "Reject if length > 0.5 mm"
+        },
+        {
+          "defect_code": "D07",
+          "english_name": "Bent terminal",
+          "vietnamese_name": "Chân terminal cong",
+          "severity": "Critical",
+          "acceptance_criteria": "Any visible permanent bend"
+        },
+        {
+          "defect_code": "D12",
+          "english_name": "Connector latch crack",
+          "vietnamese_name": "Nứt lẫy connector",
+          "severity": "Critical",
+          "acceptance_criteria": "Any crack through latch root"
+        },
+        {
+          "defect_code": "D21",
+          "english_name": "Unreadable traceability label",
+          "vietnamese_name": "Nhãn truy xuất mờ",
+          "severity": "Major",
+          "acceptance_criteria": "Barcode/QR not readable after 2 attempts"
+        },
+        {
+          "defect_code": "D31",
+          "english_name": "Seal not fully seated",
+          "vietnamese_name": "Gioăng chưa vào hết",
+          "severity": "Major",
+          "acceptance_criteria": "Seal lip must be flush within 0.3 mm"
+        }
+      ]
+    },
+    {
+      "doc_id": "TBL-MNT-001",
+      "source_name": "maintenance_history.xlsx",
+      "source_path": "data/denso_factory_hack_data_prep/tables/maintenance_history.xlsx",
+      "columns": [
+        "Date",
+        "Asset ID",
+        "Machine",
+        "Category",
+        "Issue / Work",
+        "Action",
+        "Downtime min",
+        "Technician",
+        "Next Due",
+        "Status"
+      ],
+      "rows": [
+        {
+          "Date": "2026-08-15 00:00:00",
+          "Asset ID": "PRS-A3-04",
+          "Machine": "Servo Press SP-04",
+          "Category": "PM",
+          "Issue / Work": "Monthly PM",
+          "Action": "Lubricated die, checked motor temp and filter DP",
+          "Downtime min": 22,
+          "Technician": "M01",
+          "Next Due": "2026-09-15 00:00:00",
+          "Status": "Closed"
+        },
+        {
+          "Date": "2026-08-29 00:00:00",
+          "Asset ID": "VIS-A3-02",
+          "Machine": "Vision Inspector V2",
+          "Category": "Corrective",
+          "Issue / Work": "Barcode read retries",
+          "Action": "Cleaned scanner window and retaught focus",
+          "Downtime min": 12,
+          "Technician": "M03",
+          "Next Due": "2026-09-29 00:00:00",
+          "Status": "Closed"
+        },
+        {
+          "Date": "2026-09-03 00:00:00",
+          "Asset ID": "PRS-A3-04",
+          "Machine": "Servo Press SP-04",
+          "Category": "Corrective",
+          "Issue / Work": "Intermittent pressure low",
+          "Action": "Adjusted regulator; leak check passed",
+          "Downtime min": 18,
+          "Technician": "M02",
+          "Next Due": "2026-09-15 00:00:00",
+          "Status": "Closed"
+        },
+        {
+          "Date": "2026-09-10 00:00:00",
+          "Asset ID": "CVR-A3-01",
+          "Machine": "Conveyor A3",
+          "Category": "PM",
+          "Issue / Work": "Chain inspection",
+          "Action": "Adjusted tension; no parts replaced",
+          "Downtime min": 15,
+          "Technician": "M01",
+          "Next Due": "2026-10-10 00:00:00",
+          "Status": "Closed"
+        },
+        {
+          "Date": "2026-09-15 00:00:00",
+          "Asset ID": "VIS-A3-02",
+          "Machine": "Vision Inspector V2",
+          "Category": "Corrective",
+          "Issue / Work": "Sensor S12 false trigger",
+          "Action": "Reseated connector; monitor next shift",
+          "Downtime min": 8,
+          "Technician": "M03",
+          "Next Due": "2026-09-16 00:00:00",
+          "Status": "Monitoring"
+        }
+      ]
+    },
+    {
+      "doc_id": "TBL-PROD-001",
+      "source_name": "production_log.xlsx",
+      "source_path": "data/denso_factory_hack_data_prep/tables/production_log.xlsx",
+      "columns": [
+        "Date",
+        "Shift",
+        "Line",
+        "Hour",
+        "Target pcs",
+        "Actual pcs",
+        "Scrap pcs",
+        "Downtime min",
+        "Top reason",
+        "Achievement %",
+        "Scrap %"
+      ],
+      "rows": [
+        {
+          "Date": "2026-09-15 00:00:00",
+          "Shift": 1,
+          "Line": "A3",
+          "Hour": "07:00-08:00",
+          "Target pcs": 714,
+          "Actual pcs": 690,
+          "Scrap pcs": 4,
+          "Downtime min": 0,
+          "Top reason": null,
+          "Achievement %": 0.9663865546218487,
+          "Scrap %": 0.005797101449275362
+        },
+        {
+          "Date": "2026-09-15 00:00:00",
+          "Shift": 1,
+          "Line": "A3",
+          "Hour": "08:00-09:00",
+          "Target pcs": 714,
+          "Actual pcs": 705,
+          "Scrap pcs": 3,
+          "Downtime min": 0,
+          "Top reason": null,
+          "Achievement %": 0.9873949579831933,
+          "Scrap %": 0.00425531914893617
+        },
+        {
+          "Date": "2026-09-15 00:00:00",
+          "Shift": 1,
+          "Line": "A3",
+          "Hour": "09:00-10:00",
+          "Target pcs": 714,
+          "Actual pcs": 710,
+          "Scrap pcs": 5,
+          "Downtime min": 2,
+          "Top reason": "Barcode retry",
+          "Achievement %": 0.9943977591036415,
+          "Scrap %": 0.007042253521126761
+        },
+        {
+          "Date": "2026-09-15 00:00:00",
+          "Shift": 1,
+          "Line": "A3",
+          "Hour": "10:00-11:00",
+          "Target pcs": 714,
+          "Actual pcs": 655,
+          "Scrap pcs": 7,
+          "Downtime min": 8,
+          "Top reason": "Sensor S12 false trigger",
+          "Achievement %": 0.9173669467787114,
+          "Scrap %": 0.010687022900763359
+        },
+        {
+          "Date": "2026-09-15 00:00:00",
+          "Shift": 1,
+          "Line": "A3",
+          "Hour": "11:00-12:00",
+          "Target pcs": 714,
+          "Actual pcs": 700,
+          "Scrap pcs": 4,
+          "Downtime min": 0,
+          "Top reason": null,
+          "Achievement %": 0.9803921568627451,
+          "Scrap %": 0.005714285714285714
+        },
+        {
+          "Date": "2026-09-15 00:00:00",
+          "Shift": 1,
+          "Line": "A3",
+          "Hour": "12:00-13:00",
+          "Target pcs": 714,
+          "Actual pcs": 675,
+          "Scrap pcs": 5,
+          "Downtime min": 2,
+          "Top reason": "Minor jam",
+          "Achievement %": 0.9453781512605042,
+          "Scrap %": 0.007407407407407408
+        },
+        {
+          "Date": "2026-09-15 00:00:00",
+          "Shift": 1,
+          "Line": "A3",
+          "Hour": "13:00-14:00",
+          "Target pcs": 714,
+          "Actual pcs": 685,
+          "Scrap pcs": 3,
+          "Downtime min": 6,
+          "Top reason": "Changeover prep",
+          "Achievement %": 0.9593837535014006,
+          "Scrap %": 0.004379562043795621
+        }
+      ]
+    },
+    {
+      "doc_id": "TBL-QLT-001",
+      "source_name": "quality_inspection_results.xlsx",
+      "source_path": "data/denso_factory_hack_data_prep/tables/quality_inspection_results.xlsx",
+      "columns": [
+        "Timestamp",
+        "Part No.",
+        "Lot",
+        "Sample ID",
+        "Terminal Height mm",
+        "Spec Min",
+        "Spec Max",
+        "Result",
+        "Inspector"
+      ],
+      "rows": [
+        {
+          "Timestamp": "2026-09-15 00:07:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S01",
+          "Terminal Height mm": 1.84,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 00:14:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S02",
+          "Terminal Height mm": 1.82,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 00:21:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S03",
+          "Terminal Height mm": 1.87,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 00:28:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S04",
+          "Terminal Height mm": 1.79,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "FAIL",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 00:35:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S05",
+          "Terminal Height mm": 1.72,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "FAIL",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 00:42:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S06",
+          "Terminal Height mm": 1.85,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 00:49:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S07",
+          "Terminal Height mm": 1.88,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 00:56:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S08",
+          "Terminal Height mm": 1.81,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 01:03:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S09",
+          "Terminal Height mm": 1.76,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "FAIL",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 01:10:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S10",
+          "Terminal Height mm": 1.86,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 01:17:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S11",
+          "Terminal Height mm": 1.83,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        },
+        {
+          "Timestamp": "2026-09-15 01:24:00",
+          "Part No.": "XY-4821",
+          "Lot": "L260915-B",
+          "Sample ID": "S12",
+          "Terminal Height mm": 1.89,
+          "Spec Min": 1.8,
+          "Spec Max": 1.9,
+          "Result": "PASS",
+          "Inspector": "QI-02"
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import corpusData from '@/data/denso-corpus.json';
 import jaBusinessCorpusData from '@/data/ja-business-doc-rq-bench.json';
+import { aggregateDemoTable } from './demo-aggregation';
 import type { Citation, DocumentSummary, HealthResponse, QueryMetrics, QueryResponse, RetrievalCandidate } from './types';
 import { createHash } from 'node:crypto';
 import { vercelDemoLimits } from './vercel-demo-config';
@@ -351,6 +352,18 @@ function responseFromAnswer(
 
 export async function queryDemo(question: string): Promise<QueryResponse> {
   const ranked = rankDemoChunks(question);
+  const aggregation = aggregateDemoTable(question, ranked.map(({ chunk }) => chunk.doc_id));
+  if (aggregation) {
+    const source = corpus.chunks.find((chunk) => chunk.doc_id === aggregation.summary.source_doc_id);
+    if (source) {
+      const response = responseFromAnswer(aggregation.answer, [{ chunk: source, rawScore: 1, score: 1 }]);
+      response.aggregation = aggregation.summary;
+      response.trace.route = 'aggregation';
+      response.trace.reranker = 'SQLite structured aggregation';
+      response.trace.prompt_version = 'vercel-sql-aggregation-v1';
+      return response;
+    }
+  }
   if (!hasRelevantDemoEvidence(question, ranked)) return responseFromAnswer('I could not find strong, specific evidence for this question in the pre-indexed demo sources.', []);
 
   const apiKey = process.env.GEMINI_API_KEY;
