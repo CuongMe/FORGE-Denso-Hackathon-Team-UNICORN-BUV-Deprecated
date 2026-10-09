@@ -226,18 +226,16 @@ export function AskWorkspace({
               </div>}
               <form className="forge-composer" onSubmit={handleSubmit}>
                 <div className="forge-composer-tools">
-                  {!vercelDemo && <>
-                    <button type="button" className="forge-icon-button" aria-label={t('ask.uploadDocument')} title={t('ask.uploadDocument')} onClick={() => documentInput.current?.click()} disabled={isLoading}><UploadIcon /></button>
-                    <button type="button" className="forge-icon-button" aria-label={t('ask.uploadImage')} title={t('ask.uploadImage')} onClick={() => imageInput.current?.click()} disabled={isLoading}><ImageIcon /></button>
-                    <input ref={documentInput} type="file" className="forge-hidden-input" accept=".pdf,.xlsx,.csv" onChange={(event) => handleFile('document', event)} />
-                    <input ref={imageInput} type="file" className="forge-hidden-input" accept=".png,.jpg,.jpeg,.bmp,.webp" onChange={(event) => handleFile('image', event)} />
-                  </>}
+                  <button type="button" className="forge-icon-button" aria-label={t('ask.uploadDocument')} title={t('ask.uploadDocument')} onClick={() => documentInput.current?.click()} disabled={isLoading}><UploadIcon /></button>
+                  <button type="button" className="forge-icon-button" aria-label={t('ask.uploadImage')} title={t('ask.uploadImage')} onClick={() => imageInput.current?.click()} disabled={isLoading}><ImageIcon /></button>
+                  <input ref={documentInput} type="file" className="forge-hidden-input" accept=".pdf,.xlsx,.csv" onChange={(event) => handleFile('document', event)} />
+                  <input ref={imageInput} type="file" className="forge-hidden-input" accept=".png,.jpg,.jpeg,.bmp,.webp" onChange={(event) => handleFile('image', event)} />
                 </div>
                 <label className="forge-sr-only" htmlFor="question-input">{t('ask.questionLabel')}</label>
                 <textarea id="question-input" value={question} onChange={(event) => onQuestionChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); onSubmit(); } }} placeholder={t('ask.questionPlaceholder')} maxLength={500} disabled={isLoading} />
                 <button type="submit" className="forge-send-button" aria-label={isLoading ? t('ask.working') : t('ask.ask')} disabled={isLoading || !question.trim()}><span>{isLoading ? t('ask.working') : t('ask.ask')}</span><ArrowUpIcon /></button>
               </form>
-              <div className="forge-composer-footer"><span>{vercelDemo ? 'Ask about pre-indexed Denso sources · Shift + Enter' : 'Attach image · Click a source to reference it · Shift + Enter'}</span><span>{uploadStatus ?? question.length + '/500'}</span></div>
+              <div className="forge-composer-footer"><span>{vercelDemo ? 'Upload documents or images for processing · Shift + Enter' : 'Attach image · Click a source to reference it · Shift + Enter'}</span><span>{uploadStatus ?? question.length + '/500'}</span></div>
             </footer>
           </section>
         </div>
