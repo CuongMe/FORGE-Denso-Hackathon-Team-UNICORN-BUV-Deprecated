@@ -80,6 +80,7 @@
 .forge-ingestion-percent { color: var(--forge-indigo); font-size: 16px; font-weight: 800; }
 .forge-ingestion-progress { height: 7px; margin: 11px 0 12px; overflow: hidden; border-radius: 99px; background: #e8eef1; }
 .forge-ingestion-progress span { display: block; height: 100%; min-width: 2px; border-radius: inherit; background: linear-gradient(90deg, #ef5b75, #efaa42, #5bbc83, #6287e7, #9b67c7); transition: width .35s ease; }
+.forge-ingestion-demo-note { margin: 0 0 12px; color: var(--forge-muted); font-size: 11px; line-height: 1.45; }
 .forge-ingestion-stage-list { display: grid; max-height: 330px; gap: 6px; overflow-y: auto; padding-right: 3px; }
 .forge-ingestion-stage { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 38px; padding: 6px 8px; border: 1px solid transparent; border-radius: 8px; background: #f7fafb; }
 .forge-ingestion-stage.is-started { border-color: #b8d8e5; background: #f1f9fb; }

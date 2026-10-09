@@ -17,9 +17,11 @@ const DEFAULT_STAGES: Array<{ stage: string }> = [
 function fallbackStages(job: IngestionJob, t: (key: string) => string): IngestionStage[] {
   const activeIndex = DEFAULT_STAGES.findIndex(({ stage }) => stage === job.stage);
   return DEFAULT_STAGES.map(({ stage }, index) => {
-    const status: IngestionStageStatus = job.status === 'failed' && index === activeIndex
-      ? 'failed'
-      : index < activeIndex
+    const status: IngestionStageStatus = job.status === 'indexed'
+      ? 'completed'
+      : job.status === 'failed' && index === activeIndex
+        ? 'failed'
+        : index < activeIndex
         ? 'completed'
         : index === activeIndex
           ? 'started'
@@ -63,6 +65,7 @@ export function IngestionPipeline({ job }: { job: IngestionJob }) {
       <div className='forge-ingestion-progress' role='progressbar' aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label={t('ingestion.progress', { value: progress })}>
         <span style={{ width: progress + '%' }} />
       </div>
+      {job.job_id.startsWith('demo-upload-') && <p className='forge-ingestion-demo-note' role='note'>{t('ingestion.demoNotice')}</p>}
       <div className='forge-ingestion-stage-list'>
         {stages.map((stage) => (
           <div className={'forge-ingestion-stage is-' + stage.status} key={stage.stage}>

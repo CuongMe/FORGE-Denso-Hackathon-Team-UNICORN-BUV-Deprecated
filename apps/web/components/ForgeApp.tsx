@@ -12,6 +12,7 @@ import { ForgeRail } from "./forge/ForgeRail";
 import { ForgeShell, type ForgeView } from "./forge/ForgeShell";
 import { EvaluationRail, EvaluationWorkspace } from "./forge/EvaluationWorkspace";
 import { getMessages, type Language } from "@/lib/i18n";
+import { getDemoUploadStages } from "@/lib/demo-upload";
 import { NextIntlClientProvider, useTranslations } from "next-intl";
 
 const VERCEL_DEMO = process.env.NEXT_PUBLIC_FORGE_VERCEL_DEMO === "1";
@@ -120,10 +121,31 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
   }
 
   async function handleUpload(file: File) {
-    const localJob = pendingUploadJob(file);
+    let localJob = pendingUploadJob(file);
+    if (VERCEL_DEMO) localJob = { ...localJob, job_id: newId('demo-upload') };
     const uploadMessageId = newId("upload");
     setMessages((current) => [...current, { id: uploadMessageId, role: "upload", content: file.name, ingestionJob: localJob }]);
     setUploadStatus(t("ask.uploading", { name: file.name }));
+
+    if (VERCEL_DEMO) {
+      const stages = getDemoUploadStages(file);
+      for (const [index, stage] of stages.entries()) {
+        await new Promise((resolve) => window.setTimeout(resolve, 450));
+        const completed = stage === 'completed';
+        localJob = {
+          ...localJob,
+          stage,
+          status: completed ? 'indexed' : 'processing',
+          progress: Math.round(((index + 1) / stages.length) * 100),
+          updated_at: new Date().toISOString(),
+          completed_at: completed ? new Date().toISOString() : null,
+        };
+        setMessages((current) => current.map((message) => message.id === uploadMessageId ? { ...message, ingestionJob: localJob } : message));
+        setUploadStatus(completed ? t('ask.demoUploadComplete', { name: file.name }) : t('ask.processing', { name: file.name, stage: t('stage.' + stage) }));
+      }
+      return;
+    }
+
     try {
       const result = await uploadDocument(file);
       setUploadStatus(t("ask.queued", { name: result.filename }));
