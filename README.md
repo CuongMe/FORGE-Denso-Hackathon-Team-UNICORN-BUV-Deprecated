@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./apps/web/public/unicorn-logo.png" alt="UNICORN logo for FORGE" width="120" />
+  <img src="./image-1.png" alt="UNICORN logo for FORGE" width="120" />
 </p>
 
 <h1 align="center">FORGE: Factory Operations Retrieval &amp; Generation Engine</h1>
@@ -63,7 +63,7 @@ The main gaps versus mature enterprise products are connectors, identity-aware p
 
 ## Solution architecture
 
-FORGE indexes mixed-format documents into searchable, context-preserving representations. At query time, supported questions about tabular data use SQL aggregation; other questions use hybrid retrieval and grounded generation. If aggregation cannot be executed confidently, the query falls back to the retrieval path.
+FORGE uses a multimodal retrieval-augmented generation pipeline. The indexing path converts mixed-format documents into searchable, context-preserving representations. The answering path combines a user's question with the most relevant content and passes both to an LLM for a grounded response.
 
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '16px', 'fontFamily': 'Trebuchet MS, Verdana, Arial, sans-serif'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 70}}}%%
@@ -84,8 +84,6 @@ flowchart TB
     end
 
     subgraph QUERY["💬 Query Pipeline (per question)"]
-        ROUTER["Query router"]
-        AGGREGATE["SQLite in-memory SQL aggregation<br/>COUNT · SUM · AVG · MIN · MAX"]
         RETRIEVE["Hybrid retrieval"]
         RERANK["Cross-encoder reranking"]
         GEMINI["Gemini grounded generation<br/>(query + retrieved context)"]
@@ -93,29 +91,23 @@ flowchart TB
         ANSWER["Cited answer"]
         ABSTAIN["Abstention: 'I don't know'"]
 
-        ROUTER -->|supported table query| AGGREGATE
-        ROUTER -->|semantic question| RETRIEVE
-        AGGREGATE -.->|ambiguous or unsupported: fallback| RETRIEVE
         RETRIEVE --> RERANK --> GEMINI --> CHECK
         CHECK -->|yes| ANSWER
         CHECK -->|no| ABSTAIN
     end
 
     API --> PARSE
-    API --> ROUTER
+    API --> RETRIEVE
 
     EMBED -->|vectors| QDRANT[("Qdrant vector store")]
     CHUNK -->|metadata| SQLITE[("SQLite metadata")]
     PARSE -->|files & images| FILES[("Local FileSystem")]
 
-    FILES -->|selected CSV / XLS / XLSX rows| AGGREGATE
-    DEMO_TABLE["Preprocessed tabular fixture<br/>(Vercel demo)"] --> AGGREGATE
     QDRANT -->|top-K candidates| RETRIEVE
-    AGGREGATE -->|computed result + source citation| ANSWER
     ANSWER --> UI
 
     classDef node fill:#E8F0FE,stroke:#2563EB,color:#333333
-    class USER,UI,API,PARSE,CHUNK,EMBED,ROUTER,AGGREGATE,RETRIEVE,RERANK,GEMINI,CHECK,ANSWER,ABSTAIN,QDRANT,SQLITE,FILES,DEMO_TABLE node
+    class USER,UI,API,PARSE,CHUNK,EMBED,RETRIEVE,RERANK,GEMINI,CHECK,ANSWER,ABSTAIN,QDRANT,SQLITE,FILES node
     style INGESTION fill:#EFF6FF,stroke:#1D4ED8,color:#333333
     style QUERY fill:#EFF6FF,stroke:#1D4ED8,color:#333333
     linkStyle default stroke:#333333,stroke-width:1px
