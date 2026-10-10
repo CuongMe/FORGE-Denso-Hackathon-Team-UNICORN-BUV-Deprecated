@@ -252,21 +252,23 @@ html, body, .forge-app { background: var(--forge-bg); }
 .forge-prompt-section .forge-eyebrow { font-size: 10px; }
 .forge-prompt-helper { margin-top: 8px; color: var(--forge-muted); font-size: 14px; }
 .forge-prompt-table { margin-top: 14px; border: 1px solid var(--forge-indigo); border-radius: 0; }
-.forge-prompt-header, .forge-prompt-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; }
-.forge-prompt-header { min-height: 48px; padding: 0; background: var(--forge-blue); color: #fff; font-size: 13px; letter-spacing: .03em; }
-.forge-prompt-header span:first-child, .forge-prompt-number { display: none; }
+.forge-prompt-header, .forge-prompt-row { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr); gap: 0; }
+.forge-prompt-header { min-height: 48px; padding: 0; background: var(--forge-blue); color: #fff !important; font-size: 13px; letter-spacing: .03em; }
+.forge-prompt-header span:first-child { text-align: center; }
+.forge-prompt-number { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 50%; background: var(--forge-blue) !important; color: #fff; font-size: 11px; }
 .forge-prompt-header span { padding: 12px 16px; text-align: center; }
 .forge-prompt-header span:nth-child(2) { text-align: left; }
 .forge-prompt-header span:last-child { border-left: 1px solid #132e60; }
-.forge-prompt-scroll { max-height: 260px; }
+.forge-prompt-scroll { max-height: 260px; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
+.forge-prompt-scroll::-webkit-scrollbar { display: none; }
 .forge-prompt-row { min-height: 58px; padding: 8px 18px; border-top: 1px solid #a9bbcc; }
 .forge-prompt-row:hover { background: #effbfc; }
 .forge-prompt-question { display: grid; gap: 5px; color: var(--forge-ink); font-size: 13px; font-weight: 700; line-height: 1.35; }
 .forge-prompt-question small { color: var(--forge-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .forge-prompt-answer { padding-left: 16px; border-left: 1px solid #d4e0e6; color: var(--forge-ink); font-size: 12px; line-height: 1.4; }
-.forge-prompt-scroll-down { display: flex; width: 100%; min-height: 38px; align-items: center; justify-content: center; gap: 7px; border: 0; border-top: 1px solid #a9bbcc; background: #f2f7fb; color: var(--forge-indigo); font-size: 12px; font-weight: 800; cursor: pointer; }
-.forge-prompt-scroll-down:hover { background: #e5f1f8; }
-.forge-prompt-scrollbar { display: none; }
+.forge-prompt-scroll-controls { display: flex; justify-content: flex-end; gap: 6px; padding: 6px 8px; border-top: 1px solid #a9bbcc; background: #f2f7fb; }
+.forge-prompt-scroll-controls button { width: 32px; height: 28px; border: 1px solid #9bb3c7; background: #fff; color: var(--forge-indigo); font-size: 17px; font-weight: 800; cursor: pointer; }
+.forge-prompt-scroll-controls button:hover, .forge-prompt-scroll-controls button:focus-visible { border-color: var(--forge-indigo); background: #e5f1f8; outline: 2px solid transparent; }
 .forge-chatbox .forge-message-list { width: min(100%, 980px); gap: 22px; }
 .forge-chatbox .forge-message.is-user { max-width: 78%; }
 .forge-chatbox .forge-message.is-user .forge-message-card { border-color: #acdfe7; background: #e2f8fa; color: var(--forge-ink); }
@@ -333,9 +335,11 @@ html, body, .forge-app { background: var(--forge-bg); }
   .ask-primary { padding-inline: 10px; }
   .forge-chatbox-heading { padding-top: 28px; }
   .forge-chatbox-heading h1 { font-size: 32px; }
-  .forge-prompt-header, .forge-prompt-row { grid-template-columns: minmax(0, 1fr); }
+  .forge-prompt-header { grid-template-columns: 36px minmax(0, 1fr); }
+  .forge-prompt-row { grid-template-columns: 36px minmax(0, 1fr); }
   .forge-prompt-header span:last-child { display: none; }
-  .forge-prompt-answer { padding: 8px 0 0; border-left: 0; border-top: 1px solid #d4e0e6; }
+  .forge-prompt-number { grid-row: span 2; }
+  .forge-prompt-answer { grid-column: 2; padding: 8px 0 0; border-left: 0; border-top: 1px solid #d4e0e6; }
   .forge-chatbox .forge-message.is-user { max-width: 88%; }
   .ask-side { grid-template-columns: minmax(0, 1fr); padding: 14px 10px; }
 }
