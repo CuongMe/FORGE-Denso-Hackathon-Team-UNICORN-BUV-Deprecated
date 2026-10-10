@@ -29,7 +29,7 @@ Input data validates FORGE across document, visual, and tabular ingestion paths.
 | Data source | Description and sources |
 |---|---|
 | **AI-generated functionality data** | Synthetic factory PDFs, scans, images, spreadsheets, and CSVs created for functionality testing. It exercises ingestion, OCR, visual analysis, retrieval, and UI flows. Source: [`data/denso_factory_hack_data_prep`](data/denso_factory_hack_data_prep). |
-| **Curated FORGE testing data** | External test pack containing 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A ground truth, 30 [Mitsubishi Electric VIXIO](https://www.mitsubishielectric.com/fa/download/software/detailsearch.page?mode=lib&kisyu=/vixio&shiryoid=1000000933&lang=2&select=0&softid=3&infostatus=2_2_2&viewradio=0&viewstatus=&viewpos=) metal-nut images with 18 paired defect masks, and [`Intelligent_Production_IIoT.csv`](https://www.kaggle.com/datasets/colabsss/intelligent-production-operations-dataset) plus [`industrial_dataset.csv`](data/legacy_industrial_equipment_sensor_logs/industrial_dataset.csv). Sources and counts: [`dataset_manifest.json`](data/curated_forge_testing/dataset_manifest.json); review checklist: [`golden_data_checklist.xlsx`](data/curated_forge_testing/golden_data_checklist.xlsx). |
+| **Curated FORGE testing data** | External test pack containing 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A ground truth, 30 [Mitsubishi Electric VIXIO](https://www.mitsubishielectric.com/fa/download/software/detailsearch.page?mode=lib&kisyu=/vixio&shiryoid=1000000933&lang=2&select=0&softid=3&infostatus=2_2_2&viewradio=0&viewstatus=&viewpos=) metal-nut images with 18 paired defect masks, and [`Intelligent_Production_IIoT.csv`](https://www.kaggle.com/datasets/colabsss/intelligent-production-operations-dataset) plus [`industrial_dataset.csv`](data/legacy_industrial_equipment_sensor_logs/industrial_dataset.csv). |
 
 ### Curation Principles
 
@@ -64,6 +64,9 @@ The main gaps versus mature enterprise products are connectors, identity-aware p
 ## Solution architecture
 
 FORGE uses a multimodal retrieval-augmented generation pipeline. The indexing path converts mixed-format documents into searchable, context-preserving representations. The answering path combines a user's question with the most relevant content and passes both to an LLM for a grounded response.
+
+The pilot can index ASCII DXF blueprints, including labels, layers, dimension values, and common 2D geometry. Export DWG files as ASCII DXF before upload; direct DWG, binary DXF, and visual drawing interpretation are not supported yet.
+
 
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '16px', 'fontFamily': 'Trebuchet MS, Verdana, Arial, sans-serif'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 70}}}%%

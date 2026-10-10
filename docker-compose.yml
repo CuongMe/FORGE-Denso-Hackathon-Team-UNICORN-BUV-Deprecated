@@ -2,6 +2,8 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.19.1
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
     volumes:
       - forge-qdrant:/qdrant/storage
 
@@ -10,6 +12,8 @@ services:
       context: .
       dockerfile: services/api/Dockerfile
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
     environment:
       FORGE_RUNTIME_MODE: production
       FORGE_INCLUDE_SOURCE_PACK: "1"
@@ -21,7 +25,6 @@ services:
       FORGE_VISUAL_MODEL: microsoft/Florence-2-base-ft
       GEMINI_API_KEY: ${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}
       FORGE_ADMIN_API_KEY: ${FORGE_ADMIN_API_KEY:?Set FORGE_ADMIN_API_KEY in .env}
-      FORGE_ALLOWED_ORIGINS: ""
     volumes:
       - ./data/denso_factory_hack_data_prep:/workspace/data/denso_factory_hack_data_prep:ro
       - forge-state:/workspace/data/.forge-state
@@ -42,8 +45,10 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_FORGE_API_URL: /api
+        NEXT_PUBLIC_FORGE_API_URL: http://127.0.0.1:8000/api
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
     depends_on:
       - api
     healthcheck:
@@ -52,27 +57,9 @@ services:
       timeout: 10s
       retries: 3
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    environment:
-      FORGE_SITE_ADDRESS: ${FORGE_SITE_ADDRESS:?Set FORGE_SITE_ADDRESS in .env}
-    ports:
-      - "${FORGE_BIND_ADDRESS:-0.0.0.0}:80:80"
-      - "${FORGE_BIND_ADDRESS:-0.0.0.0}:443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - forge-caddy-data:/data
-      - forge-caddy-config:/config
-    depends_on:
-      - web
-      - api
-
 volumes:
   forge-qdrant:
   forge-state:
   forge-uploads:
   forge-ingestion-cache:
   forge-model-cache:
-  forge-caddy-data:
-  forge-caddy-config:

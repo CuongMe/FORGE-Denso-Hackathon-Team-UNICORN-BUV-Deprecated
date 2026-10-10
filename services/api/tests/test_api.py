@@ -1,4 +1,5 @@
 from io import BytesIO
+import hashlib
 from types import SimpleNamespace
 import zipfile
 
@@ -241,6 +242,14 @@ def test_pptx_and_txt_content_validation():
     assert not main._content_matches_extension('.txt', b'\xff\x00')
 
 
+def test_ascii_dxf_content_validation():
+    dxf = b'0\nSECTION\n2\nENTITIES\n0\nENDSEC\n0\nEOF\n'
+
+    assert main._content_matches_extension('.dxf', dxf)
+    assert not main._content_matches_extension('.dxf', b'not a drawing')
+    assert not main._content_matches_extension('.dxf', b'AutoCAD Binary DXF\r\n\x1a\x00')
+
+
 def test_upload_accepts_bmp_signature(client, tmp_path, monkeypatch):
     store = LifecycleStore(tmp_path / 'forge.sqlite3')
     store.initialize()
@@ -276,6 +285,57 @@ def test_production_upload_returns_a_durable_queued_job(client, tmp_path, monkey
     assert body['status'] == 'queued'
     assert body['job_id'].startswith('job-')
     assert store.get_job(body['job_id'])['status'] == 'queued'
+
+
+def test_upload_of_already_indexed_file_keeps_existing_index_state(client, tmp_path, monkeypatch):
+    store = LifecycleStore(tmp_path / 'forge.sqlite3')
+    pdf = b'%PDF-1.7\nforge upload'
+    digest = hashlib.sha256(pdf).hexdigest()
+    document_id = f'upload-{digest[:24]}'
+    summary = {
+        'doc_id': document_id,
+        'source_name': 'manual.pdf',
+        'source_path': f'data/uploads/{document_id}.pdf',
+        'format': 'PDF',
+        'modality': 'pdf',
+        'language': 'en',
+        'factory_topic': 'uploaded document',
+        'chunk_count': 1,
+    }
+    store.upsert_document(summary, content_hash=digest, size_bytes=len(pdf), status='queued')
+    job = store.enqueue_job(
+        document_id=document_id,
+        source_path=str(tmp_path / f'{document_id}.pdf'),
+        original_filename='manual.pdf',
+        content_hash=digest,
+        idempotency_key=f'upload:{digest}:pdf',
+    )
+    store.update_job(
+        job['job_id'],
+        status='indexed',
+        stage='completed',
+        document_status='indexed',
+        result={'chunk_count': 1, 'review_count': 0},
+        document=summary,
+    )
+    store.upsert_document(
+        summary,
+        content_hash=digest,
+        size_bytes=len(pdf),
+        status='indexed',
+        ingestion_job_id=job['job_id'],
+    )
+    monkeypatch.setattr(main, 'runtime', FakeRuntime(store))
+    monkeypatch.setattr(main, 'UPLOAD_ROOT', tmp_path / 'uploads')
+
+    response = client.post(
+        '/api/documents',
+        files={'file': ('manual.pdf', pdf, 'application/pdf')},
+    )
+
+    assert response.status_code == 200
+    assert response.json()['job_id'] == job['job_id']
+    assert store.get_document(document_id)['status'] == 'indexed'
 
 
 def test_ingestion_job_status_hides_internal_paths(client, tmp_path, monkeypatch):

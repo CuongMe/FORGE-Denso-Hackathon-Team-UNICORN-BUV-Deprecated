@@ -16,7 +16,7 @@ from app.pipeline import StageCallback
 DEFAULT_TOKENIZER = "local-whitespace"
 DEFAULT_MAX_TOKENS = 384
 SUPPORTED_INPUT_EXTENSIONS = frozenset(
-    {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".xlsx", ".xls", ".csv", ".pptx", ".txt"}
+    {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".xlsx", ".xls", ".csv", ".pptx", ".txt", ".dxf"}
 )
 
 
@@ -467,6 +467,100 @@ class DoclingHybridChunkerAdapter:
             flush()
         return records
 
+    def _dxf_records(self, source: Path) -> list[IngestedChunk]:
+        # shortcut: extracts ASCII DXF labels and basic geometry; convert DWG/binary DXF or renderings before ingestion.
+        try:
+            raw = source.read_text(encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            raw = source.read_text(encoding="cp1252")
+        lines = raw.splitlines()
+        if len(lines) % 2:
+            raise ValueError("The DXF file has an incomplete group-code record.")
+
+        pairs = []
+        for index in range(0, len(lines), 2):
+            try:
+                pairs.append((int(lines[index].strip()), lines[index + 1].strip()))
+            except ValueError as exc:
+                raise ValueError("The DXF file contains an invalid group code.") from exc
+
+        tokenizer = self._tokenizer()
+        max_tokens = self._max_tokens()
+        entity_lines: list[str] = []
+        entity_counts: dict[str, int] = {}
+        current_type = ""
+        values: list[tuple[int, str]] = []
+
+        def flush_entity() -> None:
+            if not current_type or current_type in {"SECTION", "ENDSEC", "EOF", "TABLE", "ENDTAB", "HEADER", "CLASSES", "OBJECTS", "BLOCKS", "ENTITIES"}:
+                return
+            entity_counts[current_type] = entity_counts.get(current_type, 0) + 1
+            fields = [f"CAD entity: {current_type}"]
+            layer = next((value for code, value in values if code == 8), "")
+            if layer:
+                fields.append(f"layer = {layer}")
+            text = " ".join(value for code, value in values if code in {1, 3})
+            if text:
+                fields.append(f"text = {text[:1000]}")
+            block = next((value for code, value in values if code == 2), "")
+            if current_type == "INSERT" and block:
+                fields.append(f"block = {block}")
+            if current_type == "DIMENSION":
+                measured = next((value for code, value in values if code == 42), "")
+                if measured:
+                    fields.append(f"measured value = {measured}")
+            coordinates = {code: value for code, value in values if code in {10, 11, 20, 21, 40, 50, 51}}
+            if current_type == "LINE":
+                fields.append(f"start = ({coordinates.get(10, '?')}, {coordinates.get(20, '?')}), end = ({coordinates.get(11, '?')}, {coordinates.get(21, '?')})")
+            elif current_type in {"CIRCLE", "ARC"}:
+                fields.append(f"center = ({coordinates.get(10, '?')}, {coordinates.get(20, '?')}), radius = {coordinates.get(40, '?')}")
+                if current_type == "ARC":
+                    fields.append(f"angles = {coordinates.get(50, '?')} to {coordinates.get(51, '?')} degrees")
+            elif current_type == "LWPOLYLINE":
+                vertices, x = [], None
+                for code, value in values:
+                    if code == 10:
+                        x = value
+                    elif code == 20 and x is not None:
+                        vertices.append(f"({x}, {value})")
+                        x = None
+                if vertices:
+                    fields.append(f"vertices ({len(vertices)}): " + ", ".join(vertices[:200]))
+            if current_type in {"TEXT", "MTEXT", "ATTRIB", "ATTDEF", "DIMENSION", "INSERT", "LINE", "CIRCLE", "ARC", "LWPOLYLINE"}:
+                entity_lines.append("; ".join(fields))
+
+        for code, value in pairs:
+            if code == 0:
+                flush_entity()
+                current_type, values = value.upper(), []
+            else:
+                values.append((code, value))
+        flush_entity()
+
+        source_lines = [
+            "CAD drawing entities: " + ", ".join(f"{name} = {count}" for name, count in sorted(entity_counts.items())),
+            *entity_lines,
+        ]
+        records, pending, pending_tokens = [], [], 0
+        for line in source_lines:
+            line_tokens = tokenizer.count_tokens(line)
+            if pending and pending_tokens + line_tokens > max_tokens:
+                records.append(IngestedChunk(
+                    chunk_index=len(records), text="DXF blueprint\n" + "\n".join(pending),
+                    page_numbers=(), headings=("DXF blueprint",), captions=(),
+                    provenance=(IngestedProvenance(ref=f"dxf/entities/{len(records)}", kind="document", page=None, bbox=None, coord_origin=None),),
+                ))
+                pending, pending_tokens = [], 0
+            pending.append(line)
+            pending_tokens += line_tokens
+        if pending:
+            records.append(IngestedChunk(
+                chunk_index=len(records), text="DXF blueprint\n" + "\n".join(pending),
+                page_numbers=(), headings=("DXF blueprint",), captions=(),
+                provenance=(IngestedProvenance(ref=f"dxf/entities/{len(records)}", kind="document", page=None, bbox=None, coord_origin=None),),
+            ))
+        return records
+
     def _document_converter(self) -> Any:
         if self._converter is None:
             from docling.document_converter import DocumentConverter
@@ -498,6 +592,15 @@ class DoclingHybridChunkerAdapter:
             records = self._xls_records(tables)
             if progress_callback:
                 progress_callback('chunking', 'completed', 100, f'Created {len(records)} spreadsheet chunk(s).')
+            return records
+        if source.suffix.casefold() == ".dxf":
+            if progress_callback:
+                progress_callback('parsing', 'started', 0, 'Reading CAD blueprint entities and dimensions.')
+            records = self._dxf_records(source)
+            if progress_callback:
+                progress_callback('parsing', 'completed', 100, 'CAD blueprint parsed.')
+                progress_callback('chunking', 'started', 0, 'Grouping CAD labels and measurements for search.')
+                progress_callback('chunking', 'completed', 100, f'Created {len(records)} CAD chunk(s).')
             return records
         if not docling_available():
             raise RuntimeError(

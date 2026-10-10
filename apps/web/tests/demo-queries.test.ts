@@ -8,11 +8,14 @@ import { rankDemoChunks } from "@/lib/vercel-demo";
 
 describe("90-second demo script", () => {
   it("contains a structured lookup, cross-language query, and honest refusal query", () => {
-    expect(demoQueries).toHaveLength(3);
+    expect(demoQueries).toHaveLength(6);
     expect(demoQueries.map((item) => item.label)).toEqual([
       "Structured lookup",
       "Cross-language",
       "Honest Demo",
+      "Out-of-range response",
+      "Defect escalation",
+      "Maintenance limits",
     ]);
     expect(demoQueries[1].description).toContain("Vietnamese");
     expect(demoQueries[2].question).toContain("football");

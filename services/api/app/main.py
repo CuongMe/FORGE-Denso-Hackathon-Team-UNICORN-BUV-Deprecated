@@ -92,6 +92,17 @@ def _content_matches_extension(extension: str, data: bytes) -> bool:
             return '\x00' not in data.decode('utf-8-sig')
         except UnicodeDecodeError:
             return False
+    if extension == '.dxf':
+        if data.startswith(b'AutoCAD Binary DXF\r\n\x1a\x00'):
+            return False
+        try:
+            text = data.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            try:
+                text = data.decode('cp1252')
+            except UnicodeDecodeError:
+                return False
+        return 'SECTION' in text and 'EOF' in text and len(text.splitlines()) % 2 == 0
     return False
 
 runtime = None
@@ -840,7 +851,7 @@ def raw_document(document_id: str) -> FileResponse:
         )
     source = _document_source_file(document)
     filename = Path(str(document.get('source_name') or source.name)).name.replace('"', '')
-    media_type = mimetypes.guess_type(source.name)[0] or 'application/octet-stream'
+    media_type = 'text/plain' if source.suffix.casefold() == '.dxf' else mimetypes.guess_type(source.name)[0] or 'application/octet-stream'
     return FileResponse(
         source,
         media_type=media_type,
@@ -944,7 +955,7 @@ async def upload_document(
             status_code=422,
             detail={
                 "code": "UNSUPPORTED_FILE_TYPE",
-                "message": "Supported files are PDF, PNG, JPG, BMP, WEBP, XLS, XLSX, CSV, PPTX, and TXT.",
+                "message": "Supported files are PDF, PNG, JPG, BMP, WEBP, XLS, XLSX, CSV, PPTX, TXT, and ASCII DXF. Export DWG drawings to ASCII DXF before upload.",
             },
         )
 
@@ -977,6 +988,28 @@ async def upload_document(
             detail={
                 "code": "LIFECYCLE_STORE_UNAVAILABLE",
                 "message": "Durable ingestion is not enabled in this runtime.",
+            },
+        )
+
+    existing = active_runtime.state_store.get_document(document_id)
+    existing_job = (
+        active_runtime.state_store.get_job(str(existing.get("ingestion_job_id")))
+        if existing and existing.get("status") == "indexed"
+        and existing.get("content_hash") == digest and existing.get("ingestion_job_id")
+        else None
+    )
+    if existing_job and existing_job.get("status") == "indexed":
+        document = _public_document(document_id)
+        stages = active_runtime.state_store.get_job_stages(str(existing_job["job_id"]))
+        return JSONResponse(
+            status_code=200,
+            content={
+                "document_id": document_id,
+                "filename": safe_filename,
+                "status": "indexed",
+                "message": "This file is already indexed.",
+                "job_id": existing_job["job_id"],
+                "job": _public_job(existing_job, document, stages),
             },
         )
 

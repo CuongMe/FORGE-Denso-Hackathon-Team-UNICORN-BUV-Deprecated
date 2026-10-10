@@ -10,7 +10,7 @@ import type { DocumentChunkPreview, DocumentSummary, HealthResponse } from '@/li
 import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
 import { FileIcon, SearchIcon } from './ForgeIcons';
 
-export type DocumentFilter = 'ALL' | 'PDF' | 'PPTX' | 'TXT' | 'XLS' | 'XLSX' | 'CSV' | 'IMAGE';
+export type DocumentFilter = 'ALL' | 'PDF' | 'PPTX' | 'TXT' | 'XLS' | 'XLSX' | 'CSV' | 'DXF' | 'IMAGE';
 
 type DocumentsWorkspaceProps = {
   documents: DocumentSummary[];
@@ -25,6 +25,7 @@ function typeFor(document: DocumentSummary): Exclude<DocumentFilter, 'ALL'> {
   if (value.includes('image') || ['png', 'jpg', 'jpeg', 'bmp', 'webp'].some((type) => value.includes(type))) return 'IMAGE';
   if (document.format.toUpperCase() === 'PPTX') return 'PPTX';
   if (document.format.toUpperCase() === 'TXT') return 'TXT';
+  if (document.format.toUpperCase() === 'DXF') return 'DXF';
   if (value.includes('xlsx') || value.includes('excel')) return 'XLSX';
   if (value.includes('xls')) return 'XLS';
   if (value.includes('csv')) return 'CSV';
@@ -40,6 +41,7 @@ function locationFor(document: DocumentSummary, t: (key: string, values?: Record
   if (type === 'PDF') return document.page_count ? t('documents.pages', { count: document.page_count }) : t('documents.pagesMissing');
   if (type === 'PPTX') return document.page_count ? t('documents.slides', { count: document.page_count }) : t('documents.slidesMissing');
   if (type === 'TXT') return t('documents.textDocument');
+  if (type === 'DXF') return `CAD drawing · ${document.chunk_count} chunks`;
   if (type === 'XLSX' || type === 'XLS') return document.sheet_count ? t('documents.sheets', { count: document.sheet_count }) : t('documents.sheetsMissing');
   if (type === 'CSV') {
     const rows = document.row_count ? t('documents.rows', { count: document.row_count }) : t('documents.rowsMissing');
@@ -55,7 +57,7 @@ function regionLabel(document: DocumentSummary, t: (key: string) => string) {
 
 function RailFilters({ documents, active, onChange }: { documents: DocumentSummary[]; active: DocumentFilter; onChange: (filter: DocumentFilter) => void }) {
   const t = useTranslations();
-  const filters: DocumentFilter[] = ['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'IMAGE'];
+  const filters: DocumentFilter[] = ['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'DXF', 'IMAGE'];
   return (
     <div className='forge-rail-filter-stack' aria-label={t('documents.filterLabel')}>
       {filters.map((filter) => {
@@ -173,7 +175,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
       <div className='forge-workspace-heading documents-heading'><div><p className='forge-eyebrow'>{t('documents.eyebrow')}</p><h1>{t('documents.title')}</h1><p className='forge-workspace-helper'>{t('documents.helper')}</p></div><div className='forge-corpus-summary'><strong>{health?.documents_count ?? documents.length}</strong><span>{t('documents.sources')}</span></div></div>
       <div className='forge-search-bar'><SearchIcon /><input aria-label={t('documents.searchLabel')} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('documents.search')} /><strong>{filteredDocuments.length} {t('documents.sources')}</strong></div>
       <div className='forge-filter-row documents-filter-row' aria-label={t('documents.filterLabel')}>
-        {(['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'IMAGE'] as DocumentFilter[]).map((item) => {
+        {(['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'DXF', 'IMAGE'] as DocumentFilter[]).map((item) => {
           const count = item === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === item).length;
           return <button key={item} type='button' className={'forge-filter-chip ' + (filter === item ? 'is-active' : '')} onClick={() => setFilter(item)}>{item} {count}</button>;
         })}
@@ -218,16 +220,16 @@ function RawDocumentModal({ document, vercelDemo, onClose }: { document: Documen
   }, [onClose]);
   const type = typeFor(document);
   const isImage = type === 'IMAGE';
-  const isCsv = type === 'CSV';
+  const isSpreadsheet = type === 'CSV' || type === 'XLS' || type === 'XLSX';
   const sheets = documentPreviews[document.doc_id as keyof typeof documentPreviews] ?? [];
   const src = vercelDemo
     ? `/demo-documents/${encodeURIComponent(document.source_name)}`
-    : isCsv ? getDocumentPreviewUrl(document.doc_id) : getDocumentRawUrl(document.doc_id);
+    : isSpreadsheet ? getDocumentPreviewUrl(document.doc_id) : getDocumentRawUrl(document.doc_id);
   return <div className='forge-raw-modal-backdrop' onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className='forge-raw-modal' role='dialog' aria-modal='true' aria-labelledby='raw-document-title'>
       <header className='forge-raw-modal-header'><div><p className='forge-eyebrow'>{t('documents.rawDocument')}</p><h2 id='raw-document-title'>{document.source_name}</h2><span>{document.doc_id} · {document.factory_topic}</span></div><button ref={closeButton} type='button' className='forge-raw-modal-close' aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button></header>
-      <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '') + (isCsv && vercelDemo ? ' forge-demo-document-content' : '')}>
-        {isCsv && vercelDemo && sheets.length > 0 ? <SpreadsheetTables sheets={sheets} /> : isImage ? <Image src={src} alt={document.source_name} fill sizes='(max-width: 900px) 90vw, 850px' unoptimized /> : <iframe title={document.source_name} src={src} />}
+      <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '') + (isSpreadsheet && vercelDemo ? ' forge-demo-document-content' : '')}>
+        {isSpreadsheet && vercelDemo && sheets.length > 0 ? <SpreadsheetTables sheets={sheets} /> : isImage ? <Image src={src} alt={document.source_name} fill sizes='(max-width: 900px) 90vw, 850px' unoptimized /> : <iframe title={document.source_name} src={src} />}
       </div>
       <p className='forge-raw-modal-note'>{t('documents.originalFile')}</p>
     </section>
@@ -236,7 +238,7 @@ function RawDocumentModal({ document, vercelDemo, onClose }: { document: Documen
 
 type PreviewSheet = (typeof documentPreviews)[keyof typeof documentPreviews][number];
 
-function SpreadsheetTables({ sheets }: { sheets: PreviewSheet[] }) {
+export function SpreadsheetTables({ sheets }: { sheets: PreviewSheet[] }) {
   return <div className='forge-demo-sheets'>{sheets.map((sheet, index) => <details className='forge-demo-sheet' key={sheet.name} open={index === 0}><summary>{sheet.name}<span>{sheet.rows.length - 1} rows · {sheet.rows[0]?.length ?? 0} columns</span></summary><div className='forge-demo-table-scroll'><table className='forge-demo-preview-table'><thead><tr>{sheet.rows[0]?.map((heading, column) => <th key={`${column}-${heading}`}>{heading || `Column ${column + 1}`}</th>)}</tr></thead><tbody>{sheet.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{sheet.rows[0]?.map((_, column) => <td key={column}>{row[column] ?? '—'}</td>)}</tr>)}</tbody></table></div></details>)}</div>;
 }
 

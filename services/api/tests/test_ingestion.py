@@ -16,6 +16,7 @@ def test_ingestion_status_exposes_supported_formats_and_chunker():
     assert ".xls" in status["supported_extensions"]
     assert ".pptx" in status["supported_extensions"]
     assert ".txt" in status["supported_extensions"]
+    assert ".dxf" in status["supported_extensions"]
     assert status["backend"] in {"unavailable", "docling-hybridchunker"}
 
 
@@ -38,6 +39,30 @@ def test_xls_ingestion_chunks_rows_without_requiring_docling(tmp_path, monkeypat
     assert 'Sheet: Inspection' in records[0].text
     assert 'Row 2: part = M6 bolt; status = ok' in records[0].text
     assert records[0].provenance[0].kind == 'table'
+
+
+def test_ascii_dxf_ingestion_extracts_labels_dimensions_and_geometry(tmp_path, monkeypatch):
+    source = tmp_path / 'fixture.dxf'
+    source.write_text(
+        '0\nSECTION\n2\nENTITIES\n'
+        '0\nTEXT\n8\nNOTES\n1\nM6 bolt torque 9.5 N-m\n10\n1\n20\n2\n'
+        '0\nDIMENSION\n8\nDIMS\n1\n25 mm\n42\n25\n'
+        '0\nCIRCLE\n8\nHOLES\n10\n10\n20\n20\n40\n4\n'
+        '0\nENDSEC\n0\nEOF\n',
+        encoding='utf-8',
+    )
+    adapter = DoclingHybridChunkerAdapter(max_tokens=64)
+    monkeypatch.setattr(adapter, '_tokenizer', lambda: SimpleNamespace(
+        count_tokens=lambda text: len(text.split()),
+    ))
+
+    records = adapter.convert_and_chunk(source)
+    text = '\n'.join(record.text for record in records)
+
+    assert 'M6 bolt torque 9.5 N-m' in text
+    assert 'measured value = 25' in text
+    assert 'radius = 4' in text
+    assert 'layer = HOLES' in text
 
 
 def test_extract_chunk_provenance_keeps_table_ref_page_and_coordinates():

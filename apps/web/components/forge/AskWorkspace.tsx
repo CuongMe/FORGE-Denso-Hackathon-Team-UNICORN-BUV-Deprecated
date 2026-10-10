@@ -4,7 +4,8 @@ import Image from 'next/image';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 
-import { getDocumentChunks, getDocumentRawUrl } from '@/lib/api';
+import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
+import documentPreviews from '@/data/document-previews.json';
 import type { DocumentChunkPreview, DocumentSummary, HealthResponse, IngestionJob, QueryResponse } from '@/lib/types';
 
 import { ArrowUpIcon, ImageIcon, UploadIcon } from './ForgeIcons';
@@ -12,6 +13,7 @@ import { ForgeCitationCard } from './ForgeCitationCard';
 import { IngestionPipeline } from './IngestionPipeline';
 import { PromptTable, type PromptItem } from './PromptTable';
 import { RetrievalTrace } from './RetrievalTrace';
+import { SpreadsheetTables } from './DocumentsWorkspace';
 
 type ReferenceSource = Pick<DocumentSummary, 'doc_id' | 'source_name' | 'format' | 'factory_topic'>;
 type SourceViewer = { mode: 'chunk' | 'raw'; source: ReferenceSource; chunkId?: string };
@@ -195,7 +197,7 @@ export function AskWorkspace({
                 <div className="forge-composer-tools">
                   <button type="button" className="forge-icon-button" aria-label={t('ask.uploadDocument')} title={t('ask.uploadDocument')} onClick={() => documentInput.current?.click()} disabled={isLoading}><UploadIcon /></button>
                   <button type="button" className="forge-icon-button" aria-label={t('ask.uploadImage')} title={t('ask.uploadImage')} onClick={() => imageInput.current?.click()} disabled={isLoading}><ImageIcon /></button>
-                  <input ref={documentInput} type="file" className="forge-hidden-input" accept=".pdf,.xls,.xlsx,.csv,.pptx,.txt" onChange={(event) => handleFile('document', event)} />
+                  <input ref={documentInput} type="file" className="forge-hidden-input" accept=".pdf,.xls,.xlsx,.csv,.pptx,.txt,.dxf" onChange={(event) => handleFile('document', event)} />
                   <input ref={imageInput} type="file" className="forge-hidden-input" accept=".png,.jpg,.jpeg,.bmp,.webp" onChange={(event) => handleFile('image', event)} />
                 </div>
                 <label className="forge-sr-only" htmlFor="question-input">{t('ask.questionLabel')}</label>
@@ -244,9 +246,12 @@ function PinnedSourceModal({ viewer, vercelDemo, onClose }: { viewer: SourceView
   const loading = isChunk && result === null;
   const error = isChunk && result?.error;
   const isImage = /\.(png|jpe?g|bmp|webp)$/i.test(viewer.source.source_name);
+  const format = viewer.source.format.toUpperCase();
+  const isSpreadsheet = ['CSV', 'XLS', 'XLSX'].includes(format);
+  const sheets = documentPreviews[viewer.source.doc_id as keyof typeof documentPreviews] ?? [];
   const rawUrl = vercelDemo
     ? `/demo-documents/${encodeURIComponent(viewer.source.source_name)}`
-    : getDocumentRawUrl(viewer.source.doc_id);
+    : isSpreadsheet ? getDocumentPreviewUrl(viewer.source.doc_id) : getDocumentRawUrl(viewer.source.doc_id);
 
   return <div className="forge-raw-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className="forge-raw-modal" role="dialog" aria-modal="true" aria-labelledby="pinned-source-title">
@@ -263,8 +268,8 @@ function PinnedSourceModal({ viewer, vercelDemo, onClose }: { viewer: SourceView
           <p>{chunk.content}</p>
         </article>}
         {!loading && !error && !chunk && <p role="alert">{t('documents.extractedUnavailable')}</p>}
-      </div> : <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '')}>
-        {isImage ? <Image src={rawUrl} alt={viewer.source.source_name} fill sizes="(max-width: 900px) 90vw, 850px" unoptimized /> : <iframe title={t('documents.browserPreview', { name: viewer.source.source_name })} src={rawUrl} />}
+      </div> : <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '') + (isSpreadsheet && vercelDemo ? ' forge-demo-document-content' : '')}>
+        {isSpreadsheet && vercelDemo && sheets.length > 0 ? <SpreadsheetTables sheets={sheets} /> : isImage ? <Image src={rawUrl} alt={viewer.source.source_name} fill sizes="(max-width: 900px) 90vw, 850px" unoptimized /> : <iframe title={t('documents.browserPreview', { name: viewer.source.source_name })} src={rawUrl} />}
       </div>}
       {!isChunk && <p className="forge-raw-modal-note">{t('documents.originalFile')}</p>}
     </section>

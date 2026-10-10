@@ -324,6 +324,7 @@ def test_production_runtime_registers_source_pack_documents(monkeypatch, tmp_pat
         modality='pdf',
     )
     monkeypatch.setenv('FORGE_RUNTIME_MODE', 'production')
+    monkeypatch.setenv('FORGE_INCLUDE_SOURCE_PACK', '1')
     monkeypatch.setenv('FORGE_STATE_DB_PATH', str(tmp_path / 'forge.sqlite3'))
     monkeypatch.setattr(runtime_module, 'load_source_pack_chunks', lambda: [source_chunk])
     monkeypatch.setattr(
@@ -353,6 +354,7 @@ def test_production_runtime_persists_unindexed_source_documents(monkeypatch, tmp
         page=1,
     )
     monkeypatch.setenv('FORGE_RUNTIME_MODE', 'production')
+    monkeypatch.setenv('FORGE_INCLUDE_SOURCE_PACK', '1')
     monkeypatch.setenv('FORGE_STATE_DB_PATH', str(tmp_path / 'forge.sqlite3'))
     monkeypatch.setattr(runtime_module, 'load_source_pack_chunks', lambda: [source_chunk])
     monkeypatch.setattr(

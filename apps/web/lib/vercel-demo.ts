@@ -246,7 +246,7 @@ export function getDemoHealth(): HealthResponse {
       backend: 'preprocessed demo corpora',
       docling_available: false,
       chunker: 'Docling HybridChunker (offline index)',
-      supported_extensions: ['PDF', 'XLS', 'XLSX', 'CSV', 'PPTX', 'TXT', 'PNG', 'JPG'],
+      supported_extensions: ['PDF', 'XLS', 'XLSX', 'CSV', 'PPTX', 'TXT', 'DXF', 'PNG', 'JPG'],
     },
   };
 }
