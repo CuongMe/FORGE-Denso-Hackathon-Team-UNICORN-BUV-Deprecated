@@ -57,11 +57,11 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
   const [isLoading, setIsLoading] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
-  const prompts = demoQueries.map((_, index) => ({
-    label: t(`prompt.${index}.label`),
-    description: t(`prompt.${index}.description`),
-    question: t(`prompt.${index}.question`),
-    expectedAnswer: t(`prompt.${index}.answer`),
+  const prompts = demoQueries.map((prompt, index) => ({
+    label: prompt.nativeLanguage ? prompt.label : t(`prompt.${index}.label`),
+    description: prompt.nativeLanguage ? prompt.description : t(`prompt.${index}.description`),
+    question: prompt.nativeLanguage ? prompt.question : t(`prompt.${index}.question`),
+    expectedAnswer: prompt.expectedAnswer ?? t(`prompt.${index}.answer`),
   }));
 
   useEffect(() => {
