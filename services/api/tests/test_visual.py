@@ -60,6 +60,49 @@ def test_florence2_visual_describer_returns_a_reviewable_caption():
     assert 'calibrated confidence' in result.reason
 
 
+def test_florence2_object_detection_returns_clamped_boxes_and_labels(tmp_path):
+    class FakeInputs(dict):
+        def to(self, *_args, **_kwargs):
+            return self
+
+    class FakeProcessor:
+        def __call__(self, *, text, images, return_tensors):
+            assert text == '<OD>'
+            assert images.size == (10, 8)
+            return FakeInputs(input_ids='prompt', pixel_values='pixels')
+
+        def batch_decode(self, generated, *, skip_special_tokens):
+            return ['<detections>']
+
+        def post_process_generation(self, _text, *, task, image_size):
+            assert task == '<OD>'
+            assert image_size == (10, 8)
+            return {task: {
+                'bboxes': [[-2, 1, 12, 7], [4, 4, 4, 6], [0, 0, float('nan'), 3]],
+                'labels': ['forklift', 'empty', 'invalid'],
+            }}
+
+    class FakeModel:
+        def generate(self, **kwargs):
+            assert kwargs['max_new_tokens'] == 512
+            return ['generated']
+
+    source = tmp_path / 'safety.png'
+    Image.new('RGB', (10, 8), color='white').save(source)
+    describer = Florence2VisualDescriber(
+        model='microsoft/Florence-2-base-ft',
+        processor=FakeProcessor(),
+        model_instance=FakeModel(),
+    )
+
+    result = describer.detect(source)
+
+    assert (result.image_width, result.image_height) == (10, 8)
+    assert [(item.label, item.bbox) for item in result.detections] == [
+        ('forklift', (0.0, 1.0, 10.0, 7.0)),
+    ]
+
+
 def test_gemini_visual_describer_parses_confidence_and_review_decision(tmp_path):
     source = tmp_path / 'inspection.png'
     source.write_bytes(b'png-bytes')

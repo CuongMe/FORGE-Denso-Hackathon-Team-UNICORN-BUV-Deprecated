@@ -42,6 +42,7 @@ from app.query_router import QueryRoute, classify_query
 from app.tabular import read_table_rows, read_table_sheets
 from app.production import ProductionDependencyError, ProductionServiceError
 from app.runtime import build_runtime
+from app.visual import VisualProviderError
 from app.worker import IngestionWorker
 from app.evaluation import EvaluationStore, EvaluationWorker, evaluation_router
 
@@ -857,6 +858,48 @@ def raw_document(document_id: str) -> FileResponse:
         media_type=media_type,
         headers={'Content-Disposition': f'inline; filename="{filename}"'},
     )
+
+
+@app.get('/api/documents/{document_id}/visual-detections')
+def document_visual_detections(document_id: str) -> dict[str, object]:
+    document = _public_document(document_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail={
+            'code': 'DOCUMENT_NOT_FOUND',
+            'message': 'The document was not found.',
+        })
+    source = _document_source_file(document)
+    if source.suffix.casefold() not in {'.jpg', '.jpeg', '.png', '.webp', '.bmp'}:
+        raise HTTPException(status_code=415, detail={
+            'code': 'VISUAL_DETECTION_NOT_SUPPORTED',
+            'message': 'Florence-2 object detection requires an image source.',
+        })
+
+    active_runtime = get_runtime()
+    chunker = getattr(getattr(active_runtime, 'ingestion_service', None), 'chunker', None)
+    describer = getattr(chunker, 'visual_describer', None)
+    detect = getattr(describer, 'detect', None)
+    if not callable(detect):
+        raise HTTPException(status_code=503, detail={
+            'code': 'VISUAL_DETECTION_UNAVAILABLE',
+            'message': 'Florence-2 object detection is not available in this runtime.',
+        })
+    try:
+        result = detect(source)
+    except VisualProviderError as exc:
+        raise HTTPException(status_code=503, detail={
+            'code': 'VISUAL_DETECTION_UNAVAILABLE',
+            'message': str(exc),
+        }) from exc
+    return {
+        'model': getattr(describer, 'model', 'Florence-2'),
+        'image_width': result.image_width,
+        'image_height': result.image_height,
+        'detections': [
+            {'label': item.label, 'bbox': item.bbox}
+            for item in result.detections
+        ],
+    }
 
 
 @app.get("/api/ingestion/jobs/{job_id}")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 from dataclasses import dataclass
 from io import BytesIO
@@ -36,6 +37,19 @@ class VisualDescription:
     reason: str = ''
 
 
+@dataclass(frozen=True, slots=True)
+class VisualDetection:
+    label: str
+    bbox: tuple[float, float, float, float]
+
+
+@dataclass(frozen=True, slots=True)
+class ImageDetections:
+    image_width: int
+    image_height: int
+    detections: tuple[VisualDetection, ...]
+
+
 class Florence2VisualDescriber:
     '''Describe visual evidence locally with Florence-2.
 
@@ -52,6 +66,7 @@ class Florence2VisualDescriber:
         '.bmp': 'image/bmp',
     }
     _TASK = '<MORE_DETAILED_CAPTION>'
+    _DETECTION_TASK = '<OD>'
     _REVIEW_REASON = 'Florence-2 does not expose calibrated confidence; human review is required.'
 
     def __init__(
@@ -126,20 +141,15 @@ class Florence2VisualDescriber:
         value = result.get(task) if isinstance(result, dict) else result
         return value.strip() if isinstance(value, str) else ''
 
-    def _describe_bytes(self, data: bytes) -> VisualDescription:
-        image = self._image_from_bytes(data)
+    def _run_task(self, image: Any, task: str, *, max_new_tokens: int = 256) -> Any:
         try:
-            inputs = self.processor(
-                text=self._TASK,
-                images=image,
-                return_tensors='pt',
-            )
+            inputs = self.processor(text=task, images=image, return_tensors='pt')
             if self._device is not None and hasattr(inputs, 'to'):
                 inputs = inputs.to(self._device)
             generated = self.model_instance.generate(
                 input_ids=inputs['input_ids'],
                 pixel_values=inputs['pixel_values'],
-                max_new_tokens=256,
+                max_new_tokens=max_new_tokens,
                 do_sample=False,
                 num_beams=3,
             )
@@ -147,9 +157,9 @@ class Florence2VisualDescriber:
                 generated,
                 skip_special_tokens=False,
             )[0]
-            parsed = self.processor.post_process_generation(
+            return self.processor.post_process_generation(
                 generated_text,
-                task=self._TASK,
+                task=task,
                 image_size=image.size,
             )
         except VisualProviderError:
@@ -157,6 +167,9 @@ class Florence2VisualDescriber:
         except Exception as exc:
             raise VisualProviderError('Florence-2 could not analyze the visual source.') from exc
 
+    def _describe_bytes(self, data: bytes) -> VisualDescription:
+        image = self._image_from_bytes(data)
+        parsed = self._run_task(image, self._TASK)
         description = self._caption_from_response(parsed, self._TASK)
         if not description:
             return VisualDescription(
@@ -171,6 +184,45 @@ class Florence2VisualDescriber:
             review_required=True,
             reason=self._REVIEW_REASON,
         )
+
+    def detect(self, source: Path) -> ImageDetections:
+        if source.suffix.casefold() not in self._MIME_TYPES:
+            raise VisualProviderError('Florence-2 object detection requires an image source.')
+        try:
+            image = self._image_from_bytes(source.read_bytes())
+        except OSError as exc:
+            raise VisualProviderError('Florence-2 could not read the image source.') from exc
+        parsed = self._run_task(image, self._DETECTION_TASK, max_new_tokens=512)
+        output = parsed.get(self._DETECTION_TASK) if isinstance(parsed, dict) else None
+        if not isinstance(output, dict):
+            return ImageDetections(image.width, image.height, ())
+
+        boxes = output.get('bboxes')
+        labels = output.get('labels')
+        if not isinstance(boxes, list) or not isinstance(labels, list):
+            return ImageDetections(image.width, image.height, ())
+
+        # shortcut: Florence-2 OD returns no calibrated scores; show labels and boxes only until a scored detector is used.
+        detections = []
+        for label, box in zip(labels, boxes):
+            if not isinstance(label, str) or not label.strip() or not isinstance(box, (list, tuple)) or len(box) != 4:
+                continue
+            try:
+                x1, y1, x2, y2 = (float(value) for value in box)
+            except (TypeError, ValueError):
+                continue
+            if not all(math.isfinite(value) for value in (x1, y1, x2, y2)):
+                continue
+            bounds = (
+                max(0.0, min(float(image.width), x1)),
+                max(0.0, min(float(image.height), y1)),
+                max(0.0, min(float(image.width), x2)),
+                max(0.0, min(float(image.height), y2)),
+            )
+            if bounds[2] <= bounds[0] or bounds[3] <= bounds[1]:
+                continue
+            detections.append(VisualDetection(label.strip(), bounds))
+        return ImageDetections(image.width, image.height, tuple(detections))
 
     def describe(
         self,
