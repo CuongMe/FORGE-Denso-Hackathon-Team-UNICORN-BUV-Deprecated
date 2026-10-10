@@ -43,7 +43,7 @@ export function ForgeShell({ activeView, onViewChange, health, connectionError, 
     <main className='forge-app'>
       <header className='forge-header'>
         <div className='forge-brand' aria-label='FORGE Factory Operations Retrieval Generation Engine'>
-          <div className='forge-mark'><Image src='/forge-mark.png' alt='' className='forge-logo' width={38} height={38} priority /></div>
+          <div className='forge-mark'><Image src='/unicorn-logo.png' alt='' className='forge-logo' width={38} height={38} priority /></div>
           <div className='forge-brand-copy'>
             <div className='forge-wordmark'>FORGE</div>
             <div className='forge-descriptor' aria-label='Factory Operations Retrieval Generation Engine'>

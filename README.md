@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./apps/web/public/forge-mark.png" alt="FORGE Factory Operations Retrieval &amp; Generation Engine logo" width="120" height="120" />
+  <img src="./apps/web/public/unicorn-logo.png" alt="UNICORN logo for FORGE" width="120" />
 </p>
 
 <h1 align="center">FORGE: Factory Operations Retrieval &amp; Generation Engine</h1>
