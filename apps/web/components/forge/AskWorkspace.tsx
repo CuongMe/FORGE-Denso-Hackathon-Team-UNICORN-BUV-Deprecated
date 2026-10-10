@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl';
 
 import { getDocumentChunks, getDocumentRawUrl } from '@/lib/api';
 import type { DocumentChunkPreview, DocumentSummary, HealthResponse, IngestionJob, QueryResponse } from '@/lib/types';
-import { demoAnswers } from '@/lib/demo-answers';
 
 import { ArrowUpIcon, ImageIcon, UploadIcon } from './ForgeIcons';
 import { ForgeCitationCard } from './ForgeCitationCard';
@@ -142,22 +141,6 @@ export function AskWorkspace({
             {!hasConversation && <PromptTable prompts={prompts} disabled={isLoading} onSelect={(value) => onSubmit(value)} />}
             {hasConversation && <div className="forge-conversation-toolbar"><h2 id="conversation-heading">{t('ask.conversation')}</h2><button type="button" className="forge-clear-chat-button" onClick={onClearChat} disabled={isLoading || hasPendingUpload}>{t('ask.clearChat')}</button></div>}
             <div className="forge-message-list">
-              {vercelDemo && !hasConversation && <article className='forge-message is-assistant'>
-                <div className='forge-message-meta'><span className='forge-avatar'>F</span><span>{t('ask.assistant')}</span><em className='is-grounded'>{t('ask.sampleLabel')}</em></div>
-                <div className='forge-message-card'>
-                  <p className='forge-answer-label'>{t('ask.sampleQuestion')}</p>
-                  <p className='forge-answer-text'>{t('ask.sampleAnswer')}</p>
-                  <section className='forge-evidence-block' aria-label={t('ask.sourceEvidence')}><div className='forge-evidence-heading'><strong>{t('ask.sourceEvidence')}</strong></div><p>{t('ask.sampleSources')}</p></section>
-                </div>
-              </article>}
-              {vercelDemo && !hasConversation && demoAnswers.map((sample) => <article key={sample.id} className='forge-message is-assistant'>
-                <div className='forge-message-meta'><span className='forge-avatar'>F</span><span>{t('ask.assistant')}</span><em className='is-grounded'>{t('ask.sampleLabel')}</em></div>
-                <div className='forge-message-card'>
-                  <p className='forge-answer-label'>{t(sample.questionKey)}</p>
-                  <p className='forge-answer-text'>{t(sample.answerKey)}</p>
-                  <section className='forge-evidence-block' aria-label={t('ask.sourceEvidence')}><div className='forge-evidence-heading'><strong>{t('ask.sourceEvidence')}</strong></div><p>{t(sample.sourcesKey)}</p></section>
-                </div>
-              </article>)}
               {messages.filter((message) => message.id !== 'welcome').map((message) => {
                 if (message.role === 'upload') {
                   return (
