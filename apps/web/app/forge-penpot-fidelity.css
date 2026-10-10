@@ -116,6 +116,9 @@
 .forge-trace-list { display: grid; gap: 17px; margin: 26px 0 0; padding: 0; list-style: none; }
 .forge-trace-item { min-width: 0; }
 .forge-trace-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.forge-trace-source-button { min-width: 0; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.forge-trace-source-button:hover .forge-trace-identity strong { text-decoration: underline; text-decoration-color: var(--forge-green); text-underline-offset: 3px; }
+.forge-trace-source-button:focus-visible { border-radius: 2px; outline: 2px solid var(--forge-green); outline-offset: 3px; }
 .forge-trace-identity { display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--forge-ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .forge-trace-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .forge-trace-identity span { color: var(--forge-muted); }

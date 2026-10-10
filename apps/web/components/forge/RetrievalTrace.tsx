@@ -22,7 +22,7 @@ function candidateScore(candidate: RetrievalCandidate) {
   return Math.max(0, Math.min(1, candidate.rerank_score ?? candidate.hybrid_score));
 }
 
-export function RetrievalTrace({ response }: { response: QueryResponse }) {
+export function RetrievalTrace({ response, onViewRaw }: { response: QueryResponse; onViewRaw: (candidate: RetrievalCandidate) => void }) {
   const t = useTranslations();
   const candidates = [...(response.trace.candidates ?? [])]
     .sort((left, right) => {
@@ -59,7 +59,9 @@ export function RetrievalTrace({ response }: { response: QueryResponse }) {
                 title={candidate.source_name}
               >
                 <div className='forge-trace-row'>
-                  <span className='forge-trace-identity'><strong>{candidate.doc_id}</strong><span>·</span><code>{chunk}</code></span>
+                  <button type='button' className='forge-trace-source-button' aria-label={t('documents.viewRaw', { name: candidate.source_name })} title={t('documents.viewRaw', { name: candidate.source_name })} onClick={() => onViewRaw(candidate)}>
+                    <span className='forge-trace-identity'><strong>{candidate.doc_id}</strong><span>·</span><code>{chunk}</code></span>
+                  </button>
                   <strong className='forge-trace-score'>{score.toFixed(2)}</strong>
                 </div>
                 <div className='forge-trace-meter' role='meter' aria-label={`${candidate.doc_id} ${chunk}`} aria-valuemin={0} aria-valuemax={1} aria-valuenow={score}>

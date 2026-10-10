@@ -211,7 +211,15 @@ export function AskWorkspace({
 
         <aside className="ask-side">
           <SourceDetails documents={documents} response={latestResponse} referencedDocument={referencedDocument} onReferenceDocument={onReferenceDocument} onViewChunk={(source, chunkId) => setSourceViewer({ mode: 'chunk', source, chunkId })} onViewRaw={(source) => setSourceViewer({ mode: 'raw', source })} />
-          {latestResponse ? <RetrievalTrace response={latestResponse} /> : <section className="forge-side-card forge-trace-card"><p className="forge-eyebrow">{t('ask.retrievalTrace')}</p><p className="forge-trace-flow">{t('ask.traceFlow')}</p><p className="forge-side-helper">{t('ask.traceHelper')}</p></section>}
+          {latestResponse ? <RetrievalTrace response={latestResponse} onViewRaw={(candidate) => {
+            const document = documents.find((item) => item.doc_id === candidate.doc_id);
+            setSourceViewer({ mode: 'raw', source: {
+              doc_id: candidate.doc_id,
+              source_name: candidate.source_name,
+              format: document?.format ?? candidate.source_name.split('.').pop() ?? 'SOURCE',
+              factory_topic: document?.factory_topic ?? candidate.region,
+            } });
+          }} /> : <section className="forge-side-card forge-trace-card"><p className="forge-eyebrow">{t('ask.retrievalTrace')}</p><p className="forge-trace-flow">{t('ask.traceFlow')}</p><p className="forge-side-helper">{t('ask.traceHelper')}</p></section>}
         </aside>
       </div>
       {sourceViewer && <PinnedSourceModal viewer={sourceViewer} vercelDemo={vercelDemo} onClose={() => setSourceViewer(null)} />}
