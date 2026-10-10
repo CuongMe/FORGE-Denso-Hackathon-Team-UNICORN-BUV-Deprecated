@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import documentPreviews from '@/data/document-previews.json';
 
@@ -8,7 +9,6 @@ import type { DocumentChunkPreview, DocumentSummary, HealthResponse } from '@/li
 
 import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
 import { FileIcon, SearchIcon } from './ForgeIcons';
-import { FlorenceImageViewer } from './FlorenceImageViewer';
 
 export type DocumentFilter = 'ALL' | 'PDF' | 'PPTX' | 'TXT' | 'XLS' | 'XLSX' | 'CSV' | 'DXF' | 'IMAGE';
 
@@ -229,7 +229,7 @@ function RawDocumentModal({ document, vercelDemo, onClose }: { document: Documen
     <section className='forge-raw-modal' role='dialog' aria-modal='true' aria-labelledby='raw-document-title'>
       <header className='forge-raw-modal-header'><div><p className='forge-eyebrow'>{t('documents.rawDocument')}</p><h2 id='raw-document-title'>{document.source_name}</h2><span>{document.doc_id} · {document.factory_topic}</span></div><button ref={closeButton} type='button' className='forge-raw-modal-close' aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button></header>
       <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '') + (isSpreadsheet && vercelDemo ? ' forge-demo-document-content' : '')}>
-        {isSpreadsheet && vercelDemo && sheets.length > 0 ? <SpreadsheetTables sheets={sheets} /> : isImage ? <FlorenceImageViewer documentId={document.doc_id} src={src} alt={document.source_name} /> : <iframe title={document.source_name} src={src} />}
+        {isSpreadsheet && vercelDemo && sheets.length > 0 ? <SpreadsheetTables sheets={sheets} /> : isImage ? <Image src={src} alt={document.source_name} fill sizes='(max-width: 900px) 90vw, 850px' unoptimized /> : <iframe title={document.source_name} src={src} />}
       </div>
       <p className='forge-raw-modal-note'>{t('documents.originalFile')}</p>
     </section>
@@ -257,7 +257,7 @@ function DemoDocumentModal({ document, chunks, loading, error, vercelDemo, onClo
     <section className='forge-raw-modal' role='dialog' aria-modal='true' aria-labelledby='demo-document-title'>
       <header className='forge-raw-modal-header'><div><p className='forge-eyebrow'>{type === 'IMAGE' ? 'IMAGE SOURCE · EXTRACTED TEXT' : type === 'XLS' || type === 'XLSX' || type === 'CSV' ? 'SPREADSHEET PREVIEW' : t('documents.extractedText')}</p><h2 id='demo-document-title'>{document.source_name}</h2><span>{document.doc_id} · {document.factory_topic}</span></div><button ref={closeButton} type='button' className='forge-raw-modal-close' aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button></header>
       <div className='forge-raw-modal-viewer forge-demo-document-content' aria-live='polite'>
-        {type === 'IMAGE' && <div className='forge-demo-image-frame'><FlorenceImageViewer documentId={document.doc_id} src={vercelDemo ? `/demo-documents/${encodeURIComponent(document.source_name)}` : getDocumentRawUrl(document.doc_id)} alt={document.source_name} /></div>}
+        {type === 'IMAGE' && <div className='forge-demo-image-frame'><Image src={`/demo-documents/${encodeURIComponent(document.source_name)}`} alt={document.source_name} fill sizes='(max-width: 900px) 90vw, 850px' unoptimized /></div>}
         {type === 'XLS' && !vercelDemo && <iframe title={document.source_name} src={getDocumentPreviewUrl(document.doc_id)} sandbox='' style={{ width: '100%', minHeight: '65vh', border: 0, background: '#fff' }} />}
         {(type === 'XLS' || type === 'XLSX' || type === 'CSV') && sheets.length > 0 && <SpreadsheetTables sheets={sheets} />}
         {loading && <p role='status'>{t('documents.loadingExtracted')}</p>}

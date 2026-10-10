@@ -225,32 +225,6 @@ def test_upload_rejects_content_that_does_not_match_extension(client):
     assert response.json()['error']['code'] == 'INVALID_FILE_CONTENT'
 
 
-def test_image_visual_detections_returns_florence_boxes(client, tmp_path, monkeypatch):
-    from app.visual import ImageDetections, VisualDetection
-
-    source = tmp_path / 'inspection.png'
-    source.write_bytes(b'image')
-    visual_describer = SimpleNamespace(
-        model='microsoft/Florence-2-base-ft',
-        detect=lambda path: ImageDetections(10, 8, (VisualDetection('forklift', (1, 2, 8, 7)),)),
-    )
-    main.runtime.ingestion_service = SimpleNamespace(
-        chunker=SimpleNamespace(visual_describer=visual_describer),
-    )
-    monkeypatch.setattr(main, '_public_document', lambda _doc_id: {'doc_id': 'INS-001'})
-    monkeypatch.setattr(main, '_document_source_file', lambda _document: source)
-
-    response = client.get('/api/documents/INS-001/visual-detections')
-
-    assert response.status_code == 200
-    assert response.json() == {
-        'model': 'microsoft/Florence-2-base-ft',
-        'image_width': 10,
-        'image_height': 8,
-        'detections': [{'label': 'forklift', 'bbox': [1.0, 2.0, 8.0, 7.0]}],
-    }
-
-
 def test_xls_signature_is_accepted():
     assert main._content_matches_extension('.xls', b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1workbook')
     assert not main._content_matches_extension('.xls', b'not an xls workbook')

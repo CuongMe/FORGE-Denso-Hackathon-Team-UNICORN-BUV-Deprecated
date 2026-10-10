@@ -8,7 +8,6 @@ import type {
   IngestionJob,
   QueryResponse,
   UploadResponse,
-  VisualDetections,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_FORGE_API_URL ?? (process.env.NEXT_PUBLIC_FORGE_VERCEL_DEMO === "1" ? "/api" : "http://127.0.0.1:8000/api");
@@ -86,10 +85,6 @@ export async function getDocuments() {
 
 export function getDocumentChunks(documentId: string) {
   return request<{ document: DocumentSummary; chunks: DocumentChunkPreview[] }>(`/documents/${encodeURIComponent(documentId)}/chunks`);
-}
-
-export function getDocumentVisualDetections(documentId: string) {
-  return request<VisualDetections>(`/documents/${encodeURIComponent(documentId)}/visual-detections`, undefined, 180_000);
 }
 
 export function askQuestion(question: string) {

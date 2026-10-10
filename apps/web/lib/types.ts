@@ -189,13 +189,6 @@ export type DocumentChunkPreview = {
   region_type: string;
 };
 
-export type VisualDetections = {
-  model: string;
-  image_width: number;
-  image_height: number;
-  detections: { label: string; bbox: [number, number, number, number] }[];
-};
-
 export type UploadResponse = {
   document_id: string;
   filename: string;

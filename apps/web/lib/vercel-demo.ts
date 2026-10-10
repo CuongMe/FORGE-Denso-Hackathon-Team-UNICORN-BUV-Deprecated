@@ -1,8 +1,7 @@
 import corpusData from '@/data/denso-corpus.json';
 import jaBusinessCorpusData from '@/data/ja-business-doc-rq-bench.json';
-import florenceDemoDetections from '@/data/florence-demo-detections.json';
 import { aggregateDemoTable } from './demo-aggregation';
-import type { Citation, DocumentSummary, HealthResponse, QueryMetrics, QueryResponse, RetrievalCandidate, VisualDetections } from './types';
+import type { Citation, DocumentSummary, HealthResponse, QueryMetrics, QueryResponse, RetrievalCandidate } from './types';
 import { createHash } from 'node:crypto';
 import { vercelDemoLimits } from './vercel-demo-config';
 
@@ -34,7 +33,6 @@ type DemoCorpus = {
 type RankedChunk = { chunk: DemoChunk; rawScore: number; score: number };
 const densoCorpus = corpusData as DemoCorpus;
 const jaBusinessCorpus = jaBusinessCorpusData as DemoCorpus;
-const visualDetections = florenceDemoDetections as unknown as Record<string, VisualDetections>;
 const corpus: DemoCorpus = {
   ...densoCorpus,
   documents: [...densoCorpus.documents, ...jaBusinessCorpus.documents],
@@ -231,12 +229,6 @@ function hasRelevantDemoEvidence(question: string, ranked: RankedChunk[]) {
 
 export function getDemoDocuments() {
   return corpus.documents;
-}
-
-export function getDemoVisualDetections(docId: string) {
-  return corpus.documents.some((document) => document.doc_id === docId)
-    ? visualDetections[docId] ?? null
-    : null;
 }
 
 export function getDemoHealth(): HealthResponse {

@@ -161,18 +161,11 @@
 .forge-raw-modal-viewer.is-image { position: relative; }
 .forge-raw-modal-viewer iframe { display: block; width: 100%; height: 100%; min-height: 540px; border: 0; background: white; }
 .forge-raw-modal-viewer.is-image img { object-fit: contain; }
-.forge-florence-image-viewer { position: relative; width: 100%; height: 100%; min-height: 240px; background: #edf3f5; }
-.forge-florence-image-stage { position: absolute; inset: 0; }
-.forge-florence-image-stage img, .forge-florence-boxes { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-.forge-florence-boxes { overflow: visible; pointer-events: none; }
-.forge-florence-box { fill: rgba(0, 184, 104, .08); stroke: #00a85a; stroke-width: 3px; }
-.forge-florence-label { fill: #fff; stroke: #00653f; stroke-width: 5px; paint-order: stroke; font: 700 22px Arial, sans-serif; }
-.forge-florence-image-status { position: absolute; z-index: 1; top: 12px; left: 12px; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid #bed7ce; border-radius: 7px; background: rgba(255, 255, 255, .94); color: var(--forge-ink); font-size: 10px; }
-.forge-florence-image-status strong { color: #08784f; }
 .forge-raw-modal-note { margin: 0; padding: 9px 19px 12px; color: var(--forge-muted); font-size: 9px; }
 .forge-demo-document-content { display: grid; align-content: start; gap: 12px; padding: 18px; background: #f4f7f9; }
 .forge-demo-document-content > .forge-current-reference { margin: 0; padding: 16px 18px; background: white; }
 .forge-demo-image-frame { position: relative; width: 100%; height: min(52vh, 520px); min-height: 240px; overflow: hidden; border: 1px solid var(--forge-line); border-radius: 10px; background: #e8eef1; }
+.forge-demo-image-frame img { object-fit: contain; }
 .forge-demo-sheets { display: grid; gap: 12px; }
 .forge-demo-sheet { overflow: hidden; border: 1px solid var(--forge-line); border-radius: 9px; background: white; }
 .forge-demo-sheet summary, .forge-demo-extracted summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 15px; color: var(--forge-ink); cursor: pointer; font-size: 12px; font-weight: 800; }

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -13,7 +14,6 @@ import { IngestionPipeline } from './IngestionPipeline';
 import { PromptTable, type PromptItem } from './PromptTable';
 import { RetrievalTrace } from './RetrievalTrace';
 import { SpreadsheetTables } from './DocumentsWorkspace';
-import { FlorenceImageViewer } from './FlorenceImageViewer';
 
 type ReferenceSource = Pick<DocumentSummary, 'doc_id' | 'source_name' | 'format' | 'factory_topic'>;
 type SourceViewer = { mode: 'chunk' | 'raw'; source: ReferenceSource; chunkId?: string };
@@ -277,7 +277,7 @@ function PinnedSourceModal({ viewer, vercelDemo, onClose }: { viewer: SourceView
         </article>}
         {!loading && !error && !chunk && <p role="alert">{t('documents.extractedUnavailable')}</p>}
       </div> : <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '') + (isSpreadsheet && vercelDemo ? ' forge-demo-document-content' : '')}>
-        {isSpreadsheet && vercelDemo && sheets.length > 0 ? <SpreadsheetTables sheets={sheets} /> : isImage ? <FlorenceImageViewer documentId={viewer.source.doc_id} src={rawUrl} alt={viewer.source.source_name} /> : <iframe title={t('documents.browserPreview', { name: viewer.source.source_name })} src={rawUrl} />}
+        {isSpreadsheet && vercelDemo && sheets.length > 0 ? <SpreadsheetTables sheets={sheets} /> : isImage ? <Image src={rawUrl} alt={viewer.source.source_name} fill sizes="(max-width: 900px) 90vw, 850px" unoptimized /> : <iframe title={t('documents.browserPreview', { name: viewer.source.source_name })} src={rawUrl} />}
       </div>}
       {!isChunk && <p className="forge-raw-modal-note">{t('documents.originalFile')}</p>}
     </section>
