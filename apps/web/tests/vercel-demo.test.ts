@@ -58,6 +58,10 @@ describe('pre-indexed Vercel demo corpus', () => {
     expect(response.citations[0]?.doc_id).toBe('IMG-SAFE-001');
     expect(response.usage.total_tokens).toBe(18);
     expect(response.usage.estimated_cost_usd).toBe(0.000105);
+    expect(response.trace.retrieval_ms).toBeGreaterThanOrEqual(0);
+    expect(response.trace.rerank_ms).toBe(0);
+    expect(response.trace.generation_ms).toBeGreaterThanOrEqual(0);
+    expect(response.trace.latency_ms).toBeGreaterThanOrEqual(response.trace.generation_ms ?? 0);
   });
 
   it('runs spreadsheet totals through SQLite and cites the source table without calling Gemini', async () => {
@@ -76,6 +80,7 @@ describe('pre-indexed Vercel demo corpus', () => {
     });
     expect(response.trace.route).toBe('aggregation');
     expect(response.citations[0]?.doc_id).toBe('TBL-PROD-001');
+    expect(response.trace.latency_ms).toBeGreaterThanOrEqual(0);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

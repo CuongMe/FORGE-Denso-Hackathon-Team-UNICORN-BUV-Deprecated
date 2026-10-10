@@ -10,7 +10,7 @@ import type { DocumentChunkPreview, DocumentSummary, HealthResponse } from '@/li
 import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
 import { FileIcon, SearchIcon } from './ForgeIcons';
 
-export type DocumentFilter = 'ALL' | 'PDF' | 'XLS' | 'XLSX' | 'CSV' | 'IMAGE';
+export type DocumentFilter = 'ALL' | 'PDF' | 'PPTX' | 'TXT' | 'XLS' | 'XLSX' | 'CSV' | 'IMAGE';
 
 type DocumentsWorkspaceProps = {
   documents: DocumentSummary[];
@@ -23,6 +23,8 @@ type DocumentsWorkspaceProps = {
 function typeFor(document: DocumentSummary): Exclude<DocumentFilter, 'ALL'> {
   const value = (document.format + ' ' + document.modality).toLowerCase();
   if (value.includes('image') || ['png', 'jpg', 'jpeg', 'bmp', 'webp'].some((type) => value.includes(type))) return 'IMAGE';
+  if (document.format.toUpperCase() === 'PPTX') return 'PPTX';
+  if (document.format.toUpperCase() === 'TXT') return 'TXT';
   if (value.includes('xlsx') || value.includes('excel')) return 'XLSX';
   if (value.includes('xls')) return 'XLS';
   if (value.includes('csv')) return 'CSV';
@@ -36,6 +38,8 @@ function labelFor(document: DocumentSummary) {
 function locationFor(document: DocumentSummary, t: (key: string, values?: Record<string, string | number>) => string) {
   const type = typeFor(document);
   if (type === 'PDF') return document.page_count ? t('documents.pages', { count: document.page_count }) : t('documents.pagesMissing');
+  if (type === 'PPTX') return document.page_count ? t('documents.slides', { count: document.page_count }) : t('documents.slidesMissing');
+  if (type === 'TXT') return t('documents.textDocument');
   if (type === 'XLSX' || type === 'XLS') return document.sheet_count ? t('documents.sheets', { count: document.sheet_count }) : t('documents.sheetsMissing');
   if (type === 'CSV') {
     const rows = document.row_count ? t('documents.rows', { count: document.row_count }) : t('documents.rowsMissing');
@@ -51,7 +55,7 @@ function regionLabel(document: DocumentSummary, t: (key: string) => string) {
 
 function RailFilters({ documents, active, onChange }: { documents: DocumentSummary[]; active: DocumentFilter; onChange: (filter: DocumentFilter) => void }) {
   const t = useTranslations();
-  const filters: DocumentFilter[] = ['ALL', 'PDF', 'XLS', 'XLSX', 'CSV', 'IMAGE'];
+  const filters: DocumentFilter[] = ['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'IMAGE'];
   return (
     <div className='forge-rail-filter-stack' aria-label={t('documents.filterLabel')}>
       {filters.map((filter) => {
@@ -168,7 +172,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
       <div className='forge-workspace-heading documents-heading'><div><p className='forge-eyebrow'>{t('documents.eyebrow')}</p><h1>{t('documents.title')}</h1><p className='forge-workspace-helper'>{t('documents.helper')}</p></div><div className='forge-corpus-summary'><strong>{health?.documents_count ?? documents.length}</strong><span>{t('documents.sources')}</span></div></div>
       <div className='forge-search-bar'><SearchIcon /><input aria-label={t('documents.searchLabel')} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('documents.search')} /><strong>{filteredDocuments.length} {t('documents.sources')}</strong></div>
       <div className='forge-filter-row documents-filter-row' aria-label={t('documents.filterLabel')}>
-        {(['ALL', 'PDF', 'XLS', 'XLSX', 'CSV', 'IMAGE'] as DocumentFilter[]).map((item) => {
+        {(['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'IMAGE'] as DocumentFilter[]).map((item) => {
           const count = item === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === item).length;
           return <button key={item} type='button' className={'forge-filter-chip ' + (filter === item ? 'is-active' : '')} onClick={() => setFilter(item)}>{item} {count}</button>;
         })}

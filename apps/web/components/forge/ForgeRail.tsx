@@ -7,11 +7,13 @@ import type { DocumentSummary, HealthResponse } from '@/lib/types';
 
 import { FileIcon, SearchIcon } from './ForgeIcons';
 
-type SourceFilter = 'ALL' | 'PDF' | 'SHEETS' | 'CSV' | 'IMAGE';
+type SourceFilter = 'ALL' | 'PDF' | 'PPTX' | 'TXT' | 'SHEETS' | 'CSV' | 'IMAGE';
 
 const sourceFilterOptions: Array<{ id: SourceFilter; label: string }> = [
   { id: 'ALL', label: 'ALL' },
   { id: 'PDF', label: 'PDF' },
+  { id: 'PPTX', label: 'PPTX' },
+  { id: 'TXT', label: 'TXT' },
   { id: 'SHEETS', label: 'SHEETS' },
   { id: 'CSV', label: 'CSV' },
   { id: 'IMAGE', label: 'IMAGES' },
@@ -28,6 +30,8 @@ type ForgeRailProps = {
 function sourceType(document: DocumentSummary): Exclude<SourceFilter, 'ALL'> {
   const format = document.format.toUpperCase();
   if (format === 'PDF') return 'PDF';
+  if (format === 'PPTX') return 'PPTX';
+  if (format === 'TXT') return 'TXT';
   if (format === 'CSV') return 'CSV';
   if (format === 'XLS' || format === 'XLSX') return 'SHEETS';
   return 'IMAGE';

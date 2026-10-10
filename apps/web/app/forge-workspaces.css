@@ -65,14 +65,6 @@
 .forge-retrieval-trace[open] summary::before { content: −; }
 .forge-trace-panel { position: absolute; z-index: 4; top: 24px; right: 0; width: min(560px, 82vw); max-height: 280px; overflow: auto; padding: 12px; border: 1px solid var(--forge-line); border-radius: 9px; background: var(--forge-surface); box-shadow: 0 16px 34px rgba(36, 68, 84, .14); }
 .forge-trace-caption { margin: 0 0 8px; color: var(--forge-muted); font-size: 9px; }
-.forge-trace-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; margin-bottom: 10px; }
-.forge-trace-metrics div { display: grid; gap: 4px; padding: 7px; border-radius: 6px; background: var(--forge-soft); }
-.forge-trace-metrics span { color: var(--forge-faint); font-size: 8px; }
-.forge-trace-metrics strong { color: var(--forge-ink); font-size: 10px; }
-.forge-trace-table { width: 100%; border-collapse: collapse; font-size: 9px; }
-.forge-trace-table th, .forge-trace-table td { padding: 6px 7px; border-bottom: 1px solid var(--forge-line); text-align: left; white-space: nowrap; }
-.forge-trace-table th { color: var(--forge-faint); font-size: 8px; letter-spacing: .06em; text-transform: uppercase; }
-.forge-trace-table td { color: var(--forge-ink); }
 .forge-ingestion-pipeline { margin-top: 14px; padding: 14px; border: 1px solid var(--forge-line); border-radius: 12px; background: rgba(255, 255, 255, .82); }
 .forge-ingestion-pipeline.is-failed { border-color: #e7a48e; background: #fffaf7; }
 .forge-ingestion-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
@@ -231,5 +223,4 @@
   .forge-composer textarea { grid-column: 1; grid-row: 2; }
   .forge-send-button { grid-column: 2; grid-row: 2; }
   .forge-stat-grid { grid-template-columns: 1fr; }
-  .forge-trace-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

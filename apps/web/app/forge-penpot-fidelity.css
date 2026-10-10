@@ -96,17 +96,25 @@
 .forge-related-source small { overflow: hidden; color: var(--forge-muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .forge-related-source b { color: var(--forge-green); font-size: 9px; }
 .forge-side-link { display: inline-block; margin-top: 16px; }
-.forge-trace-card { overflow: hidden; }
-.forge-trace-flow { margin: 12px 0 0; color: var(--forge-ink); font-size: 9px; font-weight: 800; }
-.forge-trace-metrics { gap: 5px; margin-top: 13px; }
-.forge-trace-metrics div { padding: 6px; }
-.forge-trace-scroll { max-height: 132px; overflow-y: auto; border: 1px solid var(--forge-line); border-radius: 7px; }
-.forge-trace-table { min-width: 100%; font-size: 8px; }
-.forge-trace-table th, .forge-trace-table td { padding: 6px 5px; }
-.forge-trace-table th { font-size: 7px; }
-.forge-trace-table td strong, .forge-trace-table td small { display: block; }
-.forge-trace-table td small { margin-top: 2px; color: var(--forge-muted); font-size: 7px; }
-.forge-trace-foot { margin: 8px 0 0; color: var(--forge-muted); font-size: 8px; }
+.forge-side-card.forge-trace-card { overflow: hidden; padding: 22px 24px; border-color: #26382e; border-radius: 16px; background: #101914; color: #dbe7df; }
+.forge-trace-card .forge-eyebrow { color: #99b9a5; font-size: 10px; letter-spacing: .14em; }
+.forge-trace-flow { margin: 8px 0 0; color: #e2ece5; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.forge-trace-list { display: grid; gap: 17px; margin: 26px 0 0; padding: 0; list-style: none; }
+.forge-trace-item { min-width: 0; }
+.forge-trace-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.forge-trace-identity { display: flex; min-width: 0; align-items: center; gap: 8px; color: #d7e2da; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.forge-trace-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.forge-trace-identity span { color: #71877a; }
+.forge-trace-identity code { color: #b3c8ba; font: inherit; }
+.forge-trace-score { flex: 0 0 auto; color: #70cba9; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; font-variant-numeric: tabular-nums; }
+.forge-trace-meter { height: 6px; margin-top: 9px; overflow: hidden; background: #26362d; }
+.forge-trace-meter span { display: block; height: 100%; background: #33b78c; transition: width .2s ease; }
+.forge-trace-item.is-selected .forge-trace-meter span { background: #55d8a8; }
+.forge-trace-empty { margin: 24px 0; color: #a4b6aa; font-size: 12px; }
+.forge-trace-footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 28px; padding-top: 14px; border-top: 1px solid #26382e; }
+.forge-trace-footer span { display: flex; min-width: 0; align-items: baseline; gap: 6px; color: #9db6a4; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; white-space: nowrap; }
+.forge-trace-footer b { color: #82a591; font-weight: 500; }
+.forge-trace-footer strong { overflow: hidden; color: #dce8df; font-weight: 700; text-overflow: ellipsis; }
 
 .documents-workspace { gap: 18px; }
 .documents-heading { align-items: end; }

@@ -113,6 +113,9 @@ export type QueryResponse = {
     reranker: string;
     evidence_threshold: number;
     latency_ms: number;
+    retrieval_ms?: number;
+    rerank_ms?: number;
+    generation_ms?: number;
     candidates: RetrievalCandidate[];
     route: 'rag' | 'aggregation' | 'visual';
     cache_hit: boolean;

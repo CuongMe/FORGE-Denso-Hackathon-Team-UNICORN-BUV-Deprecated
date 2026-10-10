@@ -7,5 +7,8 @@ describe('demo upload stages', () => {
     expect(getDemoUploadStages({ name: 'safety.webp', type: 'image/webp' })).toContain('vlm_analysis');
     expect(getDemoUploadStages({ name: 'maintenance.xlsx', type: '' })).toContain('table_extraction');
     expect(getDemoUploadStages({ name: 'maintenance.xls', type: 'application/vnd.ms-excel' })).toContain('table_extraction');
+    expect(getDemoUploadStages({ name: 'shift.pptx', type: '' })).toContain('table_extraction');
+    expect(getDemoUploadStages({ name: 'handover.txt', type: 'text/plain' })).not.toContain('ocr');
+    expect(getDemoUploadStages({ name: 'handover.txt', type: 'text/plain' })).not.toContain('table_extraction');
   });
 });

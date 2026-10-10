@@ -246,7 +246,7 @@ export function getDemoHealth(): HealthResponse {
       backend: 'preprocessed demo corpora',
       docling_available: false,
       chunker: 'Docling HybridChunker (offline index)',
-      supported_extensions: ['PDF', 'XLS', 'XLSX', 'CSV', 'PNG', 'JPG'],
+      supported_extensions: ['PDF', 'XLS', 'XLSX', 'CSV', 'PPTX', 'TXT', 'PNG', 'JPG'],
     },
   };
 }
@@ -286,6 +286,8 @@ function responseFromAnswer(
   answer: string,
   ranked: RankedChunk[],
   usage: { promptTokens: number; completionTokens: number; totalTokens: number } = { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+  retrievalMs = 0,
+  generationMs = 0,
 ): QueryResponse {
   const citations: Citation[] = ranked.slice(0, 3).map(({ chunk, score }) => ({
     chunk_id: chunk.chunk_id,
@@ -341,6 +343,9 @@ function responseFromAnswer(
       reranker: 'BM25 lexical retrieval',
       evidence_threshold: 0,
       latency_ms: 0,
+      retrieval_ms: retrievalMs,
+      rerank_ms: 0,
+      generation_ms: generationMs,
       candidates: retrievalCandidates,
       route: 'rag',
       cache_hit: false,
@@ -350,27 +355,36 @@ function responseFromAnswer(
   };
 }
 
+function finishDemoResponse(response: QueryResponse, started: number) {
+  response.trace.latency_ms = Math.round((performance.now() - started) * 100) / 100;
+  return response;
+}
+
 export async function queryDemo(question: string): Promise<QueryResponse> {
+  const started = performance.now();
+  const retrievalStarted = performance.now();
   const ranked = rankDemoChunks(question);
+  const retrievalMs = Math.round((performance.now() - retrievalStarted) * 100) / 100;
   const aggregation = aggregateDemoTable(question, ranked.map(({ chunk }) => chunk.doc_id));
   if (aggregation) {
     const source = corpus.chunks.find((chunk) => chunk.doc_id === aggregation.summary.source_doc_id);
     if (source) {
-      const response = responseFromAnswer(aggregation.answer, [{ chunk: source, rawScore: 1, score: 1 }]);
+      const response = responseFromAnswer(aggregation.answer, [{ chunk: source, rawScore: 1, score: 1 }], undefined, retrievalMs);
       response.aggregation = aggregation.summary;
       response.trace.route = 'aggregation';
       response.trace.reranker = 'SQLite structured aggregation';
       response.trace.prompt_version = 'vercel-sql-aggregation-v1';
-      return response;
+      return finishDemoResponse(response, started);
     }
   }
-  if (!hasRelevantDemoEvidence(question, ranked)) return responseFromAnswer('I could not find strong, specific evidence for this question in the pre-indexed demo sources.', []);
+  if (!hasRelevantDemoEvidence(question, ranked)) return finishDemoResponse(responseFromAnswer('I could not find strong, specific evidence for this question in the pre-indexed demo sources.', [], undefined, retrievalMs), started);
 
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new DemoServiceError('Gemini is not configured for this demo. Add GEMINI_API_KEY to the server environment.');
   const model = process.env.FORGE_GEMINI_MODEL || 'gemini-3.5-flash-lite';
   const evidence = ranked.map(({ chunk }, index) => `[E${index + 1}] ${chunk.doc_id} · ${chunk.source_name} · ${chunk.region}${chunk.page == null ? '' : ` · page ${chunk.page}`}\n${chunk.content.slice(0, 2400)}`).join('\n\n');
 
+  const generationStarted = performance.now();
   let upstream: Response;
   try {
     upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
@@ -390,12 +404,13 @@ export async function queryDemo(question: string): Promise<QueryResponse> {
   if (!upstream.ok) throw new DemoServiceError('Gemini could not complete this query. Check the server key, model, and quota.');
   const result = readGeminiResponse(await upstream.json().catch(() => null));
   if (!result) throw new DemoServiceError('Gemini returned an empty or invalid answer.');
+  const generationMs = Math.round((performance.now() - generationStarted) * 100) / 100;
   const labels = [...new Set([...result.answer.matchAll(/\[E(\d+)\]/gu)].map((match) => Number(match[1])))];
-  if (!labels.length) return responseFromAnswer('I could not verify an answer from the retrieved evidence.', [], result);
+  if (!labels.length) return finishDemoResponse(responseFromAnswer('I could not verify an answer from the retrieved evidence.', [], result, retrievalMs, generationMs), started);
   if (labels.some((label) => !Number.isInteger(label) || label < 1 || label > ranked.length)) {
-    return responseFromAnswer('I could not verify an answer from the retrieved evidence.', [], result);
+    return finishDemoResponse(responseFromAnswer('I could not verify an answer from the retrieved evidence.', [], result, retrievalMs, generationMs), started);
   }
-  return responseFromAnswer(result.answer, labels.map((label) => ranked[label - 1]), result);
+  return finishDemoResponse(responseFromAnswer(result.answer, labels.map((label) => ranked[label - 1]), result, retrievalMs, generationMs), started);
 }
 
 export function getDemoDocument(docId: string) {
