@@ -1,4 +1,6 @@
+from io import BytesIO
 from types import SimpleNamespace
+import zipfile
 
 from fastapi.testclient import TestClient
 import pytest
@@ -166,6 +168,9 @@ def test_query_returns_answer_citation_and_retrieval_trace(client):
     assert body['trace']['candidates']
     assert body['trace']['candidates'][0]['hybrid_rank'] == 1
     assert any(candidate['rerank_score'] is not None for candidate in body['trace']['candidates'])
+    assert body['trace']['retrieval_ms'] >= 0
+    assert body['trace']['rerank_ms'] >= 0
+    assert body['trace']['generation_ms'] >= 0
 
 
 def test_query_returns_a_best_match_without_abstaining(client):
@@ -222,6 +227,18 @@ def test_upload_rejects_content_that_does_not_match_extension(client):
 def test_xls_signature_is_accepted():
     assert main._content_matches_extension('.xls', b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1workbook')
     assert not main._content_matches_extension('.xls', b'not an xls workbook')
+
+
+def test_pptx_and_txt_content_validation():
+    pptx = BytesIO()
+    with zipfile.ZipFile(pptx, 'w') as archive:
+        archive.writestr('[Content_Types].xml', '<Types/>')
+        archive.writestr('ppt/presentation.xml', '<presentation/>')
+
+    assert main._content_matches_extension('.pptx', pptx.getvalue())
+    assert not main._content_matches_extension('.pptx', b'not a presentation')
+    assert main._content_matches_extension('.txt', 'Hướng dẫn an toàn'.encode('utf-8'))
+    assert not main._content_matches_extension('.txt', b'\xff\x00')
 
 
 def test_upload_accepts_bmp_signature(client, tmp_path, monkeypatch):

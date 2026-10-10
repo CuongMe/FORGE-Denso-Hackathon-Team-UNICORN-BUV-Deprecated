@@ -141,6 +141,7 @@ def test_gemini_answerer_uses_grounded_output_and_server_owned_citations():
             assert kwargs["model"] == "gemini-2.5-flash-lite"
             assert "9.5" in kwargs["contents"]
             assert "Answer only from the supplied evidence." in kwargs["config"].system_instruction
+            assert "Vietnamese questions about Japanese evidence in Vietnamese" in kwargs["config"].system_instruction
             return SimpleNamespace(text="Use 9.5 ± 0.5 N·m.")
 
     class FakeClient:

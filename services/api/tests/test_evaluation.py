@@ -10,9 +10,9 @@ from app.models import Citation, QueryResponse, RetrievalCandidate, RetrievalTra
 
 
 def response(*, abstained=False):
-    return QueryResponse(answer='9.5 ± 0.5 N·m', abstained=abstained,
+    return QueryResponse(answer='Use fixture F-ECU-03 and barcode scanner SC-09.', abstained=abstained,
         grounding='grounded', citations=[Citation(chunk_id='live:chunk-1', doc_id='WI-ASSY-001',
-            source_name='manual.pdf', page=1, region='spec', quote='9.5 ± 0.5 N·m', score=.9)],
+            source_name='manual.pdf', page=1, region='Required equipment', quote='Fixture F-ECU-03 and barcode scanner SC-09.', score=.9)],
         trace=RetrievalTrace(candidates_considered=2, reranked_count=2, reranker='test',
             evidence_threshold=.45, latency_ms=20, candidates=[
                 RetrievalCandidate(hybrid_rank=1, rerank_rank=2, chunk_id='wrong', doc_id='OTHER', source_name='other.pdf', page=1, hybrid_score=.8),
@@ -65,11 +65,11 @@ def test_routes_persist_runs_failures_and_exportable_details(tmp_path):
     with TestClient(app) as client:
         assert client.get('/api/metrics').json()['total_queries'] == 0
         mixed = client.get('/api/evaluations/datasets').json()['data'][2]
-        assert mixed['count'] == 34
+        assert mixed['count'] == 38
         assert mixed['signed_off'] == 0
-        assert mixed['pending_review'] == 34
+        assert mixed['pending_review'] == 38
         assert client.post('/api/evaluations', json={'dataset': '../secret', 'limit': 2}).status_code == 422
-        assert client.post('/api/evaluations', json={'limit': 35}).status_code == 422
+        assert client.post('/api/evaluations', json={'limit': 39}).status_code == 422
         started = client.post('/api/evaluations', json={'dataset': 'all', 'limit': 2})
         assert started.status_code == 202
         assert started.json()['status'] == 'queued'

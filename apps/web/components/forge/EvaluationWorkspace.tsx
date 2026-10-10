@@ -161,10 +161,10 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
       {vercelDemo && <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>}
     </> : <>
       <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.runBenchmark')}</h2><span>{t('eval.availableCases', { count: datasets.find(item => item.id === 'all')?.count ?? '—' })}</span></div>
-        <div className={styles.reviewStatus}><strong>{datasets.find(item => item.id === 'all')?.signed_off ?? 0} / {datasets.find(item => item.id === 'all')?.count ?? 34}</strong><span>{t('eval.humanSigned')}</span><small>{datasets.find(item => item.id === 'all')?.pending_review ?? 34} {t('eval.awaitingReview')}</small></div>
+        <div className={styles.reviewStatus}><strong>{datasets.find(item => item.id === 'all')?.signed_off ?? 0} / {datasets.find(item => item.id === 'all')?.count ?? 38}</strong><span>{t('eval.humanSigned')}</span><small>{datasets.find(item => item.id === 'all')?.pending_review ?? 38} {t('eval.awaitingReview')}</small></div>
         <div className={styles.controls}>
           <label htmlFor='evaluation-dataset'><span>{t('eval.dataset')}</span><select id='evaluation-dataset' aria-label={t('eval.dataset')} value={dataset} onChange={event => { const next = event.target.value as EvaluationDataset; setDataset(next); setLimit(Math.min(limit, datasets.find(item => item.id === next)?.count ?? 5)); }}>{datasets.map(item => <option key={item.id} value={item.id}>{t(datasetLabels[item.id])} · {t('eval.cases', { count: item.count })}</option>)}</select></label>
-          <label>{t('eval.caseLimit')}<input type='number' min={1} max={available || 34} value={limit} onChange={event => setLimit(Number(event.target.value))} /></label>
+          <label>{t('eval.caseLimit')}<input type='number' min={1} max={available || 38} value={limit} onChange={event => setLimit(Number(event.target.value))} /></label>
           <button className={styles.primary} disabled={busy || running || !available || !Number.isInteger(limit) || limit < 1 || limit > available} onClick={() => void launch()}>{busy ? t('eval.starting') : running ? t('eval.runProgress') : t('eval.runEvaluation')}</button>
         </div><p className={styles.note}>{t('eval.runNote')}</p>
       </section>

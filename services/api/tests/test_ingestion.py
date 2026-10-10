@@ -14,6 +14,8 @@ def test_ingestion_status_exposes_supported_formats_and_chunker():
     assert ".png" in status["supported_extensions"]
     assert ".bmp" in status["supported_extensions"]
     assert ".xls" in status["supported_extensions"]
+    assert ".pptx" in status["supported_extensions"]
+    assert ".txt" in status["supported_extensions"]
     assert status["backend"] in {"unavailable", "docling-hybridchunker"}
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,9 @@ class QueryExecution:
     candidates: list[RetrievedChunk]
     ranked: list[RetrievedChunk]
     draft: AnswerDraft
+    retrieval_ms: float = 0.0
+    rerank_ms: float = 0.0
+    generation_ms: float = 0.0
 
 
 def _relative_source_path(source: Path) -> str:
@@ -133,6 +137,7 @@ class RuntimeBundle:
     ) -> QueryExecution:
         self.warm_models()
         retrieval_limit = getattr(getattr(self.retriever, 'settings', None), 'retrieval_limit', 8)
+        retrieval_started = time.perf_counter()
         if document_id:
             candidates = self.retriever.search(
                 question,
@@ -143,17 +148,25 @@ class RuntimeBundle:
             candidates = self.retriever.search(question, limit=retrieval_limit)
         if _query_requests_image_sources(question):
             candidates = self._image_candidates(candidates, document_id=document_id)
+        retrieval_ms = round((time.perf_counter() - retrieval_started) * 1000, 2)
+        rerank_started = time.perf_counter()
         ranked = self.reranker.rerank(
             question,
             candidates,
             limit=getattr(getattr(self.reranker, 'settings', None), 'rerank_limit', 5),
         )
+        rerank_ms = round((time.perf_counter() - rerank_started) * 1000, 2)
         if document_id:
             ranked = self._apply_document_reference_match(ranked, document_id)
+        generation_started = time.perf_counter()
+        draft = self.answerer.answer(question, ranked)
         return QueryExecution(
             candidates=candidates,
             ranked=ranked,
-            draft=self.answerer.answer(question, ranked),
+            draft=draft,
+            retrieval_ms=retrieval_ms,
+            rerank_ms=rerank_ms,
+            generation_ms=round((time.perf_counter() - generation_started) * 1000, 2),
         )
 
     @staticmethod

@@ -79,6 +79,8 @@ export const flatMessages: Record<Language, Messages> = {
     "ask.openDocument": "OPEN REFERENCED DOCUMENT →",
 
     "ask.askAboutDocument": "Ask about this doc",
+    "ask.viewChunk": "VIEW CHUNK",
+    "ask.viewRaw": "VIEW RAW",
     "ask.workInstruction": "WORK INSTRUCTION",
     "ask.source": "SOURCE",
     "ask.clearReference": "Remove source reference",
@@ -445,6 +447,8 @@ export const flatMessages: Record<Language, Messages> = {
     "ask.openDocument": "参照ドキュメントを開く →",
 
     "ask.askAboutDocument": "この資料について質問する",
+    "ask.viewChunk": "チャンクを見る",
+    "ask.viewRaw": "元ファイルを見る",
     "ask.workInstruction": "作業手順",
     "ask.source": "ソース",
     "ask.clearReference": "ソース参照を削除",
@@ -811,6 +815,8 @@ export const flatMessages: Record<Language, Messages> = {
     "ask.openDocument": "MỞ TÀI LIỆU ĐƯỢC THAM CHIẾU →",
 
     "ask.askAboutDocument": "Hỏi về tài liệu này",
+    "ask.viewChunk": "XEM ĐOẠN TRÍCH",
+    "ask.viewRaw": "XEM FILE GỐC",
     "ask.workInstruction": "HƯỚNG DẪN CÔNG VIỆC",
     "ask.source": "NGUỒN",
     "ask.clearReference": "Xóa tham chiếu nguồn",

@@ -6,4 +6,6 @@ def test_grounded_prompt_is_versioned_and_contains_safety_rules():
 
     assert GROUNDED_PROMPT_VERSION
     assert "Answer only from the supplied evidence." in prompt
+    assert "same language as the user's question" in prompt
+    assert "Vietnamese questions about Japanese evidence in Vietnamese" in prompt
     assert "ABSTAIN" in prompt

@@ -1,9 +1,11 @@
 'use client';
 
-import { useRef, type ChangeEvent, type FormEvent } from 'react';
+import Image from 'next/image';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 
-import type { DocumentSummary, HealthResponse, IngestionJob, QueryResponse } from '@/lib/types';
+import { getDocumentChunks, getDocumentRawUrl } from '@/lib/api';
+import type { DocumentChunkPreview, DocumentSummary, HealthResponse, IngestionJob, QueryResponse } from '@/lib/types';
 import { demoAnswers } from '@/lib/demo-answers';
 
 import { ArrowUpIcon, ImageIcon, UploadIcon } from './ForgeIcons';
@@ -11,6 +13,9 @@ import { ForgeCitationCard } from './ForgeCitationCard';
 import { IngestionPipeline } from './IngestionPipeline';
 import { PromptTable, type PromptItem } from './PromptTable';
 import { RetrievalTrace } from './RetrievalTrace';
+
+type ReferenceSource = Pick<DocumentSummary, 'doc_id' | 'source_name' | 'format' | 'factory_topic'>;
+type SourceViewer = { mode: 'chunk' | 'raw'; source: ReferenceSource; chunkId?: string };
 
 export type AskMessage = {
   id: string;
@@ -45,12 +50,18 @@ function renderQuestion(content: string) {
     : <span key={`${part}-${index}`}>{part}</span>);
 }
 
-function SourceDetails({ documents, response, referencedDocument, onReferenceDocument }: { documents: DocumentSummary[]; response: QueryResponse | null; referencedDocument: DocumentSummary | null; onReferenceDocument: (docId: string) => void }) {
+function SourceDetails({ documents, response, referencedDocument, onReferenceDocument, onViewChunk, onViewRaw }: { documents: DocumentSummary[]; response: QueryResponse | null; referencedDocument: DocumentSummary | null; onReferenceDocument: (docId: string) => void; onViewChunk: (source: ReferenceSource, chunkId?: string) => void; onViewRaw: (source: ReferenceSource) => void }) {
   const t = useTranslations();
   const citation = response?.citations[0] ?? null;
   const current = referencedDocument ?? documents.find((document) => document.doc_id === citation?.doc_id) ?? null;
-  const format = current?.format?.toUpperCase() ?? citation?.source_name.split(".").pop()?.toUpperCase() ?? "SOURCE";
   const referenceId = current?.doc_id ?? citation?.doc_id;
+  const referenceCitation = response?.citations.find((item) => item.doc_id === referenceId);
+  const source: ReferenceSource | null = current
+    ? { doc_id: current.doc_id, source_name: current.source_name, format: current.format, factory_topic: current.factory_topic }
+    : citation
+      ? { doc_id: citation.doc_id, source_name: citation.source_name, format: citation.source_name.split('.').pop() ?? '', factory_topic: citation.region }
+      : null;
+  const format = current?.format?.toUpperCase() ?? citation?.source_name.split(".").pop()?.toUpperCase() ?? "SOURCE";
   const relatedDocuments = [...new Set(response?.citations.slice(1).map((item) => item.doc_id) ?? [])].filter((docId) => docId !== referenceId).slice(0, 2);
   const location = current?.page_count
     ? t(format === "PPTX" ? "documents.slides" : "documents.pages", { count: current.page_count })
@@ -65,6 +76,10 @@ function SourceDetails({ documents, response, referencedDocument, onReferenceDoc
         <strong>{referenceId ? "@" + referenceId : t("ask.noSource")}</strong>
         <p>{current ? [current.factory_topic, format, location].filter(Boolean).join(" \u00b7 ") : citation?.source_name ?? t("ask.populateSource")}</p>
         {referenceId && <button type="button" className="forge-ask-about-document" onClick={() => onReferenceDocument(referenceId)}>{t("ask.askAboutDocument")}</button>}
+        {source && <div className="forge-reference-actions">
+          <button type="button" className="forge-source-view-button" onClick={() => onViewChunk(source, referenceCitation?.chunk_id)}>{t('ask.viewChunk')}</button>
+          <button type="button" className="forge-source-view-button" aria-label={t('documents.viewRaw', { name: source.source_name })} onClick={() => onViewRaw(source)}>{t('ask.viewRaw')}</button>
+        </div>}
       </div>
       <div className="forge-nearby-references">
         <p className="forge-eyebrow">{t("ask.related")}</p>
@@ -95,6 +110,7 @@ export function AskWorkspace({
   const t = useTranslations();
   const documentInput = useRef<HTMLInputElement>(null);
   const imageInput = useRef<HTMLInputElement>(null);
+  const [sourceViewer, setSourceViewer] = useState<SourceViewer | null>(null);
   let latestResponse: QueryResponse | null = null;
   messages.forEach((message) => {
     if (message.response) latestResponse = message.response;
@@ -209,10 +225,65 @@ export function AskWorkspace({
         </div>
 
         <aside className="ask-side">
-          <SourceDetails documents={documents} response={latestResponse} referencedDocument={referencedDocument} onReferenceDocument={onReferenceDocument} />
+          <SourceDetails documents={documents} response={latestResponse} referencedDocument={referencedDocument} onReferenceDocument={onReferenceDocument} onViewChunk={(source, chunkId) => setSourceViewer({ mode: 'chunk', source, chunkId })} onViewRaw={(source) => setSourceViewer({ mode: 'raw', source })} />
           {latestResponse ? <RetrievalTrace response={latestResponse} /> : <section className="forge-side-card forge-trace-card"><p className="forge-eyebrow">{t('ask.retrievalTrace')}</p><p className="forge-trace-flow">{t('ask.traceFlow')}</p><p className="forge-side-helper">{t('ask.traceHelper')}</p></section>}
         </aside>
       </div>
+      {sourceViewer && <PinnedSourceModal viewer={sourceViewer} vercelDemo={vercelDemo} onClose={() => setSourceViewer(null)} />}
     </div>
   );
+}
+
+function PinnedSourceModal({ viewer, vercelDemo, onClose }: { viewer: SourceViewer; vercelDemo: boolean; onClose: () => void }) {
+  const t = useTranslations();
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const [result, setResult] = useState<{ chunks: DocumentChunkPreview[]; error: boolean } | null>(null);
+
+  useEffect(() => {
+    closeButton.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (viewer.mode !== 'chunk') return;
+    let active = true;
+    void getDocumentChunks(viewer.source.doc_id)
+      .then(({ chunks }) => { if (active) setResult({ chunks, error: false }); })
+      .catch(() => { if (active) setResult({ chunks: [], error: true }); });
+    return () => { active = false; };
+  }, [viewer]);
+
+  const isChunk = viewer.mode === 'chunk';
+  const chunks = result?.chunks ?? [];
+  const chunk = viewer.chunkId ? chunks.find((item) => item.chunk_id === viewer.chunkId) : chunks[0];
+  const loading = isChunk && result === null;
+  const error = isChunk && result?.error;
+  const isImage = /\.(png|jpe?g|bmp|webp)$/i.test(viewer.source.source_name);
+  const rawUrl = vercelDemo
+    ? `/demo-documents/${encodeURIComponent(viewer.source.source_name)}`
+    : getDocumentRawUrl(viewer.source.doc_id);
+
+  return <div className="forge-raw-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <section className="forge-raw-modal" role="dialog" aria-modal="true" aria-labelledby="pinned-source-title">
+      <header className="forge-raw-modal-header">
+        <div><p className="forge-eyebrow">{isChunk ? t('documents.extractedText') : t('documents.rawDocument')}</p><h2 id="pinned-source-title">{viewer.source.source_name}</h2><span>{viewer.source.doc_id} · {viewer.source.factory_topic}</span></div>
+        <button ref={closeButton} type="button" className="forge-raw-modal-close" aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button>
+      </header>
+      {isChunk ? <div className="forge-raw-modal-viewer forge-demo-document-content" aria-live="polite">
+        {loading && <p role="status">{t('documents.loadingExtracted')}</p>}
+        {error && <p role="alert">{t('documents.extractedUnavailable')}</p>}
+        {!loading && !error && chunk && <article className="forge-current-reference">
+          <strong>{chunk.region || chunk.chunk_id}</strong>
+          <span>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</span>
+          <p>{chunk.content}</p>
+        </article>}
+        {!loading && !error && !chunk && <p role="alert">{t('documents.extractedUnavailable')}</p>}
+      </div> : <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '')}>
+        {isImage ? <Image src={rawUrl} alt={viewer.source.source_name} fill sizes="(max-width: 900px) 90vw, 850px" unoptimized /> : <iframe title={t('documents.browserPreview', { name: viewer.source.source_name })} src={rawUrl} />}
+      </div>}
+      {!isChunk && <p className="forge-raw-modal-note">{t('documents.originalFile')}</p>}
+    </section>
+  </div>;
 }

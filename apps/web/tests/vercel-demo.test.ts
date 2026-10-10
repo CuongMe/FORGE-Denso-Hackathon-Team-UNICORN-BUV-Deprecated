@@ -64,6 +64,23 @@ describe('pre-indexed Vercel demo corpus', () => {
     expect(response.trace.latency_ms).toBeGreaterThanOrEqual(response.trace.generation_ms ?? 0);
   });
 
+  it('answers a Vietnamese request in Vietnamese when its cited source is Japanese', async () => {
+    vi.stubEnv('GEMINI_API_KEY', 'test-only-key');
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(Response.json({
+      candidates: [{ content: { parts: [{ text: 'Tài liệu mô tả quy trình kiểm tra hàng nhập. [E1]' }] } }],
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const response = await queryDemo('@JA-BIZ-0063 giải thích');
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const instruction = body.systemInstruction.parts[0].text;
+
+    expect(instruction).toContain('answer Vietnamese questions about Japanese evidence in Vietnamese');
+    expect(response.answer).toContain('Tài liệu mô tả');
+    expect(response.citations[0]?.doc_id).toBe('JA-BIZ-0063');
+    expect(response.trace.prompt_version).toBe('vercel-denso-grounded-v2');
+  });
+
   it('runs spreadsheet totals through SQLite and cites the source table without calling Gemini', async () => {
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal('fetch', fetchMock);

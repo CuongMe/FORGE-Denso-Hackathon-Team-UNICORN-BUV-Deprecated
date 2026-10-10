@@ -1,8 +1,10 @@
 # FORGE Golden Evaluation Dataset
 
-`golden_dataset_v1.jsonl` is the first structured evaluation set for FORGE. It contains 30 answerable cases:
+[`golden_dataset_v2_en.jsonl`](golden_dataset_v2_en.jsonl) is the active machine-readable set: 34 new English questions covering all 17 files in the current source pack. Its human-review checklist is [`golden_dataset_v2_en.md`](golden_dataset_v2_en.md), and the combined English/Japanese review export is [`golden_dataset_v2_en_ja.csv`](golden_dataset_v2_en_ja.csv). [`golden_dataset_v1.jsonl`](golden_dataset_v1.jsonl) remains available as the archived 30-case set.
 
-- 30 answerable cases covering native PDFs, bilingual PDFs, image OCR, image layout, XLSX, CSV, numeric precision, procedures, ranking, aggregation, and cross-document reasoning.
+Each case pairs a question with a reference answer and source evidence. The reference answer is the ground truth used for evaluation:
+
+- 34 answerable English cases covering native PDFs, bilingual PDFs, image OCR, image layout, XLSX, CSV, SQL-style aggregation, numeric values, procedures, and event lookups.
 - Negative abstention cases are intentionally kept out of this answerable-only release; they are preserved in [`abstention_holdout_v1.jsonl`](abstention_holdout_v1.jsonl) for the Honest Demo and safety evaluation.
 
 ## Disclosure and verification status
@@ -40,10 +42,10 @@ The set is ready for scoring only when every case has a human decision of `accep
 
 Use the full set for regression testing. For a quick demo benchmark, report these slices separately:
 
-- Retrieval: G001-G007, G009-G013, G015-G016, and G018-G034.
-- Visual/OCR: G020-G023.
-- Tables: G024-G030 and G032-G034.
-- Bilingual: G004, G006, G009, G023, and G030.
+- Retrieval and procedures: G101-G116.
+- Visual/OCR: G117-G124.
+- Tables and CSV: G125-G134.
+- Archived v1 cases: [`golden_dataset_v1.md`](golden_dataset_v1.md).
 - Negative holdout: [`abstention_holdout_v1.jsonl`](abstention_holdout_v1.jsonl), kept separate from this answerable-only dataset.
 
 Do not publish invented accuracy numbers. Record the dataset version, model versions, prompt version, retrieval settings, and run timestamp with every evaluation result.

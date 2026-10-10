@@ -54,3 +54,20 @@ def test_xls_summary_includes_sheet_and_table_shape(tmp_path, monkeypatch):
     assert summary['sheet_count'] == 1
     assert summary['row_count'] == 3
     assert summary['column_count'] == 2
+
+
+def test_pptx_summary_counts_slide_provenance(tmp_path):
+    source = tmp_path / 'handover.pptx'
+    source.write_bytes(b'pptx fixture')
+    chunks = [
+        Chunk(chunk_id='pptx:1', doc_id='pptx', source_name=source.name, content='one', language='en', modality='pptx', pages=(1,)),
+        Chunk(chunk_id='pptx:2', doc_id='pptx', source_name=source.name, content='two', language='en', modality='pptx', pages=(2,)),
+    ]
+
+    summary = summarize_document(
+        source=source, doc_id='pptx', source_name=source.name,
+        source_path='uploads/handover.pptx', file_format='pptx', modality='pptx',
+        language='en', factory_topic='shift handover', chunks=chunks,
+    )
+
+    assert summary['page_count'] == 2

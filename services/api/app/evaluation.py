@@ -24,7 +24,7 @@ from app.models import QueryRequest, QueryResponse
 
 logger = logging.getLogger(__name__)
 DATA_ROOT = Path(__file__).resolve().parents[3] / 'data' / 'evaluation'
-DATASETS = {'golden': 'golden_dataset_v1.jsonl', 'abstention': 'abstention_holdout_v1.jsonl'}
+DATASETS = {'golden': 'golden_dataset_v2_en.jsonl', 'abstention': 'abstention_holdout_v1.jsonl'}
 
 
 def now() -> str:
@@ -304,7 +304,7 @@ class EvaluationStore:
 
 class EvaluationRequest(BaseModel):
     dataset: Literal['golden', 'abstention', 'all'] = 'all'
-    limit: int = Field(default=5, ge=1, le=34)
+    limit: int = Field(default=5, ge=1, le=38)
 
 
 def execute_run(store: EvaluationStore, run: dict, cases: list[dict], execute, worker_id: str):

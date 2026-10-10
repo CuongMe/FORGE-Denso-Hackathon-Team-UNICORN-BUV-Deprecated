@@ -98,11 +98,14 @@ class RetrievalTrace(BaseModel):
     reranker: str
     evidence_threshold: float
     latency_ms: float
+    retrieval_ms: float = Field(default=0.0, ge=0)
+    rerank_ms: float = Field(default=0.0, ge=0)
+    generation_ms: float = Field(default=0.0, ge=0)
     candidates: list[RetrievalCandidate] = Field(default_factory=list)
     route: Literal['rag', 'aggregation', 'visual'] = 'rag'
     cache_hit: bool = False
     request_id: str | None = None
-    prompt_version: str = 'grounded-answer-v2'
+    prompt_version: str = 'grounded-answer-v3'
 
 
 class TokenUsage(BaseModel):

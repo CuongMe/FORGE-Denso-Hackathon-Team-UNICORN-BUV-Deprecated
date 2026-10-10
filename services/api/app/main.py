@@ -78,12 +78,18 @@ def _content_matches_extension(extension: str, data: bytes) -> bool:
             return '[Content_Types].xml' in names and any(name.startswith('xl/') for name in names)
         except (OSError, ValueError, zipfile.BadZipFile):
             return False
+    if extension == '.pptx':
+        try:
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                names = set(archive.namelist())
+            return '[Content_Types].xml' in names and 'ppt/presentation.xml' in names
+        except (OSError, ValueError, zipfile.BadZipFile):
+            return False
     if extension == '.xls':
         return data.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1')
-    if extension == '.csv':
+    if extension in {'.csv', '.txt'}:
         try:
-            data.decode('utf-8-sig')
-            return True
+            return '\x00' not in data.decode('utf-8-sig')
         except UnicodeDecodeError:
             return False
     return False
@@ -418,7 +424,7 @@ def _aggregation_response(
         return None
     if result is None:
         return None
-    prompt_version = getattr(active_runtime.answerer, 'prompt_version', 'grounded-answer-v2')
+    prompt_version = getattr(active_runtime.answerer, 'prompt_version', 'grounded-answer-v3')
     citation = Citation(
         chunk_id=f"{source.get('doc_id')}:aggregate",
         doc_id=str(source.get('doc_id') or ''),
@@ -465,7 +471,7 @@ def _execute_query(payload: QueryRequest, *, request_id: str | None = None) -> Q
             ),
             referenced_format=str(referenced.get('format') or '') if referenced else None,
         )
-        prompt_version = getattr(active_runtime.answerer, 'prompt_version', 'grounded-answer-v2')
+        prompt_version = getattr(active_runtime.answerer, 'prompt_version', 'grounded-answer-v3')
         corpus_version = active_runtime.state_store.indexed_corpus_version() if active_runtime.state_store else 'no-state'
         runtime_signature = '|'.join(
             str(value)
@@ -585,6 +591,9 @@ def _execute_query(payload: QueryRequest, *, request_id: str | None = None) -> Q
         reranker=active_runtime.reranker.name,
         evidence_threshold=active_runtime.answerer.evidence_threshold,
         latency_ms=elapsed_ms,
+        retrieval_ms=execution.retrieval_ms,
+        rerank_ms=execution.rerank_ms,
+        generation_ms=execution.generation_ms,
         candidates=trace_candidates,
         route=route.kind,
         request_id=request_id,
@@ -935,7 +944,7 @@ async def upload_document(
             status_code=422,
             detail={
                 "code": "UNSUPPORTED_FILE_TYPE",
-                "message": "Supported files are PDF, PNG, JPG, BMP, WEBP, XLS, XLSX, and CSV.",
+                "message": "Supported files are PDF, PNG, JPG, BMP, WEBP, XLS, XLSX, CSV, PPTX, and TXT.",
             },
         )
 

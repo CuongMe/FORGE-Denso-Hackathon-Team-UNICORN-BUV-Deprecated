@@ -216,17 +216,28 @@ function RawDocumentModal({ document, vercelDemo, onClose }: { document: Documen
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
-  const src = vercelDemo ? `/demo-documents/${encodeURIComponent(document.source_name)}` : getDocumentRawUrl(document.doc_id);
-  const isImage = typeFor(document) === 'IMAGE';
+  const type = typeFor(document);
+  const isImage = type === 'IMAGE';
+  const isCsv = type === 'CSV';
+  const sheets = documentPreviews[document.doc_id as keyof typeof documentPreviews] ?? [];
+  const src = vercelDemo
+    ? `/demo-documents/${encodeURIComponent(document.source_name)}`
+    : isCsv ? getDocumentPreviewUrl(document.doc_id) : getDocumentRawUrl(document.doc_id);
   return <div className='forge-raw-modal-backdrop' onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section className='forge-raw-modal' role='dialog' aria-modal='true' aria-labelledby='raw-document-title'>
       <header className='forge-raw-modal-header'><div><p className='forge-eyebrow'>{t('documents.rawDocument')}</p><h2 id='raw-document-title'>{document.source_name}</h2><span>{document.doc_id} · {document.factory_topic}</span></div><button ref={closeButton} type='button' className='forge-raw-modal-close' aria-label={t('documents.closeLabel')} onClick={onClose}>{t('documents.close')}</button></header>
-      <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '')}>
-        {isImage ? <Image src={src} alt={document.source_name} fill sizes='(max-width: 900px) 90vw, 850px' unoptimized /> : <iframe title={document.source_name} src={src} />}
+      <div className={'forge-raw-modal-viewer' + (isImage ? ' is-image' : '') + (isCsv && vercelDemo ? ' forge-demo-document-content' : '')}>
+        {isCsv && vercelDemo && sheets.length > 0 ? <SpreadsheetTables sheets={sheets} /> : isImage ? <Image src={src} alt={document.source_name} fill sizes='(max-width: 900px) 90vw, 850px' unoptimized /> : <iframe title={document.source_name} src={src} />}
       </div>
       <p className='forge-raw-modal-note'>{t('documents.originalFile')}</p>
     </section>
   </div>;
+}
+
+type PreviewSheet = (typeof documentPreviews)[keyof typeof documentPreviews][number];
+
+function SpreadsheetTables({ sheets }: { sheets: PreviewSheet[] }) {
+  return <div className='forge-demo-sheets'>{sheets.map((sheet, index) => <details className='forge-demo-sheet' key={sheet.name} open={index === 0}><summary>{sheet.name}<span>{sheet.rows.length - 1} rows · {sheet.rows[0]?.length ?? 0} columns</span></summary><div className='forge-demo-table-scroll'><table className='forge-demo-preview-table'><thead><tr>{sheet.rows[0]?.map((heading, column) => <th key={`${column}-${heading}`}>{heading || `Column ${column + 1}`}</th>)}</tr></thead><tbody>{sheet.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{sheet.rows[0]?.map((_, column) => <td key={column}>{row[column] ?? '—'}</td>)}</tr>)}</tbody></table></div></details>)}</div>;
 }
 
 function DemoDocumentModal({ document, chunks, loading, error, vercelDemo, onClose }: { document: DocumentSummary; chunks: DocumentChunkPreview[]; loading: boolean; error: boolean; vercelDemo: boolean; onClose: () => void }) {
@@ -246,7 +257,7 @@ function DemoDocumentModal({ document, chunks, loading, error, vercelDemo, onClo
       <div className='forge-raw-modal-viewer forge-demo-document-content' aria-live='polite'>
         {type === 'IMAGE' && <div className='forge-demo-image-frame'><Image src={`/demo-documents/${encodeURIComponent(document.source_name)}`} alt={document.source_name} fill sizes='(max-width: 900px) 90vw, 850px' unoptimized /></div>}
         {type === 'XLS' && !vercelDemo && <iframe title={document.source_name} src={getDocumentPreviewUrl(document.doc_id)} sandbox='' style={{ width: '100%', minHeight: '65vh', border: 0, background: '#fff' }} />}
-        {(type === 'XLS' || type === 'XLSX' || type === 'CSV') && sheets.length > 0 && <div className='forge-demo-sheets'>{sheets.map((sheet, index) => <details className='forge-demo-sheet' key={sheet.name} open={index === 0}><summary>{sheet.name}<span>{sheet.rows.length - 1} rows · {sheet.rows[0]?.length ?? 0} columns</span></summary><div className='forge-demo-table-scroll'><table className='forge-demo-preview-table'><thead><tr>{sheet.rows[0]?.map((heading, column) => <th key={`${column}-${heading}`}>{heading || `Column ${column + 1}`}</th>)}</tr></thead><tbody>{sheet.rows.slice(1).map((row, rowIndex) => <tr key={rowIndex}>{sheet.rows[0]?.map((_, column) => <td key={column}>{row[column] ?? '—'}</td>)}</tr>)}</tbody></table></div></details>)}</div>}
+        {(type === 'XLS' || type === 'XLSX' || type === 'CSV') && sheets.length > 0 && <SpreadsheetTables sheets={sheets} />}
         {loading && <p role='status'>{t('documents.loadingExtracted')}</p>}
         {error && <p role='alert'>{t('documents.extractedUnavailable')}</p>}
         {!loading && !error && (type === 'XLS' || type === 'XLSX' || type === 'CSV') && sheets.length > 0 ? <details className='forge-demo-extracted'><summary>{t('documents.extractedText')} · {chunks.length} chunks</summary>{chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><p>{chunk.content}</p></article>)}</details> : !loading && !error && chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><span>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</span><p>{chunk.content}</p></article>)}

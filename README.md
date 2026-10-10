@@ -185,7 +185,7 @@ A reliable RAG system needs to be evaluated at every important boundary, from do
 
 ### 1. The golden dataset
 
-Golden data prompts are human-authored evaluation inputs. Each prompt includes a question and expected answer; the expected answer is the ground truth used to evaluate retrieval, generation, correctness, and abstention. Use the human-review checklist in [`data/curated_forge_testing/golden_data_checklist.xlsx`](data/curated_forge_testing/golden_data_checklist.xlsx); JSONL remains only as a machine-readable runtime fixture where required.
+Golden data prompts are evaluation inputs with an expected answer and source evidence. The active set is [`golden_dataset_v2_en.jsonl`](data/evaluation/golden_dataset_v2_en.jsonl): 34 English questions across all 17 files in the synthetic source pack, including table aggregation. Review its cases in the [human sign-off checklist](data/evaluation/golden_dataset_v2_en.md); the previous 30-case set remains archived as [`golden_dataset_v1.jsonl`](data/evaluation/golden_dataset_v1.jsonl). Negative abstention cases remain in [`abstention_holdout_v1.jsonl`](data/evaluation/abstention_holdout_v1.jsonl).
 
 ### 2. The metrics
 

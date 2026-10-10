@@ -135,7 +135,7 @@ def summarize_document(
         'factory_topic': factory_topic,
         'status': status,
         'chunk_count': len(chunk_list),
-        'page_count': len(pages) if suffix == '.pdf' else 0,
+        'page_count': len(pages) if suffix in {'.pdf', '.pptx'} else 0,
         'sheet_count': 0,
         'row_count': 0,
         'column_count': 0,

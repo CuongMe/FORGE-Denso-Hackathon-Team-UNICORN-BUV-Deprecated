@@ -16,7 +16,7 @@ from app.pipeline import StageCallback
 DEFAULT_TOKENIZER = "local-whitespace"
 DEFAULT_MAX_TOKENS = 384
 SUPPORTED_INPUT_EXTENSIONS = frozenset(
-    {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".xlsx", ".xls", ".csv"}
+    {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".bmp", ".xlsx", ".xls", ".csv", ".pptx", ".txt"}
 )
 
 
