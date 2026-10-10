@@ -61,6 +61,7 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
     label: t(`prompt.${index}.label`),
     description: t(`prompt.${index}.description`),
     question: t(`prompt.${index}.question`),
+    expectedAnswer: t(`prompt.${index}.answer`),
   }));
 
   useEffect(() => {
