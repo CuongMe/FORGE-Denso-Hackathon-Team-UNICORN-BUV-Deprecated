@@ -33,7 +33,7 @@ type AskWorkspaceProps = {
   onQuestionChange: (value: string) => void;
   onSubmit: (question?: string) => void;
   onUpload: (file: File, kind: 'document' | 'image') => Promise<void>;
-  onOpenDocument: (docId: string) => void;
+  onReferenceDocument: (docId: string) => void;
   onClearReference: () => void;
   onClearChat: () => void;
   vercelDemo?: boolean;
@@ -45,64 +45,30 @@ function renderQuestion(content: string) {
     : <span key={`${part}-${index}`}>{part}</span>);
 }
 
-function RelatedSource({ docId, label, score }: { docId: string; label: string; score: string }) {
-  return (
-    <div className="forge-related-source">
-      <span className="forge-related-dot" />
-      <div><strong>{docId}</strong><small>{label}</small></div>
-      <b>{score}</b>
-    </div>
-  );
-}
-function citationLocation(citation: QueryResponse['citations'][number] | null, format: string, t: (key: string, values?: Record<string, string | number>) => string) {
-  if (format === 'PPTX' && citation?.page != null) return t('ask.slide', { value: citation.page });
-  if (format === 'PPTX' && citation?.pages.length) return t('ask.slides', { value: citation.pages.join(', ') });
-  if (citation?.page != null) return t('ask.page', { value: citation.page });
-  if (citation?.pages.length) return t('ask.pages', { value: citation.pages.join(', ') });
-  return format === 'CSV' || format === 'XLS' || format === 'XLSX' ? t('ask.locationNotRecorded') : t('ask.pageNotRecorded');
-}
-
-function SourceDetails({ documents, response, onOpenDocument, vercelDemo }: { documents: DocumentSummary[]; response: QueryResponse | null; onOpenDocument: (docId: string) => void; vercelDemo: boolean }) {
+function SourceDetails({ documents, response, referencedDocument, onReferenceDocument }: { documents: DocumentSummary[]; response: QueryResponse | null; referencedDocument: DocumentSummary | null; onReferenceDocument: (docId: string) => void }) {
   const t = useTranslations();
   const citation = response?.citations[0] ?? null;
-  const current = documents.find((document) => document.doc_id === citation?.doc_id) ?? null;
-  const relatedDocuments = response?.citations.slice(1, 3).map((item) => ({
-    docId: item.doc_id,
-    chunkId: item.chunk_id,
-    label: item.region,
-    score: Math.round(item.score * 100) + '%',
-  })) ?? [];
-  const format = current?.format?.toUpperCase() ?? citation?.source_name.split('.').pop()?.toUpperCase() ?? 'SOURCE';
+  const current = referencedDocument ?? documents.find((document) => document.doc_id === citation?.doc_id) ?? null;
+  const format = current?.format?.toUpperCase() ?? citation?.source_name.split(".").pop()?.toUpperCase() ?? "SOURCE";
+  const referenceId = current?.doc_id ?? citation?.doc_id;
+  const relatedDocuments = [...new Set(response?.citations.slice(1).map((item) => item.doc_id) ?? [])].filter((docId) => docId !== referenceId).slice(0, 2);
+  const location = current?.page_count
+    ? t(format === "PPTX" ? "documents.slides" : "documents.pages", { count: current.page_count })
+    : current?.sheet_count && ["XLS", "XLSX"].includes(format)
+      ? t("documents.sheets", { count: current.sheet_count })
+      : "";
 
   return (
     <section className="forge-side-card forge-source-details">
-      <div className="forge-side-card-heading">
-        <div>
-          <p className="forge-eyebrow">{t('ask.sourceDetails')}</p>
-          <p className="forge-side-helper">{t('ask.sourceDetailsHelper')}</p>
-        </div>
-        <span className="forge-side-pill">{t('ask.selectedChat')}</span>
+      <div className="forge-pinned-reference">
+        <p className="forge-eyebrow">{t("ask.currentReference")}</p>
+        <strong>{referenceId ? "@" + referenceId : t("ask.noSource")}</strong>
+        <p>{current ? [current.factory_topic, format, location].filter(Boolean).join(" \u00b7 ") : citation?.source_name ?? t("ask.populateSource")}</p>
+        {referenceId && <button type="button" className="forge-ask-about-document" onClick={() => onReferenceDocument(referenceId)}>{t("ask.askAboutDocument")}</button>}
       </div>
-      {current && citation ? <div className="forge-current-reference">
-        <p className="forge-eyebrow">{t('ask.currentReference')}</p>
-        <strong>{current.doc_id}</strong>
-        <span>{format} / {(current.factory_topic || t('ask.workInstruction')).toUpperCase()}</span>
-        <span>{citationLocation(citation, format, t)} / {citation.region_type.toUpperCase()} / {citation.chunk_id}</span>
-        <b>{citation.region}</b>
-        {!vercelDemo && <button type="button" className="forge-side-link" onClick={() => onOpenDocument(current.doc_id)}>OPEN REFERENCED DOCUMENT →</button>}
-      </div> : <div className="forge-current-reference is-empty">
-        <p className="forge-eyebrow">{t('ask.currentReference')}</p>
-        <strong>{t('ask.noSource')}</strong>
-        <span>{t('ask.populateSource')}</span>
-      </div>}
-      <div className="forge-side-section">
-        <p className="forge-eyebrow">{t('ask.related')}</p>
-        <p className="forge-side-helper">{t('ask.relatedHelper')}</p>
-        <div className="forge-related-list">
-          {relatedDocuments.length ? relatedDocuments.map((item, index) => (
-            <RelatedSource key={item.docId + ':' + item.chunkId + ':' + index} docId={item.docId} label={item.label} score={item.score} />
-          )) : <p className="forge-empty-copy">{t('ask.noRelated')}</p>}
-        </div>
+      <div className="forge-nearby-references">
+        <p className="forge-eyebrow">{t("ask.related")}</p>
+        {relatedDocuments.length ? relatedDocuments.map((docId) => <button key={docId} type="button" className="forge-nearby-source" onClick={() => onReferenceDocument(docId)}>@{docId}</button>) : <p className="forge-empty-copy">{t("ask.noRelated")}</p>}
       </div>
     </section>
   );
@@ -121,7 +87,7 @@ export function AskWorkspace({
   onQuestionChange,
   onSubmit,
   onUpload,
-  onOpenDocument,
+  onReferenceDocument,
   onClearReference,
   onClearChat,
   vercelDemo = false,
@@ -243,7 +209,7 @@ export function AskWorkspace({
         </div>
 
         <aside className="ask-side">
-          <SourceDetails documents={documents} response={latestResponse} onOpenDocument={onOpenDocument} vercelDemo={vercelDemo} />
+          <SourceDetails documents={documents} response={latestResponse} referencedDocument={referencedDocument} onReferenceDocument={onReferenceDocument} />
           {latestResponse ? <RetrievalTrace response={latestResponse} /> : <section className="forge-side-card forge-trace-card"><p className="forge-eyebrow">{t('ask.retrievalTrace')}</p><p className="forge-trace-flow">{t('ask.traceFlow')}</p><p className="forge-side-helper">{t('ask.traceHelper')}</p></section>}
         </aside>
       </div>

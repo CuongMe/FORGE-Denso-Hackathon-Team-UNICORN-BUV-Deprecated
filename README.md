@@ -17,7 +17,7 @@ Factory operations knowledge is often spread across PDFs, scanned images, tables
 
 ## Unique selling point
 
-1. FORGE is fine-tuned for factory environments and designed for seamless integration with DensoGPT.
+1. FORGE is being fine-tuned for factory environments and aiming for seamless integration with DensoGPT.
 2. Its local-first full-stack design keeps hosting costs close to zero.
 3. FORGE uses a hardened RAG pipeline to protect production operations from prompt injection and process failures.
 4. Its fail-safe workflow supports retries, checkpointed ingestion, and idempotent writes. If Docling crashes mid-document, ingestion resumes from the last completed page instead of starting over. VPS reboots do not leave stuck jobs, and failed LLM calls return a safe fallback instead of a 500 error or partial answer.
@@ -34,7 +34,7 @@ Input data validates FORGE across document, visual, and tabular ingestion paths.
 ### Curation Principles
 
 1. **Preserve provenance:** Keep each sample linked to its original source, dataset, metadata, and available ground truth.
-2. **Cover factory formats:** Include documents, scans, tables, images, CSV/XLSX files, and bilingual Vietnamese/Japanese content.
+2. **Cover factory formats:** Include documents, scans, tables, images, CSV/XLS/XLSX, PowerPoint, and TXT files, plus bilingual Vietnamese/Japanese content.
 3. **Separate test purposes:** Use AI-generated data for functionality testing and curated external data for system evaluation.
 4. **Keep evaluation honest:** Label synthetic data, retain human-reviewed answers or masks, and leave unavailable ground truth unfilled.
 
@@ -47,8 +47,6 @@ FORGE sits between managed enterprise search, open-source document-RAG platforms
 | [Azure AI Search](https://learn.microsoft.com/en-us/azure/search/retrieval-augmented-generation-overview?tabs=docs) | Managed hybrid retrieval, semantic ranking, agentic retrieval, and multimodal document extraction. | A smaller, local-first factory pipeline with direct control over parsing, models, and evidence policy. |
 | [Amazon Bedrock Knowledge Bases](https://docs.aws.amazon.com/bedrock/latest/userguide/kb-multimodal.html) | Managed multimodal ingestion and retrieval across text, images, audio, and video. | Focused on the factory document formats and bilingual evidence flows needed for the A3 demo. |
 | [Google Agent Search](https://docs.cloud.google.com/generative-ai-app-builder/docs) | Managed enterprise search, semantic understanding, structured data, PDFs, and generated answers. | Lower-cost, self-hostable architecture with an explicit ingestion trace and abstention path. |
-| [RAGFlow](https://github.com/infiniflow/ragflow/blob/main/docs/quickstart.mdx) | Open-source document parsing, visual understanding, multiple chunking strategies, and broad file support. | A narrower factory operations product with a simpler deployment footprint and a focused evaluation harness. |
-| [Siemens Industrial Copilot](https://www.siemens.com/en-gb/company/insights/generative-ai-industrial-copilot/) | Industrial troubleshooting, engineering assistance, and integration with Siemens workflows. | Vendor-neutral retrieval for mixed factory documents, scans, tables, images, and Vietnamese/Japanese content. |
 
 ### Positioning
 
@@ -65,7 +63,7 @@ The main gaps versus mature enterprise products are connectors, identity-aware p
 
 ## Solution architecture
 
-FORGE uses a multimodal retrieval-augmented generation pipeline. The indexing path converts mixed-format documents into searchable, context-preserving representations. The answering path combines a user's question with the most relevant content and passes both to an LLM for a grounded response.
+FORGE indexes mixed-format documents into searchable, context-preserving representations. At query time, supported questions about tabular data use SQL aggregation; other questions use hybrid retrieval and grounded generation. If aggregation cannot be executed confidently, the query falls back to the retrieval path.
 
 ```mermaid
 %%{init: {'themeVariables': {'fontSize': '16px', 'fontFamily': 'Trebuchet MS, Verdana, Arial, sans-serif'}, 'flowchart': {'nodeSpacing': 50, 'rankSpacing': 70}}}%%
@@ -86,6 +84,8 @@ flowchart TB
     end
 
     subgraph QUERY["💬 Query Pipeline (per question)"]
+        ROUTER["Query router"]
+        AGGREGATE["SQLite in-memory SQL aggregation<br/>COUNT · SUM · AVG · MIN · MAX"]
         RETRIEVE["Hybrid retrieval"]
         RERANK["Cross-encoder reranking"]
         GEMINI["Gemini grounded generation<br/>(query + retrieved context)"]
@@ -93,23 +93,29 @@ flowchart TB
         ANSWER["Cited answer"]
         ABSTAIN["Abstention: 'I don't know'"]
 
+        ROUTER -->|supported table query| AGGREGATE
+        ROUTER -->|semantic question| RETRIEVE
+        AGGREGATE -.->|ambiguous or unsupported: fallback| RETRIEVE
         RETRIEVE --> RERANK --> GEMINI --> CHECK
         CHECK -->|yes| ANSWER
         CHECK -->|no| ABSTAIN
     end
 
     API --> PARSE
-    API --> RETRIEVE
+    API --> ROUTER
 
     EMBED -->|vectors| QDRANT[("Qdrant vector store")]
     CHUNK -->|metadata| SQLITE[("SQLite metadata")]
     PARSE -->|files & images| FILES[("Local FileSystem")]
 
+    FILES -->|selected CSV / XLS / XLSX rows| AGGREGATE
+    DEMO_TABLE["Preprocessed tabular fixture<br/>(Vercel demo)"] --> AGGREGATE
     QDRANT -->|top-K candidates| RETRIEVE
+    AGGREGATE -->|computed result + source citation| ANSWER
     ANSWER --> UI
 
     classDef node fill:#E8F0FE,stroke:#2563EB,color:#333333
-    class USER,UI,API,PARSE,CHUNK,EMBED,RETRIEVE,RERANK,GEMINI,CHECK,ANSWER,ABSTAIN,QDRANT,SQLITE,FILES node
+    class USER,UI,API,PARSE,CHUNK,EMBED,ROUTER,AGGREGATE,RETRIEVE,RERANK,GEMINI,CHECK,ANSWER,ABSTAIN,QDRANT,SQLITE,FILES,DEMO_TABLE node
     style INGESTION fill:#EFF6FF,stroke:#1D4ED8,color:#333333
     style QUERY fill:#EFF6FF,stroke:#1D4ED8,color:#333333
     linkStyle default stroke:#333333,stroke-width:1px
@@ -174,6 +180,7 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 | Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
 | Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) (self-hosted) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant/DC244C' alt='Qdrant' title='Qdrant' height='20' /> |
 | Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
+| Aggregation | SQLite in-memory (`sqlite3`) | SQL `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX` over selected tabular data; returns a source-cited result and falls back to RAG when it cannot execute the aggregation | <img src='https://cdn.simpleicons.org/sqlite/003B57' alt='SQLite' title='SQLite' height='20' /> |
 | Metadata | SQLite · PostgreSQL-ready | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/sqlite/003B57' alt='SQLite' title='SQLite' height='20' /> |
 | Storage | Local filesystem | Uploads and processed artifacts | — |
 | Jobs | Python worker | Background ingestion and re-indexing | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> |
@@ -227,3 +234,4 @@ The results dashboard should show measured values and the change from baseline. 
 | Generation | Answerability F1 | TBD | TBD | TBD |
 | Operations | p95 latency | TBD | TBD | TBD |
 | Operations | Cost per query | TBD | TBD | TBD |
+

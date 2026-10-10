@@ -79,6 +79,17 @@
 .forge-grounded-note { margin: 25px 0 0; color: var(--forge-muted); font-size: 8px; font-weight: 800; letter-spacing: .06em; }
 .ask-side { display: grid; gap: 24px; min-width: 0; }
 .forge-side-card { min-width: 0; padding: 17px; border: 1px solid var(--forge-line); border-radius: 10px; background: var(--forge-surface); }
+.forge-source-details { display: grid; gap: 20px; }
+.forge-pinned-reference > .forge-eyebrow, .forge-nearby-references > .forge-eyebrow { margin: 0 0 9px; color: var(--forge-muted); font-size: 9px; letter-spacing: .13em; }
+.forge-pinned-reference > strong { display: block; overflow-wrap: anywhere; color: var(--forge-green); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 16px; line-height: 1.25; }
+.forge-pinned-reference > p:not(.forge-eyebrow) { margin: 6px 0 0; color: var(--forge-muted); font-size: 10px; line-height: 1.45; }
+.forge-ask-about-document { display: grid; place-items: center; width: 100%; min-height: 40px; margin-top: 14px; padding: 0 12px; border: 1px solid #b9e2d4; border-radius: 9px; background: var(--forge-surface); color: var(--forge-green); font: inherit; font-size: 10px; font-weight: 800; cursor: pointer; transition: background .18s ease, border-color .18s ease; }
+.forge-ask-about-document:hover, .forge-ask-about-document:focus-visible { border-color: var(--forge-green); background: var(--forge-green-soft); outline: none; }
+.forge-nearby-references { display: grid; justify-items: start; gap: 7px; }
+.forge-nearby-references > .forge-eyebrow { margin-bottom: 1px; }
+.forge-nearby-source { padding: 1px 0; border: 0; background: transparent; color: var(--forge-ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; text-align: left; cursor: pointer; }
+.forge-nearby-source:hover, .forge-nearby-source:focus-visible { color: var(--forge-green); text-decoration: underline; outline: none; }
+.forge-nearby-references .forge-empty-copy { margin: 0; font-size: 9px; line-height: 1.4; }
 .forge-side-card-heading { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
 .forge-side-helper { margin: 8px 0 0; color: var(--forge-muted); font-size: 9px; line-height: 1.45; }
 .forge-side-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 25px; padding: 0 13px; border: 1px solid #b9e2d4; border-radius: 999px; background: var(--forge-green-soft); color: var(--forge-green); font-size: 8px; font-weight: 800; }
@@ -96,25 +107,25 @@
 .forge-related-source small { overflow: hidden; color: var(--forge-muted); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
 .forge-related-source b { color: var(--forge-green); font-size: 9px; }
 .forge-side-link { display: inline-block; margin-top: 16px; }
-.forge-side-card.forge-trace-card { overflow: hidden; padding: 22px 24px; border-color: #26382e; border-radius: 16px; background: #101914; color: #dbe7df; }
-.forge-trace-card .forge-eyebrow { color: #99b9a5; font-size: 10px; letter-spacing: .14em; }
-.forge-trace-flow { margin: 8px 0 0; color: #e2ece5; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.forge-side-card.forge-trace-card { overflow: hidden; padding: 22px 24px; border-color: var(--forge-line); border-radius: 16px; background: var(--forge-surface); color: var(--forge-ink); }
+.forge-trace-card .forge-eyebrow { color: var(--forge-green); font-size: 10px; letter-spacing: .14em; }
+.forge-trace-flow { margin: 8px 0 0; color: var(--forge-muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
 .forge-trace-list { display: grid; gap: 17px; margin: 26px 0 0; padding: 0; list-style: none; }
 .forge-trace-item { min-width: 0; }
 .forge-trace-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.forge-trace-identity { display: flex; min-width: 0; align-items: center; gap: 8px; color: #d7e2da; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.forge-trace-identity { display: flex; min-width: 0; align-items: center; gap: 8px; color: var(--forge-ink); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .forge-trace-identity strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.forge-trace-identity span { color: #71877a; }
-.forge-trace-identity code { color: #b3c8ba; font: inherit; }
-.forge-trace-score { flex: 0 0 auto; color: #70cba9; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; font-variant-numeric: tabular-nums; }
-.forge-trace-meter { height: 6px; margin-top: 9px; overflow: hidden; background: #26362d; }
-.forge-trace-meter span { display: block; height: 100%; background: #33b78c; transition: width .2s ease; }
-.forge-trace-item.is-selected .forge-trace-meter span { background: #55d8a8; }
-.forge-trace-empty { margin: 24px 0; color: #a4b6aa; font-size: 12px; }
-.forge-trace-footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 28px; padding-top: 14px; border-top: 1px solid #26382e; }
-.forge-trace-footer span { display: flex; min-width: 0; align-items: baseline; gap: 6px; color: #9db6a4; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; white-space: nowrap; }
-.forge-trace-footer b { color: #82a591; font-weight: 500; }
-.forge-trace-footer strong { overflow: hidden; color: #dce8df; font-weight: 700; text-overflow: ellipsis; }
+.forge-trace-identity span { color: var(--forge-muted); }
+.forge-trace-identity code { color: var(--forge-muted); font: inherit; }
+.forge-trace-score { flex: 0 0 auto; color: var(--forge-green); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 14px; font-variant-numeric: tabular-nums; }
+.forge-trace-meter { height: 6px; margin-top: 9px; overflow: hidden; background: var(--forge-green-soft); }
+.forge-trace-meter span { display: block; height: 100%; background: var(--forge-green); transition: width .2s ease; }
+.forge-trace-item.is-selected .forge-trace-meter span { background: #0a6049; }
+.forge-trace-empty { margin: 24px 0; color: var(--forge-muted); font-size: 12px; }
+.forge-trace-footer { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--forge-line); }
+.forge-trace-footer span { display: flex; min-width: 0; align-items: baseline; gap: 6px; color: var(--forge-muted); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; white-space: nowrap; }
+.forge-trace-footer b { color: var(--forge-muted); font-weight: 500; }
+.forge-trace-footer strong { overflow: hidden; color: var(--forge-ink); font-weight: 700; text-overflow: ellipsis; }
 
 .documents-workspace { gap: 18px; }
 .documents-heading { align-items: end; }
