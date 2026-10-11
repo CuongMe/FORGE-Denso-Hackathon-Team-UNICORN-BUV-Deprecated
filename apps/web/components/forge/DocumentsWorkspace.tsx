@@ -58,9 +58,13 @@ function regionLabel(document: DocumentSummary, t: (key: string) => string) {
 
 export function DocumentsRail({ documents, health, ingestionJobs }: { documents: DocumentSummary[]; health: HealthResponse | null; ingestionJobs: IngestionJob[] }) {
   const t = useTranslations();
-  const activeJobs = ingestionJobs.filter((job) => job.status === 'queued' || job.status === 'processing').length;
-  const failedJobs = ingestionJobs.filter((job) => job.status === 'failed').length;
   const readyDocuments = documents.filter((document) => ['ready', 'indexed'].includes(document.status.toLowerCase())).length;
+  const activeDocuments = documents.filter((document) => ['queued', 'processing'].includes(document.status.toLowerCase()));
+  const activeDocumentIds = new Set(activeDocuments.map((document) => document.doc_id));
+  const activeJobs = activeDocuments.length + ingestionJobs.filter((job) => ['queued', 'processing'].includes(job.status) && !activeDocumentIds.has(job.document_id)).length;
+  const failedDocuments = documents.filter((document) => document.status.toLowerCase() === 'failed');
+  const failedDocumentIds = new Set(failedDocuments.map((document) => document.doc_id));
+  const failedJobs = failedDocuments.length + ingestionJobs.filter((job) => job.status === 'failed' && !failedDocumentIds.has(job.document_id)).length;
   return (
     <div className='forge-rail-content forge-document-rail'>
       <div className='forge-rail-heading'>
