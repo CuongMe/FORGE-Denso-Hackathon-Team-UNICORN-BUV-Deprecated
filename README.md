@@ -131,21 +131,6 @@ flowchart TB
     linkStyle default stroke:#333333,stroke-width:1px
 ```
 
-## Quick start
-
-1. Install the locked backend dependencies: `cd services/api && uv sync`.
-2. Copy `services/api/.env.example` to `services/api/.env` and set `GEMINI_API_KEY`.
-3. Start Qdrant locally on `http://127.0.0.1:6333`, or point `FORGE_QDRANT_URL` at a Qdrant Cloud instance.
-4. Build the source index once: `uv run python -m app.index_demo`.
-5. Start the API with `uv run uvicorn app.main:app --host 127.0.0.1 --port 8000`.
-6. Start the frontend in a second terminal: `cd apps/web && pnpm install && pnpm dev`.
-
-The API reports `ready: false` until Qdrant is reachable and the source index has been built.
-
-### Real service engine
-
-The real service engine is planned for future implementation in the [`services/`](services/) folder. The live Vercel site is a preprocessed demo and is separate from that backend.
-
 ### Vercel demo
 
 Live demo: [https://forge-factory-demo.vercel.app](https://forge-factory-demo.vercel.app/)
