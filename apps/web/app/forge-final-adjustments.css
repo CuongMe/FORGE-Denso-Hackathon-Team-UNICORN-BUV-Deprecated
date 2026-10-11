@@ -1,7 +1,7 @@
 .forge-flag { display: block; width: 31px; height: 21px; border-radius: 3px; }
 .forge-navigation-wrap { min-width: 0; }
 .forge-navigation { flex-wrap: wrap; }
-:root { --forge-workspace-panel-width: clamp(220px, 17vw, 300px); }
+:root { --forge-workspace-panel-width: clamp(240px, 18vw, 320px); }
 
 @media (max-width: 760px) {
   .forge-header { grid-template-columns: minmax(0, 1fr); }
