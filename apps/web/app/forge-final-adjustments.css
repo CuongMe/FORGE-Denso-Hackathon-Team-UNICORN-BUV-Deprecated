@@ -343,3 +343,13 @@ html, body, .forge-app { background: var(--forge-bg); }
   .forge-chatbox .forge-message.is-user { max-width: 88%; }
   .ask-side { grid-template-columns: minmax(0, 1fr); padding: 14px 10px; }
 }
+
+/* Shared navy and cyan surfaces for the pilot and demo workspaces. */
+.forge-search-bar { border: 3px solid #d8e2ec; background: var(--forge-blue); }
+.forge-search-bar svg, .forge-search-bar input::placeholder, .forge-search-bar strong { color: var(--forge-accent); }
+.forge-search-bar input { color: #fff; }
+.forge-filter-chip { border: 2px solid #d4dfeb; border-radius: 999px; background: var(--forge-blue); color: var(--forge-accent); }
+.forge-filter-chip:hover, .forge-filter-chip.is-active { border-color: #cad9e8; background: #dff6fa; color: var(--forge-indigo); }
+.forge-document-preview { border: 2px solid var(--forge-blue); background: #f9fcff; }
+.forge-document-selected { border: 2px solid #d6e1eb; background: var(--forge-blue); color: #fff; }
+.forge-document-selected .forge-eyebrow, .forge-document-selected strong, .forge-document-selected span { color: var(--forge-accent) !important; }
