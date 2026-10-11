@@ -14,7 +14,7 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 ## Product demo
 
 <p align="center">
-  <img src="./docs/forge-demo-preview.gif" alt="Full 72-second FORGE product demonstration" width="100%" />
+  <img src="./docs/forge-demo-preview.gif" alt="Full 65-second FORGE product demonstration" width="100%" />
 </p>
 
 ## Team UNICORN
