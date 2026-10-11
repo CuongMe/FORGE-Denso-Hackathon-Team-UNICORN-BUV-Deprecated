@@ -1,7 +1,7 @@
 .workspace { padding: 34px clamp(18px, 3vw, 46px) 64px; max-width: 1600px; margin: auto; }
 .metricsWorkspace .heading { flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0; margin-bottom: 12px; }
 .metricsHeading .badge { display: none; }
-.metricsLayout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 0.28fr); gap: 18px; align-items: stretch; }
+.metricsLayout { display: grid; grid-template-columns: minmax(0, 1fr) var(--forge-workspace-panel-width, 280px); gap: 18px; align-items: stretch; }
 .metricsMain { min-width: 0; }
 .metricsMain .charts { margin: 0 0 14px; }
 .metricsMain .stats { margin: 0 0 14px; }
