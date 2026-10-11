@@ -176,6 +176,7 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
       </div>
       <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>
     </> : mode === 'metrics' ? <>
+      <MetricCharts metrics={metrics} />
       <div className={styles.stats}>
         <Stat label={t('eval.totalQueries')} value={metrics ? String(metrics.total_queries) : '—'} hint={t('eval.persistedAsk')} />
         <Stat label={t('eval.successRate')} value={percent(metrics?.success_rate)} hint={t('eval.completedNoErrors')} />
@@ -189,7 +190,6 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
           <div><span>{t('eval.geminiCost')}</span><strong>{tokens(metrics?.total_tokens)} · {cost(metrics?.estimated_cost_usd)}</strong><p>{t('eval.tokenText', { input: tokens(metrics?.prompt_tokens), output: tokens(metrics?.completion_tokens) })}</p></div>
         </div>
       </section>
-      <MetricCharts metrics={metrics} />
       <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.recentRequests')}</h2><span>{t('eval.evaluationExcluded')}</span></div>
         {metrics?.recent.length ? <div className={styles.scroll}><table><thead><tr><th>{t('eval.time')}</th><th>{t('eval.result')}</th><th>{t('eval.duration')}</th><th>{t('eval.citations')}</th><th>{t('eval.tokens')}</th><th>{t('eval.estimatedCost')}</th></tr></thead><tbody>{metrics.recent.slice(0, 20).map(item => <tr key={item.id}><td>{new Date(item.created_at).toLocaleString()}</td><td>{item.succeeded ? (item.abstained ? t('eval.noAnswer') : t('eval.answered')) : t('eval.failed')}</td><td>{duration(item.latency_ms)}</td><td>{item.citations}</td><td>{tokens(item.total_tokens)}</td><td>{cost(item.estimated_cost_usd)}</td></tr>)}</tbody></table></div> : <div className={styles.empty}><strong>{t('eval.firstQuery')}</strong><p>{t('eval.firstQueryText')}</p></div>}
       </section>
