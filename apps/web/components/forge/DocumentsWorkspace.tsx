@@ -60,6 +60,7 @@ export function DocumentsRail({ documents, health, ingestionJobs }: { documents:
   const t = useTranslations();
   const activeJobs = ingestionJobs.filter((job) => job.status === 'queued' || job.status === 'processing').length;
   const failedJobs = ingestionJobs.filter((job) => job.status === 'failed').length;
+  const readyDocuments = documents.filter((document) => ['ready', 'indexed'].includes(document.status.toLowerCase())).length;
   return (
     <div className='forge-rail-content forge-document-rail'>
       <div className='forge-rail-heading'>
@@ -69,7 +70,7 @@ export function DocumentsRail({ documents, health, ingestionJobs }: { documents:
       <div className='forge-rail-stat-grid'><div><strong>{health?.documents_count ?? documents.length}</strong><span>SOURCES</span></div><div><strong>{health?.chunks_count ?? '—'}</strong><span>CHUNKS</span></div></div>
       <p className='forge-rail-subheading'>{t('documents.ingestionProgress')}</p>
       <div className='forge-rail-ingestion-counts'>
-        <div><strong>{documents.filter((document) => document.status === 'ready').length}</strong><span>{t('documents.ingestionReady')}</span></div>
+        <div><strong>{readyDocuments}</strong><span>{t('documents.ingestionReady')}</span></div>
         <div><strong>{activeJobs}</strong><span>{t('documents.ingestionActive')}</span></div>
         <div><strong>{failedJobs}</strong><span>{t('documents.ingestionFailed')}</span></div>
       </div>

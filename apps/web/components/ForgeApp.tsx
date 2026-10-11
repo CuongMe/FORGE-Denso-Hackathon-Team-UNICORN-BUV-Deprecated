@@ -185,8 +185,10 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
       return;
     }
 
+    let jobReceived = false;
     try {
       const result = await uploadDocument(file);
+      jobReceived = true;
       setUploadStatus(t("ask.queued", { name: result.filename }));
       setMessages((current) => current.map((message) => message.id === uploadMessageId ? { ...message, content: result.filename, ingestionJob: result.job } : message));
       let completed = result.job;
@@ -213,7 +215,15 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
         t("ask.indexed", { name: result.filename, suffix: reviewCount ? t("ask.reviewItems", { count: reviewCount }) : t("ask.indexedPeriod") }),
       );
     } catch (error: unknown) {
-      setUploadStatus(error instanceof Error ? error.message : t("ask.uploadFailed"));
+      const errorMessage = error instanceof Error ? error.message : t("ask.uploadFailed");
+      if (!jobReceived) {
+        const failedAt = new Date().toISOString();
+        setMessages((current) => current.map((message) => message.id === uploadMessageId && message.ingestionJob ? {
+          ...message,
+          ingestionJob: { ...message.ingestionJob, status: "failed", stage: "failed", error: errorMessage, progress: 100, updated_at: failedAt, completed_at: failedAt },
+        } : message));
+      }
+      setUploadStatus(errorMessage);
     }
   }
 
