@@ -25,6 +25,7 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 * Team Member 4: Trần Hoàng Cường - Agile Developer - Data Science & AI Year 3 (Repo Owner)
 * Team Member 5: Bùi Minh Tiến - Technical Specialist - Software Engineering Year 2
 
+All team members contributed significantly to this project*
 ## Pain point
 
 Factory operations knowledge is often spread across PDFs, scanned images, tables, and bilingual documents. Each format can require different preprocessing, including OCR, layout reconstruction, table extraction, and language handling, before an AI system can search and use the content. When that work is manual or inconsistent, valuable information takes longer to access and chatbot answers can miss or misread important context. This makes it difficult to build one dependable retrieval workflow for the documents teams already use.
@@ -33,8 +34,7 @@ Factory operations knowledge is often spread across PDFs, scanned images, tables
 
 1. FORGE is being fine-tuned for factory environments and aiming for seamless integration with DensoGPT.
 2. Its local-first full-stack design keeps hosting costs close to zero.
-3. FORGE uses a hardened RAG pipeline to protect production operations from prompt injection and process failures.
-4. Its fail-safe workflow supports retries, checkpointed ingestion, and idempotent writes. If Docling crashes mid-document, ingestion resumes from the last completed page instead of starting over. VPS reboots do not leave stuck jobs, and failed LLM calls return a safe fallback instead of a 500 error or partial answer.
+3. FORGE is a hardened RAG pipeline engineered for production reliability. Checkpointed ingestion, retries, and idempotent writes prevent data loss and duplication. Being fully self-hosted, it also preserves data privacy — no factory documents leave the premises.
 
 ## Data Curation
 
@@ -43,7 +43,7 @@ The project uses three datasets: a multilingual golden set, curated external tes
 | Dataset | Contents and purpose |
 |---|---|
 | **Golden dataset** | [`golden_dataset_25_multilingual.csv`](data/evaluation/golden_dataset_25_multilingual.csv): 25 factory questions with expected answers (15 Vietnamese, 5 Japanese, 5 English), ready for recording answers and review. |
-| **Curated data** | [Dataset notes and included files](data/curated_forge_testing/README.md): 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A metadata, plus [`industrial_dataset.csv`](data/curated_forge_testing/tabular/industrial_dataset.csv). VIXIO and Kaggle source files remain local until redistribution terms are confirmed. |
+| **Curated data** | [Dataset notes and included files](data/curated_forge_testing/README.md): 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A metadata, plus [`industrial_dataset.csv`](data/curated_forge_testing/tabular/industrial_dataset.csv). VIXIO samples remain local until redistribution terms are confirmed. |
 | **AI-generated pack** | [`data/denso_factory_hack_data_prep`](data/denso_factory_hack_data_prep): synthetic factory PDFs, scans, images, spreadsheets, and CSVs for testing ingestion, OCR, visual analysis, retrieval, and UI flows. |
 
 ### Curation Principles

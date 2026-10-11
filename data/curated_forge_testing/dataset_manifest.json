@@ -2,13 +2,12 @@
   "name": "FORGE testing dataset",
   "version": "v1",
   "purpose": "Repeatable functionality testing for FORGE ingestion, multimodal retrieval, and grounded answering. This is not a production corpus.",
-  "redistribution": "JA-Business-Doc-RQ-Bench files are Apache-2.0 and included with attribution. VIXIO images and masks and the Kaggle CSV are local-only until redistribution terms are confirmed.",
+  "redistribution": "JA-Business-Doc-RQ-Bench files are Apache-2.0 and included with attribution. VIXIO images and masks are local-only until redistribution terms are confirmed.",
   "contents": {
     "included_ja_business_doc_rq_bench_images": 30,
     "local_only_vixio_metal_nut_images": 30,
     "local_only_vixio_ground_truth_images": 18,
-    "included_csv_fixtures": 1,
-    "local_only_csv_fixtures": 1
+    "included_csv_fixtures": 1
   },
   "curation": {
     "ja_business_doc_rq_bench": {
@@ -29,13 +28,6 @@
       "files": "images/vixio_metal_nut/",
       "ground_truth_files": "ground_truth/vixio_metal_nut/",
       "license": "Not recorded in the project. Verify Mitsubishi Electric sample-archive terms before redistribution."
-    },
-    "intelligent_production_iiot": {
-      "provider": "Kaggle",
-      "source_url": "https://www.kaggle.com/datasets/colabsss/intelligent-production-operations-dataset",
-      "files": "tabular/Intelligent_Production_IIoT.csv",
-      "ground_truth": "No separate ground-truth file included. Use columns and operational notes for ingestion and query functionality tests.",
-      "license": "Refer to the upstream Kaggle dataset page; verify redistribution terms before publishing."
     },
     "industrial_dataset": {
       "provider": "Existing project fixture",
