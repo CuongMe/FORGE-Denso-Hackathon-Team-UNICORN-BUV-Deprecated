@@ -13,9 +13,7 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 
 ## Product demo
 
-[![Full 72-second FORGE product demonstration — click to open the video](docs/forge-demo-preview.gif)](./1011%20%281%29%284%29.mp4)
-
-[Open the full 72-second demo video](./1011%20%281%29%284%29.mp4).
+![Full 72-second FORGE product demonstration](docs/forge-demo-preview.gif)
 
 ## Pain point
 
