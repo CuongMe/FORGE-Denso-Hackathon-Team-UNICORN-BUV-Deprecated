@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl';
 import documentPreviews from '@/data/document-previews.json';
 
 import type { DocumentChunkPreview, DocumentSummary, HealthResponse, IngestionJob } from '@/lib/types';
-import type { ChatHistoryEntry } from '@/lib/chat-history';
 
 import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
 import { SearchIcon } from './ForgeIcons';
@@ -19,9 +18,7 @@ type DocumentsWorkspaceProps = {
   filter?: DocumentFilter;
   onFilterChange?: (filter: DocumentFilter) => void;
   vercelDemo?: boolean;
-  history: ChatHistoryEntry[];
-  activeChatId: string | null;
-  onRestoreChat: (entry: ChatHistoryEntry) => void;
+  ingestionJobs: IngestionJob[];
 };
 
 function typeFor(document: DocumentSummary): Exclude<DocumentFilter, 'ALL'> {
@@ -76,29 +73,16 @@ export function DocumentsRail({ documents, health, ingestionJobs }: { documents:
         <div><strong>{activeJobs}</strong><span>{t('documents.ingestionActive')}</span></div>
         <div><strong>{failedJobs}</strong><span>{t('documents.ingestionFailed')}</span></div>
       </div>
-      <p className='forge-rail-ingestion-label'>{t('documents.recentUploads')}</p>
-      <div className='forge-rail-ingestion-list' aria-live='polite'>
-        {ingestionJobs.slice(-3).reverse().map((job) => {
-          const progress = Math.min(100, Math.max(0, Math.round(job.progress ?? 0)));
-          const status = job.status === 'indexed' ? t('stage.completed') : job.status === 'failed' ? t('stage.failedLabel') : job.status === 'queued' ? t('stage.waitingLabel') : t('stage.' + job.stage);
-          return <article className={'forge-rail-ingestion-job' + (job.status === 'failed' ? ' is-failed' : '')} key={job.job_id}>
-            <div className='forge-rail-ingestion-job-heading'><strong title={job.original_filename}>{job.original_filename}</strong><span>{status}</span></div>
-            <div className='forge-ingestion-progress' role='progressbar' aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label={t('ingestion.progress', { value: progress })}><span style={{ width: progress + '%' }} /></div>
-            {job.error && <small>{job.error}</small>}
-          </article>;
-        })}
-        {!ingestionJobs.length && <p className='forge-rail-ingestion-empty'>{t('documents.noRecentUploads')}</p>}
-      </div>
     </div>
   );
 }
 
-function Preview({ document, chunks, loading, error, history, activeChatId, onRestoreChat }: { document: DocumentSummary | null; chunks: DocumentChunkPreview[]; loading: boolean; error: boolean; history: ChatHistoryEntry[]; activeChatId: string | null; onRestoreChat: (entry: ChatHistoryEntry) => void }) {
+function Preview({ document, chunks, loading, error, ingestionJobs }: { document: DocumentSummary | null; chunks: DocumentChunkPreview[]; loading: boolean; error: boolean; ingestionJobs: IngestionJob[] }) {
   const t = useTranslations();
   const type = document ? typeFor(document) : null;
   return (
     <aside className='forge-document-side'>
-      <section className='forge-document-preview forge-extracted-panel'>
+      <section className='forge-document-preview'>
         <div className='forge-preview-heading'><div><p className='forge-eyebrow'>{t('documents.extractedText')}</p><p className='forge-side-helper'>{t('documents.extractedHelper')}</p></div><span className='forge-side-pill'>{document?.status.toUpperCase() ?? '—'}</span></div>
         {document ? <>
           <div className='forge-current-reference forge-document-selected'>
@@ -112,20 +96,29 @@ function Preview({ document, chunks, loading, error, history, activeChatId, onRe
           <div className='forge-document-chunk-list' aria-live='polite'>
             {loading && <p role='status'>{t('documents.loadingExtracted')}</p>}
             {error && <p role='alert'>{t('documents.extractedUnavailable')}</p>}
-            {!loading && !error && chunks.slice(0, 3).map((chunk) => <article className='forge-document-chunk' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><small>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</small><p>{chunk.content}</p></article>)}
+            {!loading && !error && chunks.map((chunk) => <article className='forge-document-chunk' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><small>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</small><p>{chunk.content}</p></article>)}
             {!loading && !error && chunks.length === 0 && <p className='forge-history-empty'>{t('documents.extractedUnavailable')}</p>}
           </div>
         </> : <p className='forge-empty-copy'>{t('documents.selectSource')}</p>}
       </section>
-      <section className='forge-side-card forge-history-card' aria-labelledby='document-history-heading'>
-        <div className='forge-history-heading'><h2 id='document-history-heading'>{t('ask.history')}</h2></div>
-        {history.length ? <ol className='forge-history-list'>{history.map((entry) => <li key={entry.id}><button type='button' className={'forge-history-item' + (entry.id === activeChatId ? ' is-active' : '')} onClick={() => onRestoreChat(entry)} aria-pressed={entry.id === activeChatId}><strong>{entry.title}</strong><time dateTime={entry.updatedAt}>{new Date(entry.updatedAt).toLocaleString()}</time></button></li>)}</ol> : <p className='forge-history-empty'>{t('ask.historyEmpty')}</p>}
+      <section className='forge-side-card forge-history-card' aria-labelledby='document-ingestion-heading'>
+        <div className='forge-history-heading'><h2 id='document-ingestion-heading'>{t('documents.ingestionLog')}</h2></div>
+        {ingestionJobs.length ? <ol className='forge-ingestion-log'>{ingestionJobs.slice(-8).reverse().map((job) => {
+          const progress = Math.min(100, Math.max(0, Math.round(job.progress ?? 0)));
+          const status = job.status === 'indexed' ? t('stage.completed') : job.status === 'failed' ? t('stage.failedLabel') : job.status === 'queued' ? t('stage.waitingLabel') : t('stage.' + job.stage);
+          return <li key={job.job_id}><article className={'forge-rail-ingestion-job' + (job.status === 'failed' ? ' is-failed' : '')}>
+            <div className='forge-rail-ingestion-job-heading'><strong title={job.original_filename}>{job.original_filename}</strong><span>{status}</span></div>
+            <div className='forge-ingestion-progress' role='progressbar' aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label={t('ingestion.progress', { value: progress })}><span style={{ width: progress + '%' }} /></div>
+            <small>{new Date(job.updated_at).toLocaleString()}</small>
+            {job.error && <small>{job.error}</small>}
+          </article></li>;
+        })}</ol> : <p className='forge-history-empty'>{t('documents.noRecentUploads')}</p>}
       </section>
     </aside>
   );
 }
 
-export function DocumentsWorkspace({ documents, health, filter: controlledFilter, onFilterChange, vercelDemo = false, history, activeChatId, onRestoreChat }: DocumentsWorkspaceProps) {
+export function DocumentsWorkspace({ documents, health, filter: controlledFilter, onFilterChange, vercelDemo = false, ingestionJobs }: DocumentsWorkspaceProps) {
   const t = useTranslations();
   const [internalFilter, setInternalFilter] = useState<DocumentFilter>('ALL');
   const [search, setSearch] = useState('');
@@ -186,7 +179,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
             </table>
           </div>
         </section>
-        <Preview document={selected} chunks={demoChunksResult?.docId === selectedDocId ? demoChunksResult.chunks : []} loading={Boolean(selectedDocId) && demoChunksResult?.docId !== selectedDocId} error={demoChunksResult?.docId === selectedDocId && demoChunksResult.error} history={history} activeChatId={activeChatId} onRestoreChat={onRestoreChat} />
+        <Preview document={selected} chunks={demoChunksResult?.docId === selectedDocId ? demoChunksResult.chunks : []} loading={Boolean(selectedDocId) && demoChunksResult?.docId !== selectedDocId} error={demoChunksResult?.docId === selectedDocId && demoChunksResult.error} ingestionJobs={ingestionJobs} />
       </div>
       {demoDocument && <DemoDocumentModal document={demoDocument} chunks={demoChunksResult?.docId === demoDocument.doc_id ? demoChunksResult.chunks : []} loading={demoChunksResult?.docId !== demoDocument.doc_id} error={demoChunksResult?.docId === demoDocument.doc_id && demoChunksResult.error} vercelDemo={vercelDemo} onClose={() => setDemoDocument(null)} />}
       {rawDocument && <RawDocumentModal document={rawDocument} vercelDemo={vercelDemo} onClose={() => setRawDocument(null)} />}

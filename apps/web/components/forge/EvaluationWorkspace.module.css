@@ -9,6 +9,19 @@
 .stat::before { content: none; }
 .stat span, .stat strong, .stat small { color: var(--forge-accent); }.stat span { display: block; font-size: 11px; font-weight: 600; }.stat strong { display: block; font-size: 30px; letter-spacing: -.05em; margin: 12px 0; font-variant-numeric: tabular-nums; }.stat small { font-size: 11px; line-height: 1.5; }
 .panel { background: var(--forge-blue); border: 3px solid #d6e1eb; border-radius: 18px; padding: 22px; margin: 20px 0; color: var(--forge-accent); box-shadow: none; }
+.charts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin: 20px 0; }
+.chartPanel { min-width: 0; margin: 0; padding: 18px; }
+.chartPanel .panelHeading { align-items: start; margin-bottom: 12px; }
+.chartPanel .panelHeading h2 { color: var(--forge-accent); }
+.chartSubtitle, .chartNote { margin: 6px 0 0; color: #eaf5ff; font-size: 10px; line-height: 1.5; }
+.chartNote { color: #dceaf5; }
+.chartSvg { display: block; width: 100%; height: auto; overflow: visible; }
+.chartLegend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 4px; color: #eaf5ff; font-size: 10px; }
+.chartLegend span, .costLegend > div { display: inline-flex; align-items: center; gap: 6px; }
+.chartLegend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.p50Key { background: #28b987; }.p95Key { background: #55c9e8; }.targetKey { background: #f0bf57; }
+.chartEmpty { padding: 26px 10px; color: var(--forge-accent); text-align: center; }
+.chartEmpty strong { font-size: 12px; }.chartEmpty p { margin: 7px 0 0; color: #eaf5ff; font-size: 10px; line-height: 1.5; }
 .panelHeading { margin-bottom: 20px; }.panel h2, .runHeading h2 { font-size: 15px; margin: 0; }.panelHeading > span { font-size: 11px; color: var(--forge-accent); }
 .signals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }.signals span, .signals strong { color: var(--forge-accent); }.signals span { font-size: 12px; }.signals strong { display: block; margin: 9px 0; font-size: 23px; letter-spacing: -.035em; }.signals p, .note { font-size: 11px; line-height: 1.75; color: #eaf5ff; }.panel .note { color: #eaf5ff; }.note { margin: 14px 0 0; }
 .controls { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; }.controls label { display: flex; flex-direction: column; gap: 8px; font-size: 11px; color: var(--forge-muted); font-weight: 600; }.controls label:first-child { flex: 1; min-width: 200px; }
@@ -24,4 +37,4 @@
 .case { border-top: 1px solid var(--forge-line); }.case summary { display: flex; align-items: center; gap: 14px; padding: 17px 0; cursor: pointer; font-size: 12px; }.case summary > span:nth-child(2) { flex: 1; }.caseId { color: #eaf5ff; font-size: 10px; font-family: monospace; }.caseBody { padding: 0 0 20px; }.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 14px; }.answers > div { padding: 18px; background: var(--forge-bg); color: var(--forge-ink); border-radius: 10px; }.answers h3 { font-size: 11px; color: var(--forge-muted); margin: 0 0 10px; }.answers p, .case blockquote { font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }.case blockquote { border-left: 3px solid var(--forge-green); margin: 14px 0 0; padding: 6px 16px; background: var(--forge-green-soft); color: var(--forge-ink); }.good { color: var(--forge-accent); font-size: 10px; }.warning { color: #f5ca71; font-size: 10px; }
 .config { overflow: auto; font-size: 11px; line-height: 1.7; max-height: 300px; }.panel > summary { font-size: 12px; cursor: pointer; }.railNote { padding: 18px 0; border-bottom: 1px solid var(--forge-line); }.railNote strong { color: var(--forge-green); font-size: 11px; }.railNote p { font-size: 12px; line-height: 1.7; color: var(--forge-muted); margin-bottom: 0; }
 @media (max-width: 1100px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }.heading { align-items: start; }.badge { display: none; } }
-@media (max-width: 640px) { .signals, .answers { grid-template-columns: 1fr; }.stats { gap: 8px; }.stat { padding: 15px; }.stat strong { font-size: 25px; }.panel { padding: 16px; }.panelHeading { align-items: start; flex-direction: column; gap: 8px; }.case summary { flex-wrap: wrap; }.comparison > div { grid-template-columns: 100px 1fr 40px; gap: 8px; } }
+@media (max-width: 640px) { .signals, .answers { grid-template-columns: 1fr; }.stats { gap: 8px; }.stat { padding: 15px; }.panel { padding: 16px; }.panelHeading { align-items: start; flex-direction: column; gap: 8px; }.case summary { flex-wrap: wrap; }.comparison > div { grid-template-columns: 100px 1fr 40px; gap: 8px; } }

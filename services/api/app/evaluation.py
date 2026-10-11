@@ -289,7 +289,7 @@ class EvaluationStore:
                 'completion_tokens': sum(row['completion_tokens'] for row in rows),
                 'total_tokens': sum(row['total_tokens'] for row in rows),
                 'estimated_cost_usd': sum(row['estimated_cost_usd'] for row in rows),
-                'recent': [dict(row) for row in rows[:20]]}
+                'recent': [dict(row) for row in rows[:100]]}
 
 
 class EvaluationRequest(BaseModel):

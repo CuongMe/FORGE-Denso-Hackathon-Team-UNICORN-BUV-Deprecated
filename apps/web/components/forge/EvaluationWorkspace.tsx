@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { getEvaluation, getEvaluationDatasets, getEvaluations, getMetrics, setAdminKey, startEvaluation } from '@/lib/api';
 import type { EvaluationDataset, EvaluationRun, HealthResponse, QueryMetrics } from '@/lib/types';
+import { buildMetricBuckets, type MetricBucket } from '@/lib/metric-charts';
 import { vercelDemoLimits } from '@/lib/vercel-demo-config';
 import styles from './EvaluationWorkspace.module.css';
 
@@ -29,6 +30,39 @@ export function EvaluationRail({ vercelDemo = false }: { vercelDemo?: boolean })
 
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
   return <article className={styles.stat}><span>{label}</span><strong>{value}</strong><small>{hint}</small></article>;
+}
+
+const chartX = (index: number, count: number) => count < 2 ? 366 : 56 + index * 620 / (count - 1);
+const timeLabel = (value: string) => new Date(value).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+function linePath(buckets: MetricBucket[], field: 'p50' | 'p95', max: number) {
+  return buckets.map((bucket, index) => `${index ? 'L' : 'M'} ${chartX(index, buckets.length)} ${188 - bucket[field] / max * 150}`).join(' ');
+}
+
+function MetricCharts({ metrics }: { metrics: QueryMetrics | null }) {
+  const t = useTranslations();
+  const buckets = buildMetricBuckets(metrics?.recent ?? []);
+  const maxLatency = Math.max(2000, Math.ceil(Math.max(0, ...buckets.map((bucket) => bucket.p95)) / 500) * 500);
+  const xLabelIndexes = [...new Set([0, Math.floor((buckets.length - 1) / 2), buckets.length - 1])];
+  const empty = <div className={styles.chartEmpty}><strong>{t('eval.firstQuery')}</strong><p>{t('eval.firstQueryText')}</p></div>;
+
+  return <section className={styles.charts} aria-label={t('eval.latencyTrend')}>
+    <article className={`${styles.panel} ${styles.chartPanel}`}>
+      <div className={styles.panelHeading}><div><h2 id='latency-chart-heading'>{t('eval.latencyTrend')}</h2><p className={styles.chartSubtitle}>{t('eval.latencyHint')}</p></div><span>{t('eval.chartSamples', { count: metrics?.recent.length ?? 0 })}</span></div>
+      {buckets.length ? <>
+        <svg className={styles.chartSvg} viewBox='0 0 700 235' role='img' aria-labelledby='latency-chart-heading'>
+          {[0, 0.5, 1].map((fraction) => { const value = maxLatency * fraction; const y = 188 - fraction * 150; return <g key={fraction}><line x1='56' x2='676' y1={y} y2={y} stroke='rgba(229,245,255,.2)' /><text x='4' y={y + 4} fill='#dceaf5' fontSize='11'>{(value / 1000).toFixed(value % 1000 ? 1 : 0)}s</text></g>; })}
+          <line x1='56' x2='676' y1={188 - 2000 / maxLatency * 150} y2={188 - 2000 / maxLatency * 150} stroke='#f0bf57' strokeDasharray='5 5' />
+          <path d={linePath(buckets, 'p95', maxLatency)} fill='none' stroke='#55c9e8' strokeWidth='3' />
+          <path d={linePath(buckets, 'p50', maxLatency)} fill='none' stroke='#28b987' strokeWidth='3' />
+          {buckets.map((bucket, index) => <g key={bucket.end}><circle cx={chartX(index, buckets.length)} cy={188 - bucket.p95 / maxLatency * 150} r='3.5' fill='#55c9e8'><title>{t('eval.p95')}: {duration(bucket.p95)} · {t('eval.chartSamples', { count: bucket.requests })}</title></circle><circle cx={chartX(index, buckets.length)} cy={188 - bucket.p50 / maxLatency * 150} r='3.5' fill='#28b987'><title>{t('eval.p50')}: {duration(bucket.p50)} · {t('eval.chartSamples', { count: bucket.requests })}</title></circle></g>)}
+          {xLabelIndexes.map((index) => <text key={index} x={chartX(index, buckets.length)} y='218' textAnchor={buckets.length === 1 ? 'middle' : index === 0 ? 'start' : index === buckets.length - 1 ? 'end' : 'middle'} fill='#dceaf5' fontSize='10'>{timeLabel(buckets[index].end)}</text>)}
+        </svg>
+        <div className={styles.chartLegend}><span><i className={styles.p50Key} />p50</span><span><i className={styles.p95Key} />p95</span><span><i className={styles.targetKey} />{t('eval.twoSecondReference')}</span></div>
+      </> : empty}
+      <p className={styles.chartNote}>{t('eval.loadTestCaveat')}</p>
+    </article>
+  </section>;
 }
 
 export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode: 'metrics' | 'evaluations'; vercelDemo?: boolean; health: HealthResponse | null }) {
@@ -155,8 +189,9 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
           <div><span>{t('eval.geminiCost')}</span><strong>{tokens(metrics?.total_tokens)} · {cost(metrics?.estimated_cost_usd)}</strong><p>{t('eval.tokenText', { input: tokens(metrics?.prompt_tokens), output: tokens(metrics?.completion_tokens) })}</p></div>
         </div>
       </section>
+      <MetricCharts metrics={metrics} />
       <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.recentRequests')}</h2><span>{t('eval.evaluationExcluded')}</span></div>
-        {metrics?.recent.length ? <div className={styles.scroll}><table><thead><tr><th>{t('eval.time')}</th><th>{t('eval.result')}</th><th>{t('eval.duration')}</th><th>{t('eval.citations')}</th><th>{t('eval.tokens')}</th><th>{t('eval.estimatedCost')}</th></tr></thead><tbody>{metrics.recent.map(item => <tr key={item.id}><td>{new Date(item.created_at).toLocaleString()}</td><td>{item.succeeded ? (item.abstained ? t('eval.noAnswer') : t('eval.answered')) : t('eval.failed')}</td><td>{duration(item.latency_ms)}</td><td>{item.citations}</td><td>{tokens(item.total_tokens)}</td><td>{cost(item.estimated_cost_usd)}</td></tr>)}</tbody></table></div> : <div className={styles.empty}><strong>{t('eval.firstQuery')}</strong><p>{t('eval.firstQueryText')}</p></div>}
+        {metrics?.recent.length ? <div className={styles.scroll}><table><thead><tr><th>{t('eval.time')}</th><th>{t('eval.result')}</th><th>{t('eval.duration')}</th><th>{t('eval.citations')}</th><th>{t('eval.tokens')}</th><th>{t('eval.estimatedCost')}</th></tr></thead><tbody>{metrics.recent.slice(0, 20).map(item => <tr key={item.id}><td>{new Date(item.created_at).toLocaleString()}</td><td>{item.succeeded ? (item.abstained ? t('eval.noAnswer') : t('eval.answered')) : t('eval.failed')}</td><td>{duration(item.latency_ms)}</td><td>{item.citations}</td><td>{tokens(item.total_tokens)}</td><td>{cost(item.estimated_cost_usd)}</td></tr>)}</tbody></table></div> : <div className={styles.empty}><strong>{t('eval.firstQuery')}</strong><p>{t('eval.firstQueryText')}</p></div>}
       </section>
       {vercelDemo && <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>}
     </> : <>

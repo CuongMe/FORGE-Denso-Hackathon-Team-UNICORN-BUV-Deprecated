@@ -264,7 +264,7 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
   return (
     <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail} language={language} onLanguageChange={onLanguageChange}>
       {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} history={chatHistory} activeChatId={activeChatId} onRestoreChat={restoreChat} onClearHistory={clearHistory} question={question} referencedDocument={documents.find((document) => document.doc_id === referencedDocumentId) ?? null} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={handleQuestionChange} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onReferenceDocument={referenceDocument} onClearReference={clearDocumentReference} onClearChat={clearChat} vercelDemo={VERCEL_DEMO} />}
-      {activeView === "documents" && <DocumentsWorkspace documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} vercelDemo={VERCEL_DEMO} history={chatHistory} activeChatId={activeChatId} onRestoreChat={(entry) => { restoreChat(entry); setActiveView("ask"); }} />}
+      {activeView === "documents" && <DocumentsWorkspace documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} vercelDemo={VERCEL_DEMO} ingestionJobs={messages.flatMap((message) => message.ingestionJob ? [message.ingestionJob] : [])} />}
       {(activeView === 'metrics' || activeView === 'evaluations') && <EvaluationWorkspace mode={activeView} health={health} vercelDemo={VERCEL_DEMO} />}
     </ForgeShell>
   );

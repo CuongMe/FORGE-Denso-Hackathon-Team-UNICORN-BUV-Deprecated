@@ -113,7 +113,7 @@ function summarizeQueryMetrics(records: QueryMetrics['recent']): QueryMetrics {
     completion_tokens: sum('completion_tokens'),
     total_tokens: sum('total_tokens'),
     estimated_cost_usd: records.length && records.every((record) => record.estimated_cost_usd !== null) ? records.reduce((total, record) => total + record.estimated_cost_usd!, 0) : null,
-    recent: records.slice(0, 20),
+    recent: records.slice(0, 100),
   };
 }
 
