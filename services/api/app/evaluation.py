@@ -279,6 +279,12 @@ class EvaluationStore:
             total = db.execute('SELECT COUNT(*) FROM query_metrics').fetchone()[0]
             rows = db.execute('SELECT * FROM query_metrics ORDER BY id DESC LIMIT 1000').fetchall()
         success = [row for row in rows if row['succeeded']]
+        unpriced_tokens = any(row['total_tokens'] and not row['estimated_cost_usd'] for row in rows)
+        recent = [
+            {**dict(row), 'estimated_cost_usd': None}
+            if unpriced_tokens and row['total_tokens'] and not row['estimated_cost_usd'] else dict(row)
+            for row in rows[:100]
+        ]
         return {'total_queries': total, 'window_size': len(rows), 'retention_days': self.retention_days,
                 'success_rate': len(success) / len(rows) if rows else None,
                 'abstention_rate': sum(row['abstained'] for row in success) / len(success) if success else None,
@@ -288,8 +294,8 @@ class EvaluationStore:
                 'prompt_tokens': sum(row['prompt_tokens'] for row in rows),
                 'completion_tokens': sum(row['completion_tokens'] for row in rows),
                 'total_tokens': sum(row['total_tokens'] for row in rows),
-                'estimated_cost_usd': sum(row['estimated_cost_usd'] for row in rows),
-                'recent': [dict(row) for row in rows[:100]]}
+                'estimated_cost_usd': None if unpriced_tokens else sum(row['estimated_cost_usd'] for row in rows),
+                'recent': recent}
 
 
 class EvaluationRequest(BaseModel):

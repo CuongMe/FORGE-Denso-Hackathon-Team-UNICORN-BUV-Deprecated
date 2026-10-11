@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FORGE — Ask</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#F7F9F7;color:#0F1713;font-family:Inter,system-ui,sans-serif;font-size:14.5px;line-height:1.5}
+button{font:inherit;color:inherit;cursor:pointer}
+.m{font-family:'JetBrains Mono',ui-monospace,monospace}
+.h{font-family:'Plus Jakarta Sans',Inter,sans-serif}
+.app{min-height:1620px}
+.bar{display:flex;align-items:center;gap:26px;padding:12px 28px 12px 24px;background:#fff;border-bottom:1px solid #D5DED8;flex-wrap:wrap}
+.body{display:grid;grid-template-columns:256px minmax(0,1fr) 300px;align-items:start}
+.rail{padding:22px 16px 24px 24px;border-right:1px solid #D5DED8;background:#F0F4F1;min-height:1560px}
+.main{padding:28px 32px 40px 40px;min-width:0}
+.side{padding:28px 24px 28px 0;position:sticky;top:0}
+.lbl{font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.13em;text-transform:uppercase;color:#4A5B51}
+.nav{font:700 14px 'Plus Jakarta Sans',sans-serif;min-height:40px;padding:0 18px;border:0;border-radius:8px;background:transparent;color:#3B4D43}
+.nav.on{background:#E3EEE7;color:#195835;box-shadow:inset 0 -3px 0 #195835}
+.chip{font:600 11.5px 'JetBrains Mono',monospace;min-height:40px;padding:0 12px;border-radius:8px;border:1px solid #C9D6CE;background:#fff;color:#2A3B31}
+.chip.on{background:#0F1713;color:#fff;border-color:#0F1713}
+.src{display:grid;grid-template-columns:8px 1fr auto;gap:10px;align-items:center;min-height:52px;padding:6px 10px;border:0;border-radius:8px;background:transparent;text-align:left;width:100%}
+.src:hover{background:#fff}
+.src.on{background:#fff;box-shadow:inset 0 0 0 1.5px #195835}
+.ty{font:600 10.5px 'JetBrains Mono',monospace;color:#4A5B51}
+.row{display:grid;grid-template-columns:36px 1fr auto;align-items:center;min-height:46px;padding:0 14px 0 0;border:0;border-top:1px solid #E1E8E3;background:none;text-align:left;width:100%}
+.row:hover{background:#F3F8F4}
+.bdg{display:inline-flex;align-items:center;gap:6px;font:600 10.5px 'JetBrains Mono',monospace;letter-spacing:.05em;padding:3px 8px;border-radius:5px;white-space:nowrap}
+.bdg i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.ok,.inf,.nu{background:#ECEFED;color:#2A3B31}.rev{background:#FFF1D2;color:#7A4A00}
+.ev{display:grid;grid-template-columns:1fr auto;gap:14px;padding:12px 16px 12px 14px;border-top:1px solid #D9E3DC}
+.btn2{min-height:40px;padding:0 14px;border-radius:8px;border:1px solid #BCCDC2;background:#fff;font:600 12.5px Inter,sans-serif;color:#195835}
+.ask{min-height:48px;padding:0 26px;border:0;border-radius:10px;background:#195835;color:#fff;font:700 15px 'Plus Jakarta Sans',sans-serif}
+.step{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid #F0D4D0}
+@media (max-width:1100px){.body{grid-template-columns:1fr}.rail{min-height:0;border-right:0;border-bottom:1px solid #D5DED8}.side{position:static;padding:0 24px 28px}.main{padding:24px}}
+</style>
+</helmet>
+
+<div class="app">
+<header class="bar">
+<div style="display:flex;align-items:center;gap:12px">
+<div class="h" style="width:36px;height:36px;border-radius:9px;background:#195835;color:#fff;display:grid;place-items:center;font-weight:800;font-size:19px">F</div>
+<div><div class="h" style="font-weight:800;font-size:18px;letter-spacing:.17em;line-height:1">FORGE</div>
+<div class="m" style="font-size:9.5px;color:#4A5B51;letter-spacing:.05em;margin-top:4px">FACTORY OPERATIONS RETRIEVAL GENERATION ENGINE</div></div>
+</div>
+<nav aria-label="Workspace" style="display:flex;gap:2px;margin-left:28px">
+<button class="nav on">Ask</button><button class="nav">Documents</button><button class="nav">Metrics</button>
+</nav>
+<div style="flex:1"></div>
+<div style="display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border:1px solid #C9D6CE;border-radius:8px">
+<span style="width:8px;height:8px;border-radius:50%;background:#147257"></span>
+<span class="m" style="font-size:11.5px;font-weight:600;color:#14573A">API READY</span>
+<span class="m" style="font-size:11.5px;color:#4A5B51">Gemini</span>
+</div>
+<div role="group" aria-label="Language" style="display:flex;border:1px solid #C9D6CE;border-radius:8px;overflow:hidden">
+<button class="m" style="min-height:40px;padding:0 14px;border:0;background:#0F1713;color:#fff;font-weight:600;font-size:12px">EN</button>
+<button class="m" style="min-height:40px;padding:0 14px;border:0;background:#fff;font-weight:600;font-size:12px">JA</button>
+<button class="m" style="min-height:40px;padding:0 14px;border:0;background:#fff;font-weight:600;font-size:12px">VI</button>
+</div>
+</header>
+
+<div class="body">
+<aside class="rail" aria-label="Sources">
+<div style="display:flex;justify-content:space-between;align-items:baseline">
+<span class="lbl">Sources</span>
+<span class="m" style="font-size:12px;color:#4A5B51"><b style="font-size:22px;color:#195835;letter-spacing:-.02em">109</b> chunks · 47 files</span>
+</div>
+<label style="display:flex;align-items:center;gap:9px;min-height:44px;margin-top:14px;padding:0 12px;background:#fff;border:1px solid #C9D6CE;border-radius:8px">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4A5B51" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input aria-label="Search sources" placeholder="Search sources…" style="border:0;outline:0;font:inherit;width:100%;background:transparent">
+</label>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin:12px 0">
+<button class="chip on">ALL 47</button><button class="chip">PDF 8</button><button class="chip">SHEETS 4</button><button class="chip">CSV 1</button><button class="chip">IMG 34</button>
+</div>
+<div style="display:flex;flex-direction:column;gap:1px">
+<button class="src on"><span style="width:7px;height:7px;border-radius:50%;background:#147257"></span><span><b class="m" style="font-size:12.5px">WI-ASSY-001</b><br><span style="font-size:12px;color:#4A5B51">Assembly work instruction</span></span><span class="ty">PDF</span></button>
+<button class="src"><span style="width:7px;height:7px;border-radius:50%;background:#147257"></span><span><b class="m" style="font-size:12.5px">SOP-QLT-014</b><br><span style="font-size:12px;color:#4A5B51">Quality defect handling</span></span><span class="ty">PDF</span></button>
+<button class="src"><span style="width:7px;height:7px;border-radius:50%;background:#147257"></span><span><b class="m" style="font-size:12.5px">MAINT-CHK-007</b><br><span style="font-size:12px;color:#4A5B51">Preventive maintenance</span></span><span class="ty">PDF</span></button>
+<button class="src"><span style="width:7px;height:7px;border-radius:50%;background:#147257"></span><span><b class="m" style="font-size:12.5px">EHS-ALERT-003</b><br><span style="font-size:12px;color:#4A5B51">Safety / LOTO</span></span><span class="ty">PDF</span></button>
+<button class="src"><span style="width:7px;height:7px;border-radius:50%;background:#147257"></span><span><b class="m" style="font-size:12.5px">QMS-NCR-011</b><br><span style="font-size:12px;color:#4A5B51">Nonconformance</span></span><span class="ty">PDF</span></button>
+<button class="src"><span style="width:7px;height:7px;border-radius:50%;background:#147257"></span><span><b class="m" style="font-size:12.5px">PROD-HO-20260915</b><br><span style="font-size:12px;color:#4A5B51">Shift handover</span></span><span class="ty">PDF</span></button>
+<button class="src"><span style="width:7px;height:7px;border-radius:50%;background:#147257"></span><span><b class="m" style="font-size:12.5px">ANDON-DAILY-20260915</b><br><span style="font-size:12px;color:#4A5B51">Andon / downtime</span></span><span class="ty">PDF</span></button>
+</div>
+<div style="margin-top:22px;padding:14px 14px 16px;background:#fff;border-radius:8px;border:1px solid #D5DED8">
+<div style="display:flex;justify-content:space-between"><span class="lbl">Ingesting</span><span class="bdg rev"><i></i>INDEXING</span></div>
+<div class="m" style="font-size:12px;font-weight:600;margin-top:8px">SUP-PACK-20260915.pdf</div>
+<div style="display:flex;gap:3px;margin-top:10px" aria-label="Stage 7 of 7: indexing">
+<span style="flex:1;height:6px;background:#147257;border-radius:2px"></span><span style="flex:1;height:6px;background:#147257;border-radius:2px"></span><span style="flex:1;height:6px;background:#147257;border-radius:2px"></span><span style="flex:1;height:6px;background:#147257;border-radius:2px"></span><span style="flex:1;height:6px;background:#147257;border-radius:2px"></span><span style="flex:1;height:6px;background:#147257;border-radius:2px"></span><span style="flex:1;height:6px;background:#E0A21B;border-radius:2px"></span>
+</div>
+<div class="m" style="font-size:10px;color:#4A5B51;margin-top:6px;letter-spacing:.02em">queued·parse·ocr·table·chunk·embed·<b style="color:#7A4A00">index</b></div>
+</div>
+</aside>
+
+<main class="main">
+<div style="max-width:800px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px">
+<h1 class="h" style="margin:0;font-size:30px;font-weight:800;letter-spacing:-.025em">Ask FORGE</h1>
+<span class="m" style="font-size:11px;color:#4A5B51">answers cite doc · page · quote, or abstain</span>
+</div>
+
+<section aria-label="Sample prompts" style="margin-top:14px;background:#fff;border:1px solid #D5DED8;border-radius:10px;padding-left:14px;overflow:hidden">
+<div style="display:grid;grid-template-columns:36px 1fr auto;min-height:34px;align-items:center;padding-right:14px"><span class="lbl">#</span><span class="lbl">Sample prompt</span><span class="lbl">Behavior</span></div>
+<button class="row"><span class="m" style="font-size:11px;color:#6A7B71">01</span><span style="font-weight:500">What is the target torque for the M6 bolts?</span><span class="bdg ok">STRUCTURED LOOKUP</span></button>
+<button class="row"><span class="m" style="font-size:11px;color:#6A7B71">02</span><span style="font-weight:500">What pressure must be zero before zero energy is confirmed?</span><span class="bdg inf">CROSS-LANGUAGE</span></button>
+<button class="row"><span class="m" style="font-size:11px;color:#6A7B71">03</span><span style="font-weight:500">Who won the football match yesterday?</span><span class="bdg rev">HONEST ABSTAIN</span></button>
+</section>
+
+<section aria-label="Conversation" style="margin-top:28px">
+<!-- Q1 -->
+<div class="m" style="font-size:12.5px;color:#26362C;padding-left:2px"><span style="color:#195835;font-weight:600">Q</span>&nbsp; What is the M6 bolt torque target, and what should the operator do if it is out of range?</div>
+<article style="margin-top:10px;background:#fff;border:1px solid #C9D6CE;border-radius:12px;overflow:hidden">
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:#F3F7F4;border-bottom:1px solid #D9E3DC">
+<span class="bdg nu"><i></i>GROUNDED</span><span class="m" style="margin-left:auto;font-size:11px;color:#4A5B51">rag · 1.8 s · 2 chunks</span>
+</div>
+<div style="padding:18px 20px 6px;display:flex;align-items:baseline;gap:18px;flex-wrap:wrap">
+<span class="m" style="font-size:44px;font-weight:600;letter-spacing:-.03em;color:#0F1713;line-height:1">9.5 ± 0.5<span style="font-size:20px;color:#4A5B51"> N·m</span></span>
+<span class="m" style="font-size:13px;color:#26362C">range 9.0–10.0 &nbsp;·&nbsp; sequence <b>1-3-2-4</b></span>
+</div>
+<p style="margin:12px 20px 16px;padding:12px 14px;background:#FFF8E6;border:1px solid #E5CE94;border-radius:8px;font-size:14.5px;color:#3D2C00"><b>If a result is out of range:</b> stop the station, re-check the tool, quarantine the unit and notify the team leader. Hold release until the barcode scan and tool result upload both succeed.</p>
+<div style="background:#F7FAF8">
+<div style="padding:10px 16px 8px;display:flex;justify-content:space-between;border-top:1px solid #D9E3DC"><span class="lbl" style="color:#14573A">Source evidence</span><span class="m" style="font-size:11px;color:#4A5B51">2 of 2 chunks shown</span></div>
+<div class="ev"><div><div class="m" style="font-size:12.5px;font-weight:600;color:#195835">WI-ASSY-001 · page 1 · chunk 0003</div><div style="font-size:13.5px;margin-top:4px;color:#1B2A22">“Tighten each M6 bolt to 9.5 ± 0.5 N·m in sequence 1-3-2-4.”</div></div><button class="btn2">Open page</button></div>
+<div class="ev"><div><div class="m" style="font-size:12.5px;font-weight:600;color:#195835">WI-ASSY-001 · page 1 · chunk 0004</div><div style="font-size:13.5px;margin-top:4px;color:#1B2A22">“Out of range: stop, re-check tool, quarantine, notify team leader.”</div></div><button class="btn2">Ask about this doc</button></div>
+</div>
+</article>
+
+<!-- Q2 aggregation -->
+<div class="m" style="font-size:12.5px;color:#26362C;margin-top:30px;padding-left:2px"><span style="color:#195835;font-weight:600">Q</span>&nbsp; How many pieces were produced on the 09-15 shift?</div>
+<article style="margin-top:10px;background:#fff;border:1px solid #C9D6CE;border-radius:12px;display:grid;grid-template-columns:auto 1fr;align-items:center;gap:6px 26px;padding:14px 20px 16px">
+<div style="grid-column:1/-1;display:flex;gap:10px;align-items:center"><span class="bdg nu"><i></i>AGGREGATION</span><span class="m" style="font-size:11px;color:#4A5B51">cache hit · 38 ms</span></div>
+<div class="m" style="font-size:56px;font-weight:600;letter-spacing:-.04em;line-height:1.05">4820<span style="font-size:20px;color:#4A5B51;letter-spacing:0"> pcs</span></div>
+<div><div class="m" style="font-size:12.5px;font-weight:600;color:#195835">PROD-HO-20260915 · page 1</div><div style="font-size:13px;color:#4A5B51;margin-top:2px">Summed from the shift handover output rows.</div></div>
+</article>
+
+<!-- Q3 abstain -->
+<div class="m" style="font-size:12.5px;color:#26362C;margin-top:30px;padding-left:2px"><span style="color:#195835;font-weight:600">Q</span>&nbsp; Who won the football match yesterday?</div>
+<article style="margin-top:10px;background:#FFFBF1;border:1px solid #E5CE94;border-radius:12px;padding:14px 20px 16px">
+<div style="display:flex;gap:8px;flex-wrap:wrap"><span class="bdg rev"><i></i>ABSTAINED</span><span class="m" style="margin-left:auto;font-size:11px;color:#6B5412">best score 0.12 · below 0.40 cutoff</span></div>
+<p class="h" style="margin:12px 0 4px;font-size:19px;font-weight:700;color:#3D2C00">No evidence in the 47 loaded sources.</p>
+<p style="margin:0;font-size:13.5px;color:#4A3A10">FORGE answers from your documents only, so it will not guess. Try a process, measurement or safety question, or upload the document that covers this.</p>
+</article>
+</section>
+
+<div style="margin-top:30px;background:#fff;border:1.5px solid #195835;border-radius:12px;padding:12px 12px 12px 14px;display:flex;align-items:flex-end;gap:10px">
+<div style="display:flex;gap:6px">
+<button aria-label="Upload document" style="width:44px;height:44px;border-radius:8px;border:1px solid #C9D6CE;background:#F7F9F7;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2A3B31" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"></path></svg></button>
+<button aria-label="Attach image" style="width:44px;height:44px;border-radius:8px;border:1px solid #C9D6CE;background:#F7F9F7;display:grid;place-items:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2A3B31" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"></rect><circle cx="9" cy="10" r="1.8"></circle><path d="M21 16l-5-5-8 9"></path></svg></button>
+</div>
+<textarea aria-label="Ask about a process, measurement, or safety instruction" placeholder="Ask about a process, measurement, or safety instruction…" rows="3" style="flex:1;border:0;outline:0;resize:none;font:inherit;font-size:16px;background:transparent;padding:6px 4px"></textarea>
+<button class="ask">Ask</button>
+</div>
+<div style="display:flex;justify-content:space-between;margin:8px 4px 0"><span class="m" style="font-size:11px;color:#4A5B51">PDF · XLSX · CSV · IMAGE &nbsp;·&nbsp; Shift + Enter = new line</span><span class="m" style="font-size:11px;color:#4A5B51">0/500</span></div>
+</div>
+</main>
+
+<aside class="side" aria-label="Source details">
+<section style="background:#fff;border:1px solid #D5DED8;border-radius:10px;padding:16px 16px 16px">
+<div class="lbl">Pinned reference</div>
+<div class="m" style="margin-top:10px;font-weight:600;font-size:16px;color:#195835">@WI-ASSY-001</div>
+<div style="font-size:13px;color:#4A5B51">Assembly work instruction · PDF · 1 page</div>
+<button class="btn2" style="margin-top:12px;width:100%">Ask about this doc</button>
+<div class="lbl" style="margin-top:18px">Also cited nearby</div>
+<div class="m" style="margin-top:8px;font-size:12px;line-height:1.9;color:#26362C">SOP-QLT-014<br>QMS-NCR-011</div>
+</section>
+
+<section style="margin-top:14px;background:#0F1713;color:#E8F0EA;border-radius:10px;padding:14px 16px 16px">
+<div style="display:flex;justify-content:space-between"><span class="lbl" style="color:#9CC4AA">Retrieval trace</span><span class="m" style="font-size:10.5px;color:#9CC4AA">hybrid→rerank→answer</span></div>
+<div class="m" style="margin-top:14px;font-size:11.5px;display:grid;grid-template-columns:1fr auto;row-gap:10px;column-gap:10px;align-items:center">
+<span>WI-ASSY-001 · 0003</span><b style="color:#7FD6B0">0.93</b>
+<span style="grid-column:1/-1;height:4px;background:#22302A;margin-top:-6px"><span style="display:block;width:93%;height:4px;background:#2FB587"></span></span>
+<span>WI-ASSY-001 · 0004</span><b style="color:#7FD6B0">0.88</b>
+<span style="grid-column:1/-1;height:4px;background:#22302A;margin-top:-6px"><span style="display:block;width:88%;height:4px;background:#2FB587"></span></span>
+<span style="color:#9AA8A0">SOP-QLT-014 · 0007</span><b style="color:#9AA8A0">0.41</b>
+<span style="grid-column:1/-1;height:4px;background:#22302A;margin-top:-6px"><span style="display:block;width:41%;height:4px;background:#53645A"></span></span>
+</div>
+<div class="m" style="margin-top:14px;padding-top:10px;border-top:1px solid #22302A;font-size:10.5px;color:#9CC4AA;display:flex;justify-content:space-between"><span>retrieve 84</span><span>rerank 190</span><span>gen 1.5 s</span></div>
+</section>
+</aside>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1620}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
