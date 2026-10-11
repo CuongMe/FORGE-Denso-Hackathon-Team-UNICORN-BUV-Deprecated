@@ -3,14 +3,14 @@ from app.aggregation import aggregate_rows
 
 def test_count_aggregation_filters_matching_table_values():
     result = aggregate_rows(
-        "From the industrial data set, how many routine checks were conducted?",
+        "From these records, how many routine checks were conducted?",
         [
             {"Activity": "Routine check", "Machine": "A"},
             {"Activity": "Repair", "Machine": "A"},
             {"Activity": "Routine check", "Machine": "B"},
         ],
         source_doc_id="doc-1",
-        source_name="industrial_dataset.csv",
+        source_name="maintenance_checks.csv",
     )
 
     assert result is not None

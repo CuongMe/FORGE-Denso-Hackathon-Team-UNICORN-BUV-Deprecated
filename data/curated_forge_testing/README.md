@@ -6,7 +6,6 @@ This folder is the small, repeatable test pack for FORGE functionality checks. I
 
 - `images/ja_business_doc_rq_bench/` — 30 Japanese chart, table, diagram, and document images, licensed under Apache-2.0 by the source dataset.
 - `ground_truth/ja_business_doc_rq_bench_metadata.jsonl` — source questions and expected answers for those images.
-- `tabular/industrial_dataset.csv` — project fixture for ingestion and query tests.
 - `images/vixio_metal_nut/` and `ground_truth/vixio_metal_nut/` — local-only files; not included in Git while redistribution terms remain unverified.
 - `ground_truth/` — source metadata for the selected JA benchmark images.
 

@@ -43,7 +43,7 @@ The project uses three datasets: a multilingual golden set, curated external tes
 | Dataset | Contents and purpose |
 |---|---|
 | **Golden dataset** | [`golden_dataset_25_multilingual.csv`](data/evaluation/golden_dataset_25_multilingual.csv): 25 factory questions with expected answers (15 Vietnamese, 5 Japanese, 5 English), ready for recording answers and review. |
-| **Curated data** | [Dataset notes and included files](data/curated_forge_testing/README.md): 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A metadata, plus [`industrial_dataset.csv`](data/curated_forge_testing/tabular/industrial_dataset.csv). VIXIO samples remain local until redistribution terms are confirmed. |
+| **Curated data** | [Dataset notes and included files](data/curated_forge_testing/README.md): 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A metadata. VIXIO samples remain local until redistribution terms are confirmed. |
 | **AI-generated pack** | [`data/denso_factory_hack_data_prep`](data/denso_factory_hack_data_prep): synthetic factory PDFs, scans, images, spreadsheets, and CSVs for testing ingestion, OCR, visual analysis, retrieval, and UI flows. |
 
 ### Curation Principles

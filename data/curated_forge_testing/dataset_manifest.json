@@ -6,8 +6,7 @@
   "contents": {
     "included_ja_business_doc_rq_bench_images": 30,
     "local_only_vixio_metal_nut_images": 30,
-    "local_only_vixio_ground_truth_images": 18,
-    "included_csv_fixtures": 1
+    "local_only_vixio_ground_truth_images": 18
   },
   "curation": {
     "ja_business_doc_rq_bench": {
@@ -28,14 +27,6 @@
       "files": "images/vixio_metal_nut/",
       "ground_truth_files": "ground_truth/vixio_metal_nut/",
       "license": "Not recorded in the project. Verify Mitsubishi Electric sample-archive terms before redistribution."
-    },
-    "industrial_dataset": {
-      "provider": "Existing project fixture",
-      "source_url": null,
-      "source_note": "The repository did not record a download URL for this file.",
-      "files": "tabular/industrial_dataset.csv",
-      "ground_truth": "The CSV contains a Target column; no separate ground-truth file included.",
-      "license": "Existing project fixture; no external redistribution terms recorded."
     }
   }
 }
