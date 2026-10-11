@@ -13,16 +13,15 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 
 ## Product demo
 
-<p align="center">
-  <img src="./docs/forge-demo-preview.gif" alt="Full 72-second FORGE product demonstration" width="100%" />
-</p>
+![Full 72-second FORGE product demonstration](docs/forge-demo-preview.gif)
 
 ## Team UNICORN
 
+* Team member Cuong (Trần Hoàng Cường) is the Git Owner.
 * Team Member 1: Phan Tuấn Minh - Team Leader - Software Engineering Year 2
 * Team Member 2: Phan Khánh Linh - UI/UX Design/Business Analyst - Data Science & AI Year 1
 * Team Member 3: Nguyễn Tuấn Anh - Data Curator - Data Science & AI Year 2
-* Team Member 4: Trần Hoàng Cường - Agile Developer - Data Science & AI Year 3 (Repo Owner)
+* Team Member 4: Trần Hoàng Cường - Agile Developer - Data Science & AI Year 3
 * Team Member 5: Bùi Minh Tiến - Technical Specialist - Software Engineering Year 2
 
 ## Pain point

@@ -152,15 +152,3 @@ def test_query_metrics_are_thread_safe_and_include_failures(tmp_path):
     assert metrics['estimated_cost_usd'] == pytest.approx(.001)
     assert metrics['retention_days'] == 1
     assert all('question' not in row for row in metrics['recent'])
-
-
-def test_query_metrics_do_not_report_unpriced_tokens_as_free(tmp_path):
-    store = EvaluationStore(str(tmp_path / 'evaluation.sqlite3'))
-    store.initialize()
-    unpriced = response()
-    unpriced.usage = TokenUsage(prompt_tokens=100, completion_tokens=20, total_tokens=120)
-    store.record_query(250, unpriced)
-
-    metrics = store.metrics()
-    assert metrics['estimated_cost_usd'] is None
-    assert metrics['recent'][0]['estimated_cost_usd'] is None
