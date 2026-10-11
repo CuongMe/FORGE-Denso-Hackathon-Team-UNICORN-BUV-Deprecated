@@ -8,7 +8,7 @@ import documentPreviews from '@/data/document-previews.json';
 import type { DocumentChunkPreview, DocumentSummary, HealthResponse } from '@/lib/types';
 
 import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
-import { FileIcon, SearchIcon } from './ForgeIcons';
+import { ArrowRightIcon, FileIcon, SearchIcon } from './ForgeIcons';
 
 export type DocumentFilter = 'ALL' | 'PDF' | 'PPTX' | 'TXT' | 'XLS' | 'XLSX' | 'CSV' | 'DXF' | 'IMAGE';
 
@@ -134,6 +134,10 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
   const [demoChunksResult, setDemoChunksResult] = useState<{ docId: string; chunks: DocumentChunkPreview[]; error: boolean } | null>(null);
   const filter = controlledFilter ?? internalFilter;
   const setFilter = (nextFilter: DocumentFilter) => { setInternalFilter(nextFilter); onFilterChange?.(nextFilter); };
+  const filterScrollRef = useRef<HTMLDivElement>(null);
+  const scrollFilters = (direction: -1 | 1) => {
+    if (filterScrollRef.current) filterScrollRef.current.scrollBy({ left: direction * filterScrollRef.current.clientWidth * 0.8, behavior: 'smooth' });
+  };
   const filteredDocuments = useMemo(() => {
     const query = search.trim().toLowerCase();
     return documents.filter((document) => {
@@ -160,11 +164,15 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
     <div className='forge-workspace documents-workspace'>
       <div className='forge-workspace-heading documents-heading'><div><p className='forge-eyebrow'>{t('documents.eyebrow')}</p><h1>{t('documents.title')}</h1><p className='forge-workspace-helper'>{t('documents.helper')}</p></div><div className='forge-corpus-summary'><strong>{health?.documents_count ?? documents.length}</strong><span>{t('documents.sources')}</span></div></div>
       <div className='forge-search-bar'><SearchIcon /><input aria-label={t('documents.searchLabel')} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('documents.search')} /><strong>{filteredDocuments.length} {t('documents.sources')}</strong></div>
-      <div className='forge-filter-row documents-filter-row' aria-label={t('documents.filterLabel')}>
-        {(['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'DXF', 'IMAGE'] as DocumentFilter[]).map((item) => {
-          const count = item === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === item).length;
-          return <button key={item} type='button' className={'forge-filter-chip ' + (filter === item ? 'is-active' : '')} onClick={() => setFilter(item)}>{item} {count}</button>;
-        })}
+      <div className='documents-filter-controls'>
+        <button type='button' className='forge-filter-chip documents-filter-arrow' aria-label={t('documents.previousTypes')} aria-controls='document-type-filters' onClick={() => scrollFilters(-1)}><ArrowRightIcon className='is-previous' /></button>
+        <div id='document-type-filters' ref={filterScrollRef} className='forge-filter-row documents-filter-row' role='group' aria-label={t('documents.filterLabel')}>
+          {(['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'DXF', 'IMAGE'] as DocumentFilter[]).map((item) => {
+            const count = item === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === item).length;
+            return <button key={item} type='button' className={'forge-filter-chip ' + (filter === item ? 'is-active' : '')} onClick={() => setFilter(item)}>{item} {count}</button>;
+          })}
+        </div>
+        <button type='button' className='forge-filter-chip documents-filter-arrow' aria-label={t('documents.nextTypes')} aria-controls='document-type-filters' onClick={() => scrollFilters(1)}><ArrowRightIcon /></button>
       </div>
       <div className='forge-document-layout'>
         <section className='forge-document-table-card' aria-label={t('documents.library')}>
