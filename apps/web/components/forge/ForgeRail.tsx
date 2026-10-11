@@ -1,11 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 
 import type { DocumentSummary, HealthResponse } from '@/lib/types';
 
-import { FileIcon, SearchIcon } from './ForgeIcons';
+import { ArrowRightIcon, FileIcon, SearchIcon } from './ForgeIcons';
 
 type SourceFilter = 'ALL' | 'PDF' | 'PPTX' | 'TXT' | 'SHEETS' | 'CSV' | 'IMAGE';
 
@@ -40,6 +40,11 @@ export function ForgeRail({ documents, health, eyebrow, helper, onReference }: F
   const t = useTranslations();
   const [filter, setFilter] = useState<SourceFilter>('ALL');
   const [search, setSearch] = useState('');
+  const filterScrollRef = useRef<HTMLDivElement>(null);
+  const scrollFilters = (direction: -1 | 1) => {
+    const filters = filterScrollRef.current;
+    filters?.scrollBy({ left: direction * filters.clientWidth * 0.8, behavior: 'smooth' });
+  };
   const filteredDocuments = useMemo(
     () => {
       const term = search.trim().toLowerCase();
@@ -85,7 +90,9 @@ export function ForgeRail({ documents, health, eyebrow, helper, onReference }: F
           <input id="source-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('rail.search')} />
         </div>
 
-        <div className="forge-source-filters" role="group" aria-label={t('rail.filterLabel')}>
+        <div className="forge-source-filter-controls">
+          <button type="button" className="forge-source-filter forge-source-filter-arrow" aria-label={t('rail.previousFilters')} aria-controls="ask-source-filters" onClick={() => scrollFilters(-1)}><ArrowRightIcon className="is-previous" /></button>
+          <div id="ask-source-filters" ref={filterScrollRef} className="forge-source-filters" role="group" aria-label={t('rail.filterLabel')}>
           {sourceFilterOptions.map(({ id, label }) => {
             const count = id === 'ALL' ? documents.length : documents.filter((document) => sourceType(document) === id).length;
             return (
@@ -100,6 +107,8 @@ export function ForgeRail({ documents, health, eyebrow, helper, onReference }: F
               </button>
             );
           })}
+          </div>
+          <button type="button" className="forge-source-filter forge-source-filter-arrow" aria-label={t('rail.nextFilters')} aria-controls="ask-source-filters" onClick={() => scrollFilters(1)}><ArrowRightIcon /></button>
         </div>
 
         <div className="forge-source-list" aria-label="Indexed sources">

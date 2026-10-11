@@ -5,10 +5,11 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import documentPreviews from '@/data/document-previews.json';
 
-import type { DocumentChunkPreview, DocumentSummary, HealthResponse } from '@/lib/types';
+import type { DocumentChunkPreview, DocumentSummary, HealthResponse, IngestionJob } from '@/lib/types';
+import type { ChatHistoryEntry } from '@/lib/chat-history';
 
 import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
-import { ArrowRightIcon, FileIcon, SearchIcon } from './ForgeIcons';
+import { SearchIcon } from './ForgeIcons';
 
 export type DocumentFilter = 'ALL' | 'PDF' | 'PPTX' | 'TXT' | 'XLS' | 'XLSX' | 'CSV' | 'DXF' | 'IMAGE';
 
@@ -18,6 +19,9 @@ type DocumentsWorkspaceProps = {
   filter?: DocumentFilter;
   onFilterChange?: (filter: DocumentFilter) => void;
   vercelDemo?: boolean;
+  history: ChatHistoryEntry[];
+  activeChatId: string | null;
+  onRestoreChat: (entry: ChatHistoryEntry) => void;
 };
 
 function typeFor(document: DocumentSummary): Exclude<DocumentFilter, 'ALL'> {
@@ -55,26 +59,10 @@ function regionLabel(document: DocumentSummary, t: (key: string) => string) {
   return document.region_types.length ? document.region_types.join(' · ').toUpperCase() : t('documents.provenanceMissing');
 }
 
-function RailFilters({ documents, active, onChange }: { documents: DocumentSummary[]; active: DocumentFilter; onChange: (filter: DocumentFilter) => void }) {
+export function DocumentsRail({ documents, health, ingestionJobs }: { documents: DocumentSummary[]; health: HealthResponse | null; ingestionJobs: IngestionJob[] }) {
   const t = useTranslations();
-  const filters: DocumentFilter[] = ['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'DXF', 'IMAGE'];
-  return (
-    <div className='forge-rail-filter-stack' aria-label={t('documents.filterLabel')}>
-      {filters.map((filter) => {
-        const count = filter === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === filter).length;
-        return (
-          <button key={filter} type='button' className={'forge-rail-filter ' + (active === filter ? 'is-active' : '')} onClick={() => onChange(filter)} aria-pressed={active === filter}>
-            <span className={'forge-file-type-dot ' + filter.toLowerCase()}>{filter === 'ALL' ? <FileIcon /> : filter === 'IMAGE' ? 'IMG' : filter}</span>
-            {filter === 'ALL' ? t('documents.allSources') : filter === 'IMAGE' ? t('rail.images') : filter}<small>{count}</small>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-export function DocumentsRail({ documents, health, active, onChange }: { documents: DocumentSummary[]; health: HealthResponse | null; active: DocumentFilter; onChange: (filter: DocumentFilter) => void }) {
-  const t = useTranslations();
+  const activeJobs = ingestionJobs.filter((job) => job.status === 'queued' || job.status === 'processing').length;
+  const failedJobs = ingestionJobs.filter((job) => job.status === 'failed').length;
   return (
     <div className='forge-rail-content forge-document-rail'>
       <div className='forge-rail-heading'>
@@ -82,49 +70,62 @@ export function DocumentsRail({ documents, health, active, onChange }: { documen
         <span className='forge-rail-count'>{health?.documents_count ?? documents.length}<small>{t('documents.sources')}</small></span>
       </div>
       <div className='forge-rail-stat-grid'><div><strong>{health?.documents_count ?? documents.length}</strong><span>SOURCES</span></div><div><strong>{health?.chunks_count ?? '—'}</strong><span>CHUNKS</span></div></div>
-      <p className='forge-rail-subheading'>{t('documents.fileTypes')}</p>
-      <RailFilters documents={documents} active={active} onChange={onChange} />
-      <div className='forge-index-health forge-rail-index-status'>
-        <p className='forge-eyebrow'>{t('documents.indexStatus')}</p>
-      <div className='forge-rail-status-card'><span className='forge-source-dot' /><div><strong>{t('documents.indexFromApi')}</strong><small>{t('documents.readySources', { count: documents.filter((document) => document.status === 'ready').length })}<br />{t('documents.noSyncTime')}</small></div></div>
+      <p className='forge-rail-subheading'>{t('documents.ingestionProgress')}</p>
+      <div className='forge-rail-ingestion-counts'>
+        <div><strong>{documents.filter((document) => document.status === 'ready').length}</strong><span>{t('documents.ingestionReady')}</span></div>
+        <div><strong>{activeJobs}</strong><span>{t('documents.ingestionActive')}</span></div>
+        <div><strong>{failedJobs}</strong><span>{t('documents.ingestionFailed')}</span></div>
       </div>
-      <div className='forge-rail-scroll-hint'>{t('documents.scrollFilters')}</div>
+      <p className='forge-rail-ingestion-label'>{t('documents.recentUploads')}</p>
+      <div className='forge-rail-ingestion-list' aria-live='polite'>
+        {ingestionJobs.slice(-3).reverse().map((job) => {
+          const progress = Math.min(100, Math.max(0, Math.round(job.progress ?? 0)));
+          const status = job.status === 'indexed' ? t('stage.completed') : job.status === 'failed' ? t('stage.failedLabel') : job.status === 'queued' ? t('stage.waitingLabel') : t('stage.' + job.stage);
+          return <article className={'forge-rail-ingestion-job' + (job.status === 'failed' ? ' is-failed' : '')} key={job.job_id}>
+            <div className='forge-rail-ingestion-job-heading'><strong title={job.original_filename}>{job.original_filename}</strong><span>{status}</span></div>
+            <div className='forge-ingestion-progress' role='progressbar' aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label={t('ingestion.progress', { value: progress })}><span style={{ width: progress + '%' }} /></div>
+            {job.error && <small>{job.error}</small>}
+          </article>;
+        })}
+        {!ingestionJobs.length && <p className='forge-rail-ingestion-empty'>{t('documents.noRecentUploads')}</p>}
+      </div>
     </div>
   );
 }
 
-function Preview({ document }: { document: DocumentSummary | null }) {
+function Preview({ document, chunks, loading, error, history, activeChatId, onRestoreChat }: { document: DocumentSummary | null; chunks: DocumentChunkPreview[]; loading: boolean; error: boolean; history: ChatHistoryEntry[]; activeChatId: string | null; onRestoreChat: (entry: ChatHistoryEntry) => void }) {
   const t = useTranslations();
-  if (!document) return <aside className='forge-document-preview'><p className='forge-eyebrow'>{t('documents.preview')}</p><p className='forge-empty-copy'>{t('documents.selectSource')}</p></aside>;
-  const type = typeFor(document);
+  const type = document ? typeFor(document) : null;
   return (
     <aside className='forge-document-side'>
-      <section className='forge-document-preview'>
-        <div className='forge-preview-heading'><div><p className='forge-eyebrow'>{t('documents.preview')}</p><p className='forge-side-helper'>{t('documents.previewHelper')}</p></div><span className='forge-side-pill'>{document.status.toUpperCase()}</span></div>
-        <div className='forge-current-reference forge-document-selected'>
-          <p className='forge-eyebrow'>{t('documents.selected')}</p>
-          <strong>{document.doc_id}</strong>
-          <span>{document.factory_topic || t('documents.factorySource')}</span>
-          <span>{type} · {locationFor(document, t)} · {document.chunk_count} {t('documents.chunks')}</span>
-          <span>SOURCE PATH · {document.source_path}</span>
-          <span>{regionLabel(document, t)}</span>
-        </div>
+      <section className='forge-document-preview forge-extracted-panel'>
+        <div className='forge-preview-heading'><div><p className='forge-eyebrow'>{t('documents.extractedText')}</p><p className='forge-side-helper'>{t('documents.extractedHelper')}</p></div><span className='forge-side-pill'>{document?.status.toUpperCase() ?? '—'}</span></div>
+        {document ? <>
+          <div className='forge-current-reference forge-document-selected'>
+            <p className='forge-eyebrow'>{t('documents.selected')}</p>
+            <strong>{document.doc_id}</strong>
+            <span>{document.factory_topic || t('documents.factorySource')}</span>
+            <span>{type} · {locationFor(document, t)} · {document.chunk_count} {t('documents.chunks')}</span>
+            <span>SOURCE PATH · {document.source_path}</span>
+            <span>{regionLabel(document, t)}</span>
+          </div>
+          <div className='forge-document-chunk-list' aria-live='polite'>
+            {loading && <p role='status'>{t('documents.loadingExtracted')}</p>}
+            {error && <p role='alert'>{t('documents.extractedUnavailable')}</p>}
+            {!loading && !error && chunks.slice(0, 3).map((chunk) => <article className='forge-document-chunk' key={chunk.chunk_id}><strong>{chunk.region || chunk.chunk_id}</strong><small>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</small><p>{chunk.content}</p></article>)}
+            {!loading && !error && chunks.length === 0 && <p className='forge-history-empty'>{t('documents.extractedUnavailable')}</p>}
+          </div>
+        </> : <p className='forge-empty-copy'>{t('documents.selectSource')}</p>}
       </section>
-      <section className='forge-document-preview forge-index-health'>
-        <p className='forge-eyebrow'>{t('documents.indexingHealth')}</p>
-        <p className='forge-trace-flow'>INGEST → PARSE → INDEX</p>
-        <div className='forge-health-list'>
-          <div><span className='forge-source-dot' />DOCUMENTS<strong>{document.status.toUpperCase()}</strong></div>
-          <div><span className='forge-source-dot blue' />CHUNKS<strong>{document.chunk_count}</strong></div>
-          <div><span className='forge-source-dot purple' />PROVENANCE<strong>{document.region_types.length ? 'RECORDED' : 'MISSING'}</strong></div>
-        </div>
-        <small className='forge-side-helper'>{t('documents.healthHelper')}</small>
+      <section className='forge-side-card forge-history-card' aria-labelledby='document-history-heading'>
+        <div className='forge-history-heading'><h2 id='document-history-heading'>{t('ask.history')}</h2></div>
+        {history.length ? <ol className='forge-history-list'>{history.map((entry) => <li key={entry.id}><button type='button' className={'forge-history-item' + (entry.id === activeChatId ? ' is-active' : '')} onClick={() => onRestoreChat(entry)} aria-pressed={entry.id === activeChatId}><strong>{entry.title}</strong><time dateTime={entry.updatedAt}>{new Date(entry.updatedAt).toLocaleString()}</time></button></li>)}</ol> : <p className='forge-history-empty'>{t('ask.historyEmpty')}</p>}
       </section>
     </aside>
   );
 }
 
-export function DocumentsWorkspace({ documents, health, filter: controlledFilter, onFilterChange, vercelDemo = false }: DocumentsWorkspaceProps) {
+export function DocumentsWorkspace({ documents, health, filter: controlledFilter, onFilterChange, vercelDemo = false, history, activeChatId, onRestoreChat }: DocumentsWorkspaceProps) {
   const t = useTranslations();
   const [internalFilter, setInternalFilter] = useState<DocumentFilter>('ALL');
   const [search, setSearch] = useState('');
@@ -134,10 +135,6 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
   const [demoChunksResult, setDemoChunksResult] = useState<{ docId: string; chunks: DocumentChunkPreview[]; error: boolean } | null>(null);
   const filter = controlledFilter ?? internalFilter;
   const setFilter = (nextFilter: DocumentFilter) => { setInternalFilter(nextFilter); onFilterChange?.(nextFilter); };
-  const filterScrollRef = useRef<HTMLDivElement>(null);
-  const scrollFilters = (direction: -1 | 1) => {
-    if (filterScrollRef.current) filterScrollRef.current.scrollBy({ left: direction * filterScrollRef.current.clientWidth * 0.8, behavior: 'smooth' });
-  };
   const filteredDocuments = useMemo(() => {
     const query = search.trim().toLowerCase();
     return documents.filter((document) => {
@@ -147,10 +144,8 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
   }, [documents, filter, search]);
   const selected = documents.find((document) => document.doc_id === selectedId) ?? filteredDocuments[0] ?? null;
   const selectedDocId = selected?.doc_id ?? null;
-  const shouldLoadChunks = Boolean(demoDocument);
-
   useEffect(() => {
-    if (!shouldLoadChunks || !selectedDocId) return;
+    if (!selectedDocId) return;
     let active = true;
     void getDocumentChunks(selectedDocId).then(({ chunks }) => {
       if (active) setDemoChunksResult({ docId: selectedDocId, chunks, error: false });
@@ -158,21 +153,17 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
       if (active) setDemoChunksResult({ docId: selectedDocId, chunks: [], error: true });
     });
     return () => { active = false; };
-  }, [selectedDocId, shouldLoadChunks]);
+  }, [selectedDocId]);
 
   return (
     <div className='forge-workspace documents-workspace'>
       <div className='forge-workspace-heading documents-heading'><div><p className='forge-eyebrow'>{t('documents.eyebrow')}</p><h1>{t('documents.title')}</h1><p className='forge-workspace-helper'>{t('documents.helper')}</p></div><div className='forge-corpus-summary'><strong>{health?.documents_count ?? documents.length}</strong><span>{t('documents.sources')}</span></div></div>
       <div className='forge-search-bar'><SearchIcon /><input aria-label={t('documents.searchLabel')} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t('documents.search')} /><strong>{filteredDocuments.length} {t('documents.sources')}</strong></div>
-      <div className='documents-filter-controls'>
-        <button type='button' className='forge-filter-chip documents-filter-arrow' aria-label={t('documents.previousTypes')} aria-controls='document-type-filters' onClick={() => scrollFilters(-1)}><ArrowRightIcon className='is-previous' /></button>
-        <div id='document-type-filters' ref={filterScrollRef} className='forge-filter-row documents-filter-row' role='group' aria-label={t('documents.filterLabel')}>
+      <div className='forge-filter-row documents-filter-row' aria-label={t('documents.filterLabel')}>
           {(['ALL', 'PDF', 'PPTX', 'TXT', 'XLS', 'XLSX', 'CSV', 'DXF', 'IMAGE'] as DocumentFilter[]).map((item) => {
             const count = item === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === item).length;
             return <button key={item} type='button' className={'forge-filter-chip ' + (filter === item ? 'is-active' : '')} onClick={() => setFilter(item)}>{item} {count}</button>;
           })}
-        </div>
-        <button type='button' className='forge-filter-chip documents-filter-arrow' aria-label={t('documents.nextTypes')} aria-controls='document-type-filters' onClick={() => scrollFilters(1)}><ArrowRightIcon /></button>
       </div>
       <div className='forge-document-layout'>
         <section className='forge-document-table-card' aria-label={t('documents.library')}>
@@ -195,7 +186,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
             </table>
           </div>
         </section>
-        <Preview document={selected} />
+        <Preview document={selected} chunks={demoChunksResult?.docId === selectedDocId ? demoChunksResult.chunks : []} loading={Boolean(selectedDocId) && demoChunksResult?.docId !== selectedDocId} error={demoChunksResult?.docId === selectedDocId && demoChunksResult.error} history={history} activeChatId={activeChatId} onRestoreChat={onRestoreChat} />
       </div>
       {demoDocument && <DemoDocumentModal document={demoDocument} chunks={demoChunksResult?.docId === demoDocument.doc_id ? demoChunksResult.chunks : []} loading={demoChunksResult?.docId !== demoDocument.doc_id} error={demoChunksResult?.docId === demoDocument.doc_id && demoChunksResult.error} vercelDemo={vercelDemo} onClose={() => setDemoDocument(null)} />}
       {rawDocument && <RawDocumentModal document={rawDocument} vercelDemo={vercelDemo} onClose={() => setRawDocument(null)} />}
