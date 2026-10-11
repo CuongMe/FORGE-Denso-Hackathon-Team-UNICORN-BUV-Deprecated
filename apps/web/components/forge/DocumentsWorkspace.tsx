@@ -56,8 +56,10 @@ function regionLabel(document: DocumentSummary, t: (key: string) => string) {
   return document.region_types.length ? document.region_types.join(' · ').toUpperCase() : t('documents.provenanceMissing');
 }
 
-export function DocumentsRail({ documents, health, filter, onFilterChange }: { documents: DocumentSummary[]; health: HealthResponse | null; filter: DocumentFilter; onFilterChange: (filter: DocumentFilter) => void }) {
+export function DocumentsRail({ documents, health, ingestionJobs }: { documents: DocumentSummary[]; health: HealthResponse | null; ingestionJobs: IngestionJob[] }) {
   const t = useTranslations();
+  const activeJobs = ingestionJobs.filter((job) => job.status === 'queued' || job.status === 'processing').length;
+  const failedJobs = ingestionJobs.filter((job) => job.status === 'failed').length;
   return (
     <div className='forge-rail-content forge-document-rail'>
       <div className='forge-rail-heading'>
@@ -65,15 +67,11 @@ export function DocumentsRail({ documents, health, filter, onFilterChange }: { d
         <span className='forge-rail-count'>{health?.documents_count ?? documents.length}<small>{t('documents.sources')}</small></span>
       </div>
       <div className='forge-rail-stat-grid'><div><strong>{health?.documents_count ?? documents.length}</strong><span>SOURCES</span></div><div><strong>{health?.chunks_count ?? '—'}</strong><span>CHUNKS</span></div></div>
-      <p className='forge-rail-subheading'>{t('documents.fileTypes')}</p>
-      <div className='forge-rail-file-types' role='group' aria-label={t('documents.filterLabel')}>
-        {DOCUMENT_FILTERS.map((item) => {
-          const count = item === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === item).length;
-          const label = item === 'ALL' ? t('documents.allSources') : item === 'IMAGE' ? t('rail.images') : item;
-          return <button key={item} type='button' className={'forge-rail-file-type' + (filter === item ? ' is-active' : '')} onClick={() => onFilterChange(item)} aria-pressed={filter === item}>
-            <span className={'forge-file-type-dot ' + item.toLowerCase()}>{item === 'IMAGE' ? 'IMG' : item}</span><span>{label}</span><small>{count}</small>
-          </button>;
-        })}
+      <p className='forge-rail-subheading'>{t('documents.ingestionProgress')}</p>
+      <div className='forge-rail-ingestion-counts'>
+        <div><strong>{documents.filter((document) => document.status === 'ready').length}</strong><span>{t('documents.ingestionReady')}</span></div>
+        <div><strong>{activeJobs}</strong><span>{t('documents.ingestionActive')}</span></div>
+        <div><strong>{failedJobs}</strong><span>{t('documents.ingestionFailed')}</span></div>
       </div>
     </div>
   );

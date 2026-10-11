@@ -259,7 +259,7 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
     setReferencedDocumentId(match && documents.some((document) => document.doc_id === match[2]) ? match[2] : null);
   }
 
-  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow={t("rail.sources")} helper={t("rail.clickReference")} onReference={referenceDocument} /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} /> : <EvaluationRail vercelDemo={VERCEL_DEMO} />;
+  const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow={t("rail.sources")} helper={t("rail.clickReference")} onReference={referenceDocument} /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} ingestionJobs={messages.flatMap((message) => message.ingestionJob ? [message.ingestionJob] : [])} /> : <EvaluationRail vercelDemo={VERCEL_DEMO} />;
 
   return (
     <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail} language={language} onLanguageChange={onLanguageChange}>

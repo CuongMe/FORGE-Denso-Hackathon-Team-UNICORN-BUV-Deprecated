@@ -417,14 +417,6 @@ html, body, .forge-app { background: var(--forge-bg); }
 .forge-document-selected { overflow-wrap: anywhere; margin-top: 12px; }
 .forge-history-card { max-height: none; min-height: 220px; overflow: visible; border-radius: 2px; }
 .forge-ingestion-log { overflow: visible; }
-.forge-rail-file-types { display: grid; gap: 8px; }
-.forge-rail-file-type { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 52px; padding: 7px 10px; border: 1px solid #c8d8e6; border-radius: 2px; background: #f9fcff; color: var(--forge-indigo); text-align: left; cursor: pointer; font-size: 12px; font-weight: 800; }
-.forge-rail-file-type:hover, .forge-rail-file-type:focus-visible { border-color: var(--forge-accent); outline: 2px solid transparent; }
-.forge-rail-file-type.is-active { border-color: var(--forge-blue); background: var(--forge-blue); color: var(--forge-accent); }
-.forge-rail-file-type small { color: inherit; font-size: 12px; }
-.forge-file-type-dot { width: 42px; height: 34px; border: 1px solid #b8d7e6; border-radius: 3px; background: #e7f8fc; color: var(--forge-blue); font-size: 9px; }
-.forge-rail-file-type.is-active .forge-file-type-dot { border-color: rgba(255,255,255,.6); background: transparent; color: var(--forge-accent); }
-
 @media (max-width: 1020px) {
   .forge-document-layout { grid-template-columns: minmax(0, 1fr); }
   .forge-document-main { padding-inline: 14px; }
