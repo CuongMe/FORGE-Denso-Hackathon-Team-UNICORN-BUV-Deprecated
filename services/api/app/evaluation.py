@@ -2,7 +2,6 @@
 
 from collections import Counter
 from contextlib import closing
-import csv
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
@@ -24,7 +23,7 @@ from app.models import QueryRequest, QueryResponse
 
 logger = logging.getLogger(__name__)
 DATA_ROOT = Path(__file__).resolve().parents[3] / 'data' / 'evaluation'
-DATASETS = {'golden': 'golden_dataset_v2_en.jsonl', 'abstention': 'abstention_holdout_v1.jsonl'}
+DATASETS = {'abstention': 'abstention_holdout_v1.jsonl'}
 
 
 def now() -> str:
@@ -32,16 +31,7 @@ def now() -> str:
 
 
 def load_cases(dataset: str) -> list[dict]:
-    names = list(DATASETS) if dataset == 'all' else [dataset]
-    return [json.loads(line) for name in names
-            for line in (DATA_ROOT / DATASETS[name]).read_text(encoding='utf-8').splitlines()
-            if line.strip()]
-
-
-def review_status() -> dict[str, str]:
-    path = DATA_ROOT / 'human_review_log.csv'
-    with path.open(encoding='utf-8', newline='') as stream:
-        return {row['case_id']: row['review_status'] for row in csv.DictReader(stream)}
+    return [json.loads(line) for line in (DATA_ROOT / DATASETS[dataset]).read_text(encoding='utf-8').splitlines() if line.strip()]
 
 
 def tokens(text: str) -> Counter:
@@ -303,8 +293,8 @@ class EvaluationStore:
 
 
 class EvaluationRequest(BaseModel):
-    dataset: Literal['golden', 'abstention', 'all'] = 'all'
-    limit: int = Field(default=5, ge=1, le=38)
+    dataset: Literal['abstention'] = 'abstention'
+    limit: int = Field(default=4, ge=1, le=4)
 
 
 def execute_run(store: EvaluationStore, run: dict, cases: list[dict], execute, worker_id: str):
@@ -382,13 +372,8 @@ def evaluation_router(get_store, execute, configuration, authorize=None) -> APIR
 
     @router.get('/evaluations/datasets')
     def datasets():
-        reviews = review_status()
-        data = []
-        for name in ('golden', 'abstention', 'all'):
-            cases = load_cases(name)
-            signed = sum(reviews.get(case['case_id']) == 'signed_off' for case in cases)
-            data.append({'id': name, 'count': len(cases), 'answerable': sum(case['answerable'] for case in cases), 'signed_off': signed, 'pending_review': len(cases) - signed})
-        return {'data': data}
+        cases = load_cases('abstention')
+        return {'data': [{'id': 'abstention', 'count': len(cases), 'answerable': sum(case['answerable'] for case in cases)}]}
 
     @router.get('/evaluations')
     def runs():
@@ -405,11 +390,6 @@ def evaluation_router(get_store, execute, configuration, authorize=None) -> APIR
     def start(payload: EvaluationRequest):
         store = get_store()
         cases = load_cases(payload.dataset)
-        if payload.dataset == 'all':
-            # Include abstention even in a small default sample.
-            answerable = [case for case in cases if case['answerable']]
-            holdout = [case for case in cases if not case['answerable']]
-            cases = [item for pair in zip(answerable, holdout) for item in pair] + answerable[len(holdout):]
         cases = cases[:payload.limit]
         run = {'run_id': 'eval-' + uuid4().hex[:16], 'status': 'queued', 'dataset': payload.dataset,
                'total': len(cases), 'queued_at': now(), 'started_at': None, 'finished_at': None,

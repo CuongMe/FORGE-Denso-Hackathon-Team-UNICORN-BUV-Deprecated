@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { askQuestion, getDocuments, getHealth, getIngestionJob, uploadDocument } from "@/lib/api";
+import { CHAT_HISTORY_KEY, parseChatHistory, upsertChatHistory, type ChatHistoryEntry } from "@/lib/chat-history";
 import { demoQueries } from "@/lib/demo-queries";
 import type { DocumentSummary, HealthResponse, IngestionJob } from "@/lib/types";
 
@@ -52,6 +53,9 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [messages, setMessages] = useState<AskMessage[]>(() => [welcomeMessage(t)]);
+  const [chatHistory, setChatHistory] = useState<ChatHistoryEntry[]>([]);
+  const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  const [historyReady, setHistoryReady] = useState(false);
   const [question, setQuestion] = useState("");
   const [referencedDocumentId, setReferencedDocumentId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -67,6 +71,38 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
   useEffect(() => {
     setMessages((current) => current.length === 1 && current[0].id === "welcome" ? [welcomeMessage(t)] : current);
   }, [language, t]);
+
+  useEffect(() => {
+    try {
+      setChatHistory(parseChatHistory(window.localStorage.getItem(CHAT_HISTORY_KEY)));
+    } catch {
+      setChatHistory([]);
+    }
+    setHistoryReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!historyReady || !activeChatId) return;
+    // shortcut: save transcript text only; persist evidence details if restoring citations becomes necessary.
+    const transcript = messages.filter((message) => message.id !== "welcome").map(({ id, role, content }) => ({ id, role, content }));
+    if (!transcript.length) return;
+    const firstMessage = transcript.find((message) => message.role === "user") ?? transcript[0];
+    setChatHistory((current) => upsertChatHistory(current, {
+      id: activeChatId,
+      title: firstMessage.content.replace(/\s+/g, " ").trim().slice(0, 80) || "Chat",
+      updatedAt: new Date().toISOString(),
+      messages: transcript,
+    }));
+  }, [messages, activeChatId, historyReady]);
+
+  useEffect(() => {
+    if (!historyReady) return;
+    try {
+      window.localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(chatHistory));
+    } catch {
+      // The current chat remains usable if browser storage is unavailable or full.
+    }
+  }, [chatHistory, historyReady]);
 
   useEffect(() => {
     let mounted = true;
@@ -105,6 +141,7 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
     if (!trimmed || isLoading) return;
 
     const assistantId = newId("assistant");
+    setActiveChatId(activeChatId ?? newId("chat"));
     setQuestion("");
     setReferencedDocumentId(null);
     setIsLoading(true);
@@ -122,6 +159,7 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
   }
 
   async function handleUpload(file: File) {
+    setActiveChatId(activeChatId ?? newId("chat"));
     let localJob = pendingUploadJob(file);
     if (VERCEL_DEMO) localJob = { ...localJob, job_id: newId('demo-upload') };
     const uploadMessageId = newId("upload");
@@ -195,10 +233,24 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
   }
 
   function clearChat() {
+    setActiveChatId(null);
     setMessages([welcomeMessage(t)]);
     setQuestion("");
     setReferencedDocumentId(null);
     setUploadStatus(null);
+  }
+
+  function restoreChat(entry: ChatHistoryEntry) {
+    setActiveChatId(entry.id);
+    setMessages([welcomeMessage(t), ...entry.messages]);
+    setQuestion("");
+    setReferencedDocumentId(null);
+    setUploadStatus(null);
+  }
+
+  function clearHistory() {
+    setChatHistory([]);
+    clearChat();
   }
 
   function handleQuestionChange(value: string) {
@@ -210,8 +262,8 @@ function ForgeAppContent({ language, onLanguageChange }: { language: Language; o
   const rail = activeView === "ask" ? <ForgeRail documents={documents} health={health} eyebrow={t("rail.sources")} helper={t("rail.clickReference")} onReference={referenceDocument} /> : activeView === "documents" ? <DocumentsRail documents={documents} health={health} active={documentFilter} onChange={setDocumentFilter} /> : <EvaluationRail vercelDemo={VERCEL_DEMO} />;
 
   return (
-    <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail} language={language} onLanguageChange={onLanguageChange} vercelDemo={VERCEL_DEMO}>
-      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} question={question} referencedDocument={documents.find((document) => document.doc_id === referencedDocumentId) ?? null} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={handleQuestionChange} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onReferenceDocument={referenceDocument} onClearReference={clearDocumentReference} onClearChat={clearChat} vercelDemo={VERCEL_DEMO} />}
+    <ForgeShell activeView={activeView} onViewChange={setActiveView} health={health} connectionError={connectionError} rail={rail} language={language} onLanguageChange={onLanguageChange}>
+      {activeView === "ask" && <AskWorkspace health={health} documents={documents} messages={messages} history={chatHistory} activeChatId={activeChatId} onRestoreChat={restoreChat} onClearHistory={clearHistory} question={question} referencedDocument={documents.find((document) => document.doc_id === referencedDocumentId) ?? null} isLoading={isLoading} connectionError={connectionError} uploadStatus={uploadStatus} prompts={prompts} onQuestionChange={handleQuestionChange} onSubmit={(value) => void submitQuestion(value)} onUpload={handleUpload} onReferenceDocument={referenceDocument} onClearReference={clearDocumentReference} onClearChat={clearChat} vercelDemo={VERCEL_DEMO} />}
       {activeView === "documents" && <DocumentsWorkspace documents={documents} health={health} filter={documentFilter} onFilterChange={setDocumentFilter} vercelDemo={VERCEL_DEMO} />}
       {(activeView === 'metrics' || activeView === 'evaluations') && <EvaluationWorkspace mode={activeView} health={health} vercelDemo={VERCEL_DEMO} />}
     </ForgeShell>

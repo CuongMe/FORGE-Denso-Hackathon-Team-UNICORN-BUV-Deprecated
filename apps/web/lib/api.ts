@@ -63,7 +63,7 @@ export function getMetrics() {
 }
 
 export function getEvaluationDatasets() {
-  return request<{ data: { id: EvaluationDataset; count: number; answerable: number; signed_off: number; pending_review: number }[] }>('/evaluations/datasets');
+  return request<{ data: { id: EvaluationDataset; count: number; answerable: number }[] }>('/evaluations/datasets');
 }
 
 export function getEvaluations() {

@@ -37,3 +37,6 @@ image.png
 **/.hf-modules/
 data/**/*.zip
 data/external/
+data/curated_forge_testing/images/vixio_metal_nut/
+data/curated_forge_testing/ground_truth/vixio_metal_nut/
+data/curated_forge_testing/tabular/Intelligent_Production_IIoT.csv

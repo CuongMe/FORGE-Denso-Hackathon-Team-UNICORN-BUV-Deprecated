@@ -1,0 +1,49 @@
+{
+  "name": "FORGE testing dataset",
+  "version": "v1",
+  "purpose": "Repeatable functionality testing for FORGE ingestion, multimodal retrieval, and grounded answering. This is not a production corpus.",
+  "redistribution": "JA-Business-Doc-RQ-Bench files are Apache-2.0 and included with attribution. VIXIO images and masks and the Kaggle CSV are local-only until redistribution terms are confirmed.",
+  "contents": {
+    "included_ja_business_doc_rq_bench_images": 30,
+    "local_only_vixio_metal_nut_images": 30,
+    "local_only_vixio_ground_truth_images": 18,
+    "included_csv_fixtures": 1,
+    "local_only_csv_fixtures": 1
+  },
+  "curation": {
+    "ja_business_doc_rq_bench": {
+      "provider": "Hugging Face",
+      "source_url": "https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench",
+      "selected_types": {"Chart": 8, "Table": 8, "Diagram": 7, "Document": 7},
+      "ground_truth": "The source metadata includes one question, expected answer, answer type, and reasoning-step count for each selected image.",
+      "files": "images/ja_business_doc_rq_bench/",
+      "metadata": "ground_truth/ja_business_doc_rq_bench_metadata.jsonl",
+      "license": "Apache-2.0 per source README; retain source attribution."
+    },
+    "vixio_metal_nut": {
+      "provider": "Mitsubishi Electric VIXIO sample archive",
+      "source_url": "https://www.mitsubishielectric.com/fa/download/software/detailsearch.page?mode=lib&kisyu=/vixio&shiryoid=1000000933&lang=2&select=0&softid=3&infostatus=2_2_2&viewradio=0&viewstatus=&viewpos=",
+      "local_archive": "data/vixiosample_a.zip",
+      "selection": {"good": 12, "color_defect": 6, "reverse_defect": 6, "scratches_defect": 6},
+      "ground_truth": "18 paired ground-truth mask images are included for color, reverse, and scratches defects. Good samples have no paired mask in the archive.",
+      "files": "images/vixio_metal_nut/",
+      "ground_truth_files": "ground_truth/vixio_metal_nut/",
+      "license": "Not recorded in the project. Verify Mitsubishi Electric sample-archive terms before redistribution."
+    },
+    "intelligent_production_iiot": {
+      "provider": "Kaggle",
+      "source_url": "https://www.kaggle.com/datasets/colabsss/intelligent-production-operations-dataset",
+      "files": "tabular/Intelligent_Production_IIoT.csv",
+      "ground_truth": "No separate ground-truth file included. Use columns and operational notes for ingestion and query functionality tests.",
+      "license": "Refer to the upstream Kaggle dataset page; verify redistribution terms before publishing."
+    },
+    "industrial_dataset": {
+      "provider": "Existing project fixture",
+      "source_url": null,
+      "source_note": "The repository did not record a download URL for this file.",
+      "files": "tabular/industrial_dataset.csv",
+      "ground_truth": "The CSV contains a Target column; no separate ground-truth file included.",
+      "license": "Existing project fixture; no external redistribution terms recorded."
+    }
+  }
+}

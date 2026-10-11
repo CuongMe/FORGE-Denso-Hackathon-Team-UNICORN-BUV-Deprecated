@@ -15,6 +15,15 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 
 ![Full 72-second FORGE product demonstration](docs/forge-demo-preview.gif)
 
+## Team UNICORN
+
+* Team member Cuong (Trần Hoàng Cường) is the Git Owner.
+* Team Member 1: Phan Tuấn Minh - Team Leader - Software Engineering Year 2
+* Team Member 2: Phan Khánh Linh - UI/UX Design/Business Analyst - Data Science & AI Year 1
+* Team Member 3: Nguyễn Tuấn Anh - Data Curator - Data Science & AI Year 2
+* Team Member 4: Trần Hoàng Cường - Agile Developer - Data Science & AI Year 3
+* Team Member 5: Bùi Minh Tiến - Technical Specialist - Software Engineering Year 2
+
 ## Pain point
 
 Factory operations knowledge is often spread across PDFs, scanned images, tables, and bilingual documents. Each format can require different preprocessing, including OCR, layout reconstruction, table extraction, and language handling, before an AI system can search and use the content. When that work is manual or inconsistent, valuable information takes longer to access and chatbot answers can miss or misread important context. This makes it difficult to build one dependable retrieval workflow for the documents teams already use.
@@ -28,18 +37,19 @@ Factory operations knowledge is often spread across PDFs, scanned images, tables
 
 ## Data Curation
 
-Input data validates FORGE across document, visual, and tabular ingestion paths. The project keeps AI-generated functionality data separate from the external testing dataset.
+The project uses three datasets: a multilingual golden set, curated external test data, and an AI-generated factory pack.
 
-| Data source | Description and sources |
+| Dataset | Contents and purpose |
 |---|---|
-| **AI-generated functionality data** | Synthetic factory PDFs, scans, images, spreadsheets, and CSVs created for functionality testing. It exercises ingestion, OCR, visual analysis, retrieval, and UI flows. Source: [`data/denso_factory_hack_data_prep`](data/denso_factory_hack_data_prep). |
-| **Curated FORGE testing data** | External test pack containing 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A ground truth, 30 [Mitsubishi Electric VIXIO](https://www.mitsubishielectric.com/fa/download/software/detailsearch.page?mode=lib&kisyu=/vixio&shiryoid=1000000933&lang=2&select=0&softid=3&infostatus=2_2_2&viewradio=0&viewstatus=&viewpos=) metal-nut images with 18 paired defect masks, and [`Intelligent_Production_IIoT.csv`](https://www.kaggle.com/datasets/colabsss/intelligent-production-operations-dataset) plus [`industrial_dataset.csv`](data/legacy_industrial_equipment_sensor_logs/industrial_dataset.csv). |
+| **Golden dataset** | [`golden_dataset_25_multilingual.csv`](data/evaluation/golden_dataset_25_multilingual.csv): 25 factory questions with expected answers (15 Vietnamese, 5 Japanese, 5 English), ready for recording answers and review. |
+| **Curated data** | [Dataset notes and included files](data/curated_forge_testing/README.md): 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A metadata, plus [`industrial_dataset.csv`](data/curated_forge_testing/tabular/industrial_dataset.csv). VIXIO and Kaggle source files remain local until redistribution terms are confirmed. |
+| **AI-generated pack** | [`data/denso_factory_hack_data_prep`](data/denso_factory_hack_data_prep): synthetic factory PDFs, scans, images, spreadsheets, and CSVs for testing ingestion, OCR, visual analysis, retrieval, and UI flows. |
 
 ### Curation Principles
 
 1. **Preserve provenance:** Keep each sample linked to its original source, dataset, metadata, and available ground truth.
 2. **Cover factory formats:** Include documents, scans, tables, images, CSV/XLS/XLSX, PowerPoint, and TXT files, plus bilingual Vietnamese/Japanese content.
-3. **Separate test purposes:** Use AI-generated data for functionality testing and curated external data for system evaluation.
+3. **Separate test purposes:** Use the golden dataset for answer evaluation, curated data for repeatable external-source tests, and the AI-generated pack for functionality testing.
 4. **Keep evaluation honest:** Label synthetic data, retain human-reviewed answers or masks, and leave unavailable ground truth unfilled.
 
 ## Market Research & Analysis
@@ -188,11 +198,11 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 
 ## Evaluation framework
 
-A reliable RAG system needs to be evaluated at every important boundary, from document extraction to the final answer. FORGE uses golden data prompts, a consistent metric set, and repeatable evaluation tooling.
+A reliable RAG system needs to be evaluated at every important boundary, from document extraction to the final answer. FORGE includes a manual multilingual test set for checking its factory-document retrieval and answers.
 
-### 1. The golden dataset
+### Manual multilingual test set
 
-Golden data prompts are evaluation inputs with an expected answer and source evidence. The active set is [`golden_dataset_v2_en.jsonl`](data/evaluation/golden_dataset_v2_en.jsonl): 34 English questions across all 17 files in the synthetic source pack, including table aggregation. Review its cases in the [human sign-off checklist](data/evaluation/golden_dataset_v2_en.md); the previous 30-case set remains archived as [`golden_dataset_v1.jsonl`](data/evaluation/golden_dataset_v1.jsonl). Negative abstention cases remain in [`abstention_holdout_v1.jsonl`](data/evaluation/abstention_holdout_v1.jsonl).
+[`golden_dataset_25_multilingual.csv`](data/evaluation/golden_dataset_25_multilingual.csv) contains 25 source-backed questions: 15 Vietnamese, 5 Japanese, and 5 English. It includes expected answers and blank fields for recorded answers, review checkboxes, and notes. The corpus is synthetic demo data, not official DENSO operational data.
 
 ### 2. The metrics
 
@@ -218,12 +228,12 @@ This project is licensed under the [Apache License 2.0](LICENSE).
 
 ### Baseline comparison
 
-Run both systems on the same corpus and golden dataset:
+Compare both systems on the same reviewed answerable question set:
 
 - **Naive baseline:** fixed-size chunking, dense-only retrieval, no cross-encoder reranking, and the same generation model where possible.
 - **FORGE:** Docling `HybridChunker`, hybrid dense and sparse retrieval, cross-encoder reranking, and the same generation model.
 
-The results dashboard should show measured values and the change from baseline. Until the experiment is run, use `TBD` rather than presenting sample numbers as results.
+The current abstention holdout cannot support this comparison. Use `TBD` until a reviewed answerable question set is available and the experiment is run.
 
 | Category | Metric | baseline | FORGE | Change |
 |---|---|---:|---:|---:|

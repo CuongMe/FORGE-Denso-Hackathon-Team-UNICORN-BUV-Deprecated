@@ -63,7 +63,7 @@ function RailFilters({ documents, active, onChange }: { documents: DocumentSumma
       {filters.map((filter) => {
         const count = filter === 'ALL' ? documents.length : documents.filter((document) => typeFor(document) === filter).length;
         return (
-          <button key={filter} type='button' className={'forge-rail-filter ' + (active === filter ? 'is-active' : '')} onClick={() => onChange(filter)}>
+          <button key={filter} type='button' className={'forge-rail-filter ' + (active === filter ? 'is-active' : '')} onClick={() => onChange(filter)} aria-pressed={active === filter}>
             <span className={'forge-file-type-dot ' + filter.toLowerCase()}>{filter === 'ALL' ? <FileIcon /> : filter === 'IMAGE' ? 'IMG' : filter}</span>
             {filter === 'ALL' ? t('documents.allSources') : filter === 'IMAGE' ? t('rail.images') : filter}<small>{count}</small>
           </button>
@@ -93,14 +93,14 @@ export function DocumentsRail({ documents, health, active, onChange }: { documen
   );
 }
 
-function Preview({ document, chunks, chunksLoading, chunksError, vercelDemo }: { document: DocumentSummary | null; chunks: DocumentChunkPreview[]; chunksLoading: boolean; chunksError: boolean; vercelDemo: boolean }) {
+function Preview({ document }: { document: DocumentSummary | null }) {
   const t = useTranslations();
   if (!document) return <aside className='forge-document-preview'><p className='forge-eyebrow'>{t('documents.preview')}</p><p className='forge-empty-copy'>{t('documents.selectSource')}</p></aside>;
   const type = typeFor(document);
   return (
     <aside className='forge-document-side'>
       <section className='forge-document-preview'>
-        <div className='forge-preview-heading'><div><p className='forge-eyebrow'>{vercelDemo ? t('documents.extractedText') : t('documents.preview')}</p><p className='forge-side-helper'>{vercelDemo ? t('documents.extractedHelper') : t('documents.previewHelper')}</p></div><span className='forge-side-pill'>{document.status.toUpperCase()}</span></div>
+        <div className='forge-preview-heading'><div><p className='forge-eyebrow'>{t('documents.preview')}</p><p className='forge-side-helper'>{t('documents.previewHelper')}</p></div><span className='forge-side-pill'>{document.status.toUpperCase()}</span></div>
         <div className='forge-current-reference forge-document-selected'>
           <p className='forge-eyebrow'>{t('documents.selected')}</p>
           <strong>{document.doc_id}</strong>
@@ -120,16 +120,6 @@ function Preview({ document, chunks, chunksLoading, chunksError, vercelDemo }: {
         </div>
         <small className='forge-side-helper'>{t('documents.healthHelper')}</small>
       </section>
-      {(chunks.length > 0 || chunksLoading || chunksError) && <section className='forge-document-preview'>
-        <p className='forge-eyebrow'>{t('documents.extractedText')}</p>
-        {chunksLoading && <p role='status'>{t('documents.loadingExtracted')}</p>}
-        {chunksError && <p role='alert'>{t('documents.extractedUnavailable')}</p>}
-        {chunks.map((chunk) => <article className='forge-current-reference' key={chunk.chunk_id}>
-          <strong>{chunk.region || chunk.chunk_id}</strong>
-          <span>{chunk.page == null ? chunk.region_type : `${t('ask.page', { value: chunk.page })} · ${chunk.region_type}`}</span>
-          <p>{chunk.content}</p>
-        </article>)}
-      </section>}
     </aside>
   );
 }
@@ -153,7 +143,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
   }, [documents, filter, search]);
   const selected = documents.find((document) => document.doc_id === selectedId) ?? filteredDocuments[0] ?? null;
   const selectedDocId = selected?.doc_id ?? null;
-  const shouldLoadChunks = vercelDemo || Boolean(demoDocument);
+  const shouldLoadChunks = Boolean(demoDocument);
 
   useEffect(() => {
     if (!shouldLoadChunks || !selectedDocId) return;
@@ -165,10 +155,6 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
     });
     return () => { active = false; };
   }, [selectedDocId, shouldLoadChunks]);
-
-  const demoChunks = demoChunksResult?.docId === selectedDocId ? demoChunksResult.chunks : [];
-  const demoChunksLoading = Boolean(vercelDemo && selectedDocId && demoChunksResult?.docId !== selectedDocId);
-  const demoChunksError = Boolean(vercelDemo && selectedDocId && demoChunksResult?.docId === selectedDocId && demoChunksResult.error);
 
   return (
     <div className='forge-workspace documents-workspace'>
@@ -201,7 +187,7 @@ export function DocumentsWorkspace({ documents, health, filter: controlledFilter
             </table>
           </div>
         </section>
-        <Preview document={selected} chunks={vercelDemo ? demoChunks : []} chunksLoading={vercelDemo && demoChunksLoading} chunksError={vercelDemo && demoChunksError} vercelDemo={vercelDemo} />
+        <Preview document={selected} />
       </div>
       {demoDocument && <DemoDocumentModal document={demoDocument} chunks={demoChunksResult?.docId === demoDocument.doc_id ? demoChunksResult.chunks : []} loading={demoChunksResult?.docId !== demoDocument.doc_id} error={demoChunksResult?.docId === demoDocument.doc_id && demoChunksResult.error} vercelDemo={vercelDemo} onClose={() => setDemoDocument(null)} />}
       {rawDocument && <RawDocumentModal document={rawDocument} vercelDemo={vercelDemo} onClose={() => setRawDocument(null)} />}

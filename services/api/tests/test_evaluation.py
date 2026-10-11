@@ -21,7 +21,12 @@ def response(*, abstained=False):
 
 
 def test_scoring_uses_source_page_and_honest_lexical_proxy():
-    case = load_cases('golden')[0]
+    case = {
+        'answerable': True,
+        'gold_evidence': [{'doc_id': 'WI-ASSY-001', 'page': 1}],
+        'reference_answer': 'Use fixture F-ECU-03 and barcode scanner SC-09.',
+        'required_facts': [],
+    }
     scores = score_case(case, response())
     assert scores['source_recall'] == 1
     assert scores['source_precision'] == .5
@@ -64,13 +69,13 @@ def test_routes_persist_runs_failures_and_exportable_details(tmp_path):
     app.include_router(evaluation_router(lambda: store, execute, lambda: {'model': 'test'}))
     with TestClient(app) as client:
         assert client.get('/api/metrics').json()['total_queries'] == 0
-        mixed = client.get('/api/evaluations/datasets').json()['data'][2]
-        assert mixed['count'] == 38
-        assert mixed['signed_off'] == 0
-        assert mixed['pending_review'] == 38
+        holdout = client.get('/api/evaluations/datasets').json()['data'][0]
+        assert holdout['id'] == 'abstention'
+        assert holdout['count'] == 4
+        assert holdout['answerable'] == 0
         assert client.post('/api/evaluations', json={'dataset': '../secret', 'limit': 2}).status_code == 422
-        assert client.post('/api/evaluations', json={'limit': 39}).status_code == 422
-        started = client.post('/api/evaluations', json={'dataset': 'all', 'limit': 2})
+        assert client.post('/api/evaluations', json={'limit': 5}).status_code == 422
+        started = client.post('/api/evaluations', json={'dataset': 'abstention', 'limit': 2})
         assert started.status_code == 202
         assert started.json()['status'] == 'queued'
         assert EvaluationWorker(store, execute, poll_interval=.01).run_once() is True
@@ -94,7 +99,7 @@ def test_durable_queue_uses_exclusive_leases_and_recovers_expired_work(tmp_path)
     run = {
         'run_id': 'one',
         'status': 'queued',
-        'dataset': 'golden',
+        'dataset': 'abstention',
         'total': 1,
         'queued_at': '2026-01-01T00:00:00+00:00',
         'started_at': None,
@@ -102,7 +107,7 @@ def test_durable_queue_uses_exclusive_leases_and_recovers_expired_work(tmp_path)
         'results': [],
         'summary': summarize([]),
     }
-    store.enqueue(run, load_cases('golden')[:1])
+    store.enqueue(run, load_cases('abstention')[:1])
 
     claimed = store.claim_next('worker-a', lease_seconds=60)
     assert claimed is not None

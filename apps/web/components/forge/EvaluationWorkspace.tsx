@@ -7,7 +7,7 @@ import type { EvaluationDataset, EvaluationRun, HealthResponse, QueryMetrics } f
 import { vercelDemoLimits } from '@/lib/vercel-demo-config';
 import styles from './EvaluationWorkspace.module.css';
 
-const datasetLabels = { all: 'eval.mixedBenchmark', golden: 'eval.goldenDataset', abstention: 'eval.abstentionHoldout' } as const;
+const datasetLabels = { all: 'eval.archivedRun', golden: 'eval.archivedRun', abstention: 'eval.abstentionHoldout' } as const;
 const percent = (value: number | null | undefined) => value == null ? '—' : (value * 100).toFixed(1) + '%';
 const duration = (value: number | null | undefined) => value == null ? '—' : (value / 1000).toFixed(2) + ' s';
 const tokens = (value: number | null | undefined) => value == null ? '—' : new Intl.NumberFormat().format(value);
@@ -35,9 +35,9 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
   const t = useTranslations();
   const [metrics, setMetrics] = useState<QueryMetrics | null>(null);
   const [runs, setRuns] = useState<EvaluationRun[]>([]);
-  const [datasets, setDatasets] = useState<{ id: EvaluationDataset; count: number; answerable: number; signed_off: number; pending_review: number }[]>([]);
-  const [dataset, setDataset] = useState<EvaluationDataset>('all');
-  const [limit, setLimit] = useState(5);
+  const [datasets, setDatasets] = useState<{ id: EvaluationDataset; count: number; answerable: number }[]>([]);
+  const dataset: EvaluationDataset = 'abstention';
+  const [limit, setLimit] = useState(4);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [run, setRun] = useState<EvaluationRun | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,11 +160,10 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
       </section>
       {vercelDemo && <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>}
     </> : <>
-      <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.runBenchmark')}</h2><span>{t('eval.availableCases', { count: datasets.find(item => item.id === 'all')?.count ?? '—' })}</span></div>
-        <div className={styles.reviewStatus}><strong>{datasets.find(item => item.id === 'all')?.signed_off ?? 0} / {datasets.find(item => item.id === 'all')?.count ?? 38}</strong><span>{t('eval.humanSigned')}</span><small>{datasets.find(item => item.id === 'all')?.pending_review ?? 38} {t('eval.awaitingReview')}</small></div>
+      <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.runBenchmark')}</h2><span>{t('eval.availableCases', { count: available })}</span></div>
         <div className={styles.controls}>
-          <label htmlFor='evaluation-dataset'><span>{t('eval.dataset')}</span><select id='evaluation-dataset' aria-label={t('eval.dataset')} value={dataset} onChange={event => { const next = event.target.value as EvaluationDataset; setDataset(next); setLimit(Math.min(limit, datasets.find(item => item.id === next)?.count ?? 5)); }}>{datasets.map(item => <option key={item.id} value={item.id}>{t(datasetLabels[item.id])} · {t('eval.cases', { count: item.count })}</option>)}</select></label>
-          <label>{t('eval.caseLimit')}<input type='number' min={1} max={available || 38} value={limit} onChange={event => setLimit(Number(event.target.value))} /></label>
+          <span>{t(datasetLabels.abstention)} · {t('eval.cases', { count: available })}</span>
+          <label>{t('eval.caseLimit')}<input type='number' min={1} max={available} value={limit} onChange={event => setLimit(Number(event.target.value))} /></label>
           <button className={styles.primary} disabled={busy || running || !available || !Number.isInteger(limit) || limit < 1 || limit > available} onClick={() => void launch()}>{busy ? t('eval.starting') : running ? t('eval.runProgress') : t('eval.runEvaluation')}</button>
         </div><p className={styles.note}>{t('eval.runNote')}</p>
       </section>

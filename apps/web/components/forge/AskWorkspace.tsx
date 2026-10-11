@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { useTranslations } from 'next-intl';
 
 import { getDocumentChunks, getDocumentPreviewUrl, getDocumentRawUrl } from '@/lib/api';
+import type { ChatHistoryEntry } from '@/lib/chat-history';
 import documentPreviews from '@/data/document-previews.json';
 import type { DocumentChunkPreview, DocumentSummary, HealthResponse, IngestionJob, QueryResponse } from '@/lib/types';
 
@@ -30,6 +31,10 @@ type AskWorkspaceProps = {
   health: HealthResponse | null;
   documents: DocumentSummary[];
   messages: AskMessage[];
+  history: ChatHistoryEntry[];
+  activeChatId: string | null;
+  onRestoreChat: (entry: ChatHistoryEntry) => void;
+  onClearHistory: () => void;
   question: string;
   referencedDocument: DocumentSummary | null;
   isLoading: boolean;
@@ -94,6 +99,10 @@ export function AskWorkspace({
   health,
   documents,
   messages,
+  history,
+  activeChatId,
+  onRestoreChat,
+  onClearHistory,
   question,
   referencedDocument,
   isLoading,
@@ -220,6 +229,20 @@ export function AskWorkspace({
               factory_topic: document?.factory_topic ?? candidate.region,
             } });
           }} /> : <section className="forge-side-card forge-trace-card"><p className="forge-eyebrow">{t('ask.retrievalTrace')}</p><p className="forge-trace-flow">{t('ask.traceFlow')}</p><p className="forge-side-helper">{t('ask.traceHelper')}</p></section>}
+          <section className="forge-side-card forge-history-card" aria-labelledby="chat-history-heading">
+            <div className="forge-history-heading">
+              <h2 id="chat-history-heading">{t('ask.history')}</h2>
+              {history.length > 0 && <button type="button" className="forge-history-clear" onClick={onClearHistory} disabled={isLoading || hasPendingUpload}>{t('ask.clearHistory')}</button>}
+            </div>
+            {history.length > 0 ? <ol className="forge-history-list">
+              {history.map((entry) => <li key={entry.id}>
+                <button type="button" className={'forge-history-item' + (entry.id === activeChatId ? ' is-active' : '')} onClick={() => onRestoreChat(entry)} disabled={isLoading || hasPendingUpload} aria-pressed={entry.id === activeChatId}>
+                  <strong>{entry.title}</strong>
+                  <time dateTime={entry.updatedAt}>{new Date(entry.updatedAt).toLocaleString()}</time>
+                </button>
+              </li>)}
+            </ol> : <p className="forge-history-empty">{t('ask.historyEmpty')}</p>}
+          </section>
         </aside>
       </div>
       {sourceViewer && <PinnedSourceModal viewer={sourceViewer} vercelDemo={vercelDemo} onClose={() => setSourceViewer(null)} />}
