@@ -1,4 +1,22 @@
 .workspace { padding: 34px clamp(18px, 3vw, 46px) 64px; max-width: 1600px; margin: auto; }
+.metricsWorkspace .heading { flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 0; margin-bottom: 12px; }
+.metricsHeading .badge { display: none; }
+.metricsLayout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, 0.28fr); gap: 18px; align-items: stretch; }
+.metricsMain { min-width: 0; }
+.metricsMain .charts { margin: 0 0 14px; }
+.metricsMain .stats { margin: 0 0 14px; }
+.metricsMain > .panel { margin: 14px 0; }
+.warningLog { min-width: 0; min-height: 540px; margin: 0 0 14px; border: 3px solid var(--forge-blue); background: var(--forge-surface); color: var(--forge-ink); }
+.warningLog > header { display: flex; align-items: center; justify-content: center; position: relative; padding: 14px; border-bottom: 3px solid #d6e1eb; background: var(--forge-blue); color: var(--forge-accent); }
+.warningLog > header h2 { margin: 0; color: inherit; font-size: 15px; text-align: center; }
+.warningLog > header > span { position: absolute; right: 14px; font-size: 11px; }
+.warningLog ol { list-style: none; margin: 0; padding: 0; }
+.warningLog li { display: grid; gap: 7px; padding: 14px; border-bottom: 1px solid var(--forge-line); font-size: 11px; }
+.warningLog li time, .warningLog li > span { color: var(--forge-muted); }
+.warningLog li > strong { width: fit-content; padding: 4px 7px; border-radius: 5px; font-size: 10px; }
+.warningFailed { color: var(--forge-red); background: #fff0f3; }
+.warningAbstained { color: var(--forge-warning); background: #fff6e8; }
+.warningEmpty { margin: 0; padding: 22px 14px; color: var(--forge-muted); font-size: 12px; line-height: 1.6; text-align: center; }
 .heading, .panelHeading, .runHeading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .heading { margin-bottom: 28px; }
 .heading h1 { font-size: clamp(24px, 2.4vw, 34px); letter-spacing: -.045em; line-height: 1.18; margin: 12px 0; color: var(--forge-ink); }
@@ -37,4 +55,5 @@
 .case { border-top: 1px solid var(--forge-line); }.case summary { display: flex; align-items: center; gap: 14px; padding: 17px 0; cursor: pointer; font-size: 12px; }.case summary > span:nth-child(2) { flex: 1; }.caseId { color: #eaf5ff; font-size: 10px; font-family: monospace; }.caseBody { padding: 0 0 20px; }.answers { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 14px; }.answers > div { padding: 18px; background: var(--forge-bg); color: var(--forge-ink); border-radius: 10px; }.answers h3 { font-size: 11px; color: var(--forge-muted); margin: 0 0 10px; }.answers p, .case blockquote { font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }.case blockquote { border-left: 3px solid var(--forge-green); margin: 14px 0 0; padding: 6px 16px; background: var(--forge-green-soft); color: var(--forge-ink); }.good { color: var(--forge-accent); font-size: 10px; }.warning { color: #f5ca71; font-size: 10px; }
 .config { overflow: auto; font-size: 11px; line-height: 1.7; max-height: 300px; }.panel > summary { font-size: 12px; cursor: pointer; }.railNote { padding: 18px 0; border-bottom: 1px solid var(--forge-line); }.railNote strong { color: var(--forge-green); font-size: 11px; }.railNote p { font-size: 12px; line-height: 1.7; color: var(--forge-muted); margin-bottom: 0; }
 @media (max-width: 1100px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }.heading { align-items: start; }.badge { display: none; } }
+@media (max-width: 1050px) { .metricsLayout { grid-template-columns: minmax(0, 1fr); }.warningLog { min-height: 0; } }
 @media (max-width: 640px) { .signals, .answers { grid-template-columns: 1fr; }.stats { gap: 8px; }.stat { padding: 15px; }.panel { padding: 16px; }.panelHeading { align-items: start; flex-direction: column; gap: 8px; }.case summary { flex-wrap: wrap; }.comparison > div { grid-template-columns: 100px 1fr 40px; gap: 8px; } }

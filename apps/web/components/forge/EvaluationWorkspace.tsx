@@ -129,6 +129,7 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
   const available = datasets.find(item => item.id === dataset)?.count ?? 0;
   const running = runs.some(item => item.status === 'queued' || item.status === 'running') || run?.status === 'queued' || run?.status === 'running';
   const summary = run?.summary;
+  const warnings = metrics?.recent.filter(item => !item.succeeded || item.abstained) ?? [];
 
   async function launch() {
     setBusy(true); setError(null);
@@ -156,11 +157,13 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
     setRefresh(value => value + 1);
   }
 
-  return <div className={styles.workspace}>
-    <header className={styles.heading}><div><p className='forge-eyebrow'>{t('eval.qualityPerformance')}</p>
-      <h1>{mode === 'metrics' ? t('eval.metricsTitle') : t('eval.evaluationTitle')}</h1>
-      <p>{vercelDemo ? t('eval.demoHelper') : mode === 'metrics' ? t('eval.metricsHelper') : t('eval.evaluationHelper')}</p>
-    </div><span className={styles.badge}>{vercelDemo ? t('eval.demoSnapshot') : running ? t('eval.inProgress') : t('eval.qualityLabBadge')}</span></header>
+  const heading = <header className={`${styles.heading} ${mode === 'metrics' ? styles.metricsHeading : ''}`}><div><p className='forge-eyebrow'>{t('eval.qualityPerformance')}</p>
+    <h1>{mode === 'metrics' ? t('eval.metricsTitle') : t('eval.evaluationTitle')}</h1>
+    <p>{vercelDemo ? t('eval.demoHelper') : mode === 'metrics' ? t('eval.metricsHelper') : t('eval.evaluationHelper')}</p>
+  </div><span className={styles.badge}>{vercelDemo ? t('eval.demoSnapshot') : running ? t('eval.inProgress') : t('eval.qualityLabBadge')}</span></header>;
+
+  return <div className={`${styles.workspace} ${mode === 'metrics' ? styles.metricsWorkspace : ''}`}>
+    {mode !== 'metrics' && heading}
 
     {!vercelDemo && <details className={styles.access}><summary>{t('eval.protectedAccess')}</summary><form onSubmit={unlock}><label htmlFor='forge-admin-key'>{t('eval.adminKey')}</label><input id='forge-admin-key' type='password' autoComplete='off' value={accessKey} onChange={event => setAccessKey(event.target.value)} placeholder={t('eval.optionalDemo')} /><button type='submit'>{t('eval.applyKey')}</button></form><p>{t('eval.keyMemory')}</p></details>}
 
@@ -175,26 +178,37 @@ export function EvaluationWorkspace({ mode, vercelDemo = false, health }: { mode
         <Stat label={t('eval.demoDailyCap')} value={String(vercelDemoLimits.perDay)} hint={t('eval.demoDayHint')} />
       </div>
       <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>
-    </> : mode === 'metrics' ? <>
-      <MetricCharts metrics={metrics} />
-      <div className={styles.stats}>
-        <Stat label={t('eval.totalQueries')} value={metrics ? String(metrics.total_queries) : '—'} hint={t('eval.persistedAsk')} />
-        <Stat label={t('eval.successRate')} value={percent(metrics?.success_rate)} hint={t('eval.completedNoErrors')} />
-        <Stat label={t('eval.p50')} value={duration(metrics?.p50_latency_ms)} hint={t('eval.medianDuration')} />
-        <Stat label={t('eval.p95')} value={duration(metrics?.p95_latency_ms)} hint={t('eval.failedDuration')} />
-      </div>
-      <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.responseSignals')}</h2><span>{t('eval.lastRequests', { count: metrics?.window_size ?? 0, days: metrics?.retention_days ?? '—' })}</span></div>
-        <div className={styles.signals}>
-          <div><span>{t('eval.citationCoverage')}</span><strong>{percent(metrics?.citation_rate)}</strong><p>{t('eval.citationCoverageText')}</p></div>
-          <div><span>{t('eval.abstention')}</span><strong>{percent(metrics?.abstention_rate)}</strong><p>{t('eval.abstentionText')}</p></div>
-          <div><span>{t('eval.geminiCost')}</span><strong>{tokens(metrics?.total_tokens)} · {cost(metrics?.estimated_cost_usd)}</strong><p>{t('eval.tokenText', { input: tokens(metrics?.prompt_tokens), output: tokens(metrics?.completion_tokens) })}</p></div>
+    </> : mode === 'metrics' ? <div className={styles.metricsLayout}>
+      <main className={styles.metricsMain}>
+        {heading}
+        <div className={styles.stats}>
+          <Stat label={t('eval.totalQueries')} value={metrics ? String(metrics.total_queries) : '—'} hint={t('eval.persistedAsk')} />
+          <Stat label={t('eval.successRate')} value={percent(metrics?.success_rate)} hint={t('eval.completedNoErrors')} />
+          <Stat label={t('eval.p50')} value={duration(metrics?.p50_latency_ms)} hint={t('eval.medianDuration')} />
+          <Stat label={t('eval.p95')} value={duration(metrics?.p95_latency_ms)} hint={t('eval.failedDuration')} />
         </div>
-      </section>
-      <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.recentRequests')}</h2><span>{t('eval.evaluationExcluded')}</span></div>
-        {metrics?.recent.length ? <div className={styles.scroll}><table><thead><tr><th>{t('eval.time')}</th><th>{t('eval.result')}</th><th>{t('eval.duration')}</th><th>{t('eval.citations')}</th><th>{t('eval.tokens')}</th><th>{t('eval.estimatedCost')}</th></tr></thead><tbody>{metrics.recent.slice(0, 20).map(item => <tr key={item.id}><td>{new Date(item.created_at).toLocaleString()}</td><td>{item.succeeded ? (item.abstained ? t('eval.noAnswer') : t('eval.answered')) : t('eval.failed')}</td><td>{duration(item.latency_ms)}</td><td>{item.citations}</td><td>{tokens(item.total_tokens)}</td><td>{cost(item.estimated_cost_usd)}</td></tr>)}</tbody></table></div> : <div className={styles.empty}><strong>{t('eval.firstQuery')}</strong><p>{t('eval.firstQueryText')}</p></div>}
-      </section>
-      {vercelDemo && <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>}
-    </> : <>
+        <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.responseSignals')}</h2><span>{t('eval.lastRequests', { count: metrics?.window_size ?? 0, days: metrics?.retention_days ?? '—' })}</span></div>
+          <div className={styles.signals}>
+            <div><span>{t('eval.citationCoverage')}</span><strong>{percent(metrics?.citation_rate)}</strong><p>{t('eval.citationCoverageText')}</p></div>
+            <div><span>{t('eval.abstention')}</span><strong>{percent(metrics?.abstention_rate)}</strong><p>{t('eval.abstentionText')}</p></div>
+            <div><span>{t('eval.geminiCost')}</span><strong>{tokens(metrics?.total_tokens)} · {cost(metrics?.estimated_cost_usd)}</strong><p>{t('eval.tokenText', { input: tokens(metrics?.prompt_tokens), output: tokens(metrics?.completion_tokens) })}</p></div>
+          </div>
+        </section>
+        <MetricCharts metrics={metrics} />
+        <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.recentRequests')}</h2><span>{t('eval.evaluationExcluded')}</span></div>
+          {metrics?.recent.length ? <div className={styles.scroll}><table><thead><tr><th>{t('eval.time')}</th><th>{t('eval.result')}</th><th>{t('eval.duration')}</th><th>{t('eval.citations')}</th><th>{t('eval.tokens')}</th><th>{t('eval.estimatedCost')}</th></tr></thead><tbody>{metrics.recent.slice(0, 20).map(item => <tr key={item.id}><td>{new Date(item.created_at).toLocaleString()}</td><td>{item.succeeded ? (item.abstained ? t('eval.noAnswer') : t('eval.answered')) : t('eval.failed')}</td><td>{duration(item.latency_ms)}</td><td>{item.citations}</td><td>{tokens(item.total_tokens)}</td><td>{cost(item.estimated_cost_usd)}</td></tr>)}</tbody></table></div> : <div className={styles.empty}><strong>{t('eval.firstQuery')}</strong><p>{t('eval.firstQueryText')}</p></div>}
+        </section>
+        {vercelDemo && <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.demoQualityTitle')}</h2></div><p className={styles.note}>{t('eval.demoMetricsNote')}</p></section>}
+      </main>
+      <aside className={styles.warningLog} aria-labelledby='warning-log-title'>
+        <header><h2 id='warning-log-title'>{t('eval.warningLog')}</h2><span>{warnings.length}</span></header>
+        {warnings.length ? <ol>{warnings.slice(0, 20).map(item => <li key={item.id}>
+          <strong className={item.succeeded ? styles.warningAbstained : styles.warningFailed}>{item.succeeded ? t('eval.noAnswer') : t('eval.failed')}</strong>
+          <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleString()}</time>
+          <span>{duration(item.latency_ms)}</span>
+        </li>)}</ol> : <p role='status' className={styles.warningEmpty}>{metrics ? t('eval.noWarnings') : error ?? t('eval.loading')}</p>}
+      </aside>
+    </div> : <>
       <section className={styles.panel}><div className={styles.panelHeading}><h2>{t('eval.runBenchmark')}</h2><span>{t('eval.availableCases', { count: available })}</span></div>
         <div className={styles.controls}>
           <span>{t(datasetLabels.abstention)} · {t('eval.cases', { count: available })}</span>
