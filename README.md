@@ -208,16 +208,17 @@ Each run records the corpus, parser, chunker, embedding model, reranker, LLM, pr
 
 #### Cost accounting
 
-| Cost item | Estimate (USD) | Assumption |
-|---|---:|---|
-| Self-hosted software and models | $0 license fees | Next.js, FastAPI, Docling, Florence-2, BGE-M3, Qdrant, reranker, and local database; excludes hardware and electricity. |
-| Gemini 3.5 Flash-Lite | $0.30 / 1M input tokens; $2.50 / 1M output tokens | At 2,000 input + 500 output tokens per query: about $0.00185/query or $18.50 per 10,000 queries. |
-| Vercel Pro | $20 / user / month | Hobby is $0 but restricted to personal, non-commercial use. |
-| Upstash Redis | $0 up to 500K commands/month; then $0.20 / 100K commands | Free tier has data-size and bandwidth limits. |
-| Optional cloud VM | About $97.84 / month | One Google Cloud e2-standard-4 in Singapore, running 730 hours; disk, network, and tax excluded. |
-| Example hosted setup | About $136.34 / month | One Vercel Pro seat + VM + 10,000 Gemini queries, assuming Upstash stays within its free tier. |
+**Self-hosted estimate (USD), assuming an existing factory server:**
 
-For fully offline deployment, omit Vercel, Upstash, and Gemini; budget for the factory server and electricity instead. Prices checked 13 October 2026; verify provider rates before deployment. [Gemini](https://ai.google.dev/gemini-api/docs/pricing) · [Vercel](https://vercel.com/pricing) · [Upstash](https://upstash.com/pricing/redis) · [Google Cloud](https://cloud.google.com/products/compute/pricing/general-purpose).
+| Cost item | Estimate | Assumption |
+|---|---:|---|
+| Software and model licences | $0 | Self-hosted/open-source components; hardware and support excluded. |
+| Local ingestion and retrieval | $0 per document/query in API fees | Runs on factory hardware; CPU/GPU use is not free. |
+| Server hardware | $0 incremental if already available; otherwise quote required | No server/GPU specification was provided to estimate purchase cost. |
+| Electricity example | About $36.50/month | 500 W average × 730 hours × $0.10/kWh; replace with measured draw and the factory tariff. |
+| Fully local answer generation | Not supported by the current backend | Answer generation currently requires the Gemini API; an on-prem LLM must be integrated before the system can run fully offline. |
+
+With existing hardware, budget for electricity and any hardware amortization; the software licence cost is $0.
 
 ### License
 
