@@ -251,7 +251,11 @@ The current abstention holdout cannot support this comparison. Use `TBD` until a
 | **Done** | Built the pilot API and web interface for document ingestion, browsing, and question answering. |
 | **Done** | Added layout-aware, multimodal document processing and multilingual retrieval for English, Japanese, and Vietnamese. |
 | **Done** | Implemented hybrid retrieval, reranking, source citations, and abstention when evidence is insufficient. |
-| **Done** | Prepared the 25-question golden dataset, curated test data, and synthetic factory document pack. |
-| **Next** | Complete human review and run the golden dataset; publish measured retrieval and answer-quality results. |
-| **Next** | Benchmark p50/p95 latency and throughput on the intended offline hardware at realistic corpus sizes. |
-| **Next** | Validate the DENSO pilot and finalize production needs such as access control, monitoring, backups, and deployment procedures. |
+| **Next** | Complete the backend pipeline and integrate it with the frontend before pilot testing. |
+| **Next** | Fine-tune Florence-2: prepare the dataset, run two LoRA training rounds, and export the model. |
+| **Next** | Optimize the system with payload indexing, HNSW tuning, and monitoring. |
+| **Next** | Evaluate p50/p95 latency, faithfulness, context recall, and IoU for visual grounding. |
+| **Next** | Explore semantic caching and quantization, and add regression tests. Run this work in parallel so it does not delay the pilot. |
+| **Next** | Run the pilot and finalize the results. |
+| **Next** | Benchmark p50/p95 latency and throughput on the intended offline hardware using realistic data sizes. |
+| **Next** | Validate the DENSO pilot and finalize production requirements, including access control, monitoring, backups, and deployment procedures. |
