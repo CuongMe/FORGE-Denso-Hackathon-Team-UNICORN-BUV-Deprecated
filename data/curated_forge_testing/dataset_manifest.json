@@ -1,32 +1,93 @@
 {
   "name": "FORGE testing dataset",
-  "version": "v1",
-  "purpose": "Repeatable functionality testing for FORGE ingestion, multimodal retrieval, and grounded answering. This is not a production corpus.",
-  "redistribution": "JA-Business-Doc-RQ-Bench files are Apache-2.0 and included with attribution. VIXIO images and masks are local-only until redistribution terms are confirmed.",
+  "version": "v3",
+  "purpose": "Repeatable testing of FORGE ingestion, multimodal retrieval, image segmentation, and grounded answering. This is not a production corpus.",
+  "redistribution": "JA-Business-Doc-RQ-Bench is Apache-2.0. The Screw Dataset is CC-BY-4.0; attribute shrish23 and link to the Hugging Face source.",
   "contents": {
     "included_ja_business_doc_rq_bench_images": 30,
-    "local_only_vixio_metal_nut_images": 30,
-    "local_only_vixio_ground_truth_images": 18
+    "screw_dataset_images": 30,
+    "screw_dataset_masks": 30
   },
   "curation": {
     "ja_business_doc_rq_bench": {
       "provider": "Hugging Face",
       "source_url": "https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench",
-      "selected_types": {"Chart": 8, "Table": 8, "Diagram": 7, "Document": 7},
+      "selected_types": {
+        "Chart": 8,
+        "Table": 8,
+        "Diagram": 7,
+        "Document": 7
+      },
       "ground_truth": "The source metadata includes one question, expected answer, answer type, and reasoning-step count for each selected image.",
       "files": "images/ja_business_doc_rq_bench/",
       "metadata": "ground_truth/ja_business_doc_rq_bench_metadata.jsonl",
       "license": "Apache-2.0 per source README; retain source attribution."
     },
-    "vixio_metal_nut": {
-      "provider": "Mitsubishi Electric VIXIO sample archive",
-      "source_url": "https://www.mitsubishielectric.com/fa/download/software/detailsearch.page?mode=lib&kisyu=/vixio&shiryoid=1000000933&lang=2&select=0&softid=3&infostatus=2_2_2&viewradio=0&viewstatus=&viewpos=",
-      "local_archive": "data/vixiosample_a.zip",
-      "selection": {"good": 12, "color_defect": 6, "reverse_defect": 6, "scratches_defect": 6},
-      "ground_truth": "18 paired ground-truth mask images are included for color, reverse, and scratches defects. Good samples have no paired mask in the archive.",
-      "files": "images/vixio_metal_nut/",
-      "ground_truth_files": "ground_truth/vixio_metal_nut/",
-      "license": "Not recorded in the project. Verify Mitsubishi Electric sample-archive terms before redistribution."
+    "screw_dataset": {
+      "provider": "Hugging Face",
+      "source_url": "https://huggingface.co/datasets/shrish23/screw-dataset",
+      "selection": {
+        "method": "Five lowest-numbered image IDs per class",
+        "sample_size": 30,
+        "samples_per_class": 5,
+        "class_counts": {
+          "good": 5,
+          "manipulated_front": 5,
+          "scratch_head": 5,
+          "scratch_neck": 5,
+          "thread_side": 5,
+          "thread_top": 5
+        },
+        "selected_image_ids": {
+          "good": [
+            119,
+            120,
+            121,
+            122,
+            123
+          ],
+          "manipulated_front": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "scratch_head": [
+            24,
+            25,
+            26,
+            27,
+            28
+          ],
+          "scratch_neck": [
+            48,
+            49,
+            50,
+            51,
+            52
+          ],
+          "thread_side": [
+            73,
+            74,
+            75,
+            76,
+            77
+          ],
+          "thread_top": [
+            96,
+            97,
+            98,
+            99,
+            100
+          ]
+        }
+      },
+      "ground_truth": "One paired PNG segmentation mask for each of the 30 screw images across six classes.",
+      "files": "images/screw_dataset/",
+      "ground_truth_files": "ground_truth/screw_dataset/",
+      "annotations": "ground_truth/screw_dataset/dataset.csv",
+      "license": "CC-BY-4.0 per dataset.yaml; attribute shrish23 and retain source link."
     }
   }
 }

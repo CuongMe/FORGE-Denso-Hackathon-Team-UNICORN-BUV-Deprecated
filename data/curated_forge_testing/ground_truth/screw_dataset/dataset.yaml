@@ -1,0 +1,8 @@
+---
+tags:
+  - image-segmentation
+  - screws
+license: "cc-by-4.0"
+datasets:
+  - name: screw-dataset
+    description: "Image segmentation dataset of screws with various classes."

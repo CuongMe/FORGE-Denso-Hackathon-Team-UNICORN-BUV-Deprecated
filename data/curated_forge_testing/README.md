@@ -1,16 +1,10 @@
-# FORGE testing dataset
+# FORGE curated test data
 
-This folder is the small, repeatable test pack for FORGE functionality checks. It is intentionally separate from the AI-generated demo data and from the evaluation prompts.
+This folder contains two external datasets used for repeatable ingestion and multimodal retrieval tests. The AI-generated factory pack and golden evaluation questions are maintained separately.
 
-## Layout
+## Included datasets
 
-- `images/ja_business_doc_rq_bench/` — 30 Japanese chart, table, diagram, and document images, licensed under Apache-2.0 by the source dataset.
-- `ground_truth/ja_business_doc_rq_bench_metadata.jsonl` — source questions and expected answers for those images.
-- `images/vixio_metal_nut/` and `ground_truth/vixio_metal_nut/` — local-only files; not included in Git while redistribution terms remain unverified.
-- `ground_truth/` — source metadata for the selected JA benchmark images.
+- **JA-Business-Doc-RQ-Bench:** 30 selected Japanese chart, table, diagram, and document images, with source questions and answers in `ground_truth/ja_business_doc_rq_bench_metadata.jsonl`. [Source dataset](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench), licensed under Apache-2.0.
+- **Screw Dataset:** 30 images and 30 paired segmentation masks, with five samples from each of six classes. Images are under `images/screw_dataset/`; masks and annotations are under `ground_truth/screw_dataset/`. [Source dataset](https://huggingface.co/datasets/shrish23/screw-dataset), licensed CC BY 4.0; attribution to shrish23 is required.
 
-The JA benchmark provides image-level question/answer ground truth. Local VIXIO samples include paired defect masks for three defect classes; those files stay out of the public repository until redistribution terms are confirmed.
-
-## Redistribution and licensing
-
-Source records preserve provenance and known licensing status. The Apache-2.0 JA benchmark files are included with attribution. VIXIO images and masks stay local until their redistribution terms are confirmed.
+VIXIO was dropped because its samples are not licensed for open distribution.
