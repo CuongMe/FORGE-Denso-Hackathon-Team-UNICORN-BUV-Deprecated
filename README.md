@@ -248,9 +248,9 @@ The current abstention holdout cannot support this comparison. Use `TBD` until a
 
 | Status | Work |
 |---|---|
-| **Done** | Built the pilot API and web interface for document ingestion, browsing, and question answering. |
-| **Done** | Added layout-aware, multimodal document processing and multilingual retrieval for English, Japanese, and Vietnamese. |
-| **Done** | Implemented hybrid retrieval, reranking, source citations, and abstention when evidence is insufficient. |
+| **Done ✓** | Built the pilot API and web interface for document ingestion, browsing, and question answering. |
+| **Done ✓** | Added layout-aware, multimodal document processing and multilingual retrieval for English, Japanese, and Vietnamese. |
+| **Done ✓** | Implemented hybrid retrieval, reranking, source citations, and abstention when evidence is insufficient. |
 | **Next** | Complete the backend pipeline and integrate it with the frontend before pilot testing. |
 | **Next** | Fine-tune Florence-2: prepare the dataset, run two LoRA training rounds, and export the model. |
 | **Next** | Optimize the system with payload indexing, HNSW tuning, and monitoring. |
