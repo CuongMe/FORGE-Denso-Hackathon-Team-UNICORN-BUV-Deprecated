@@ -28,7 +28,7 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 All team members contributed significantly to this project*
 ## Pain point
 
-Factory operations knowledge is often spread across PDFs, scanned images, tables, and bilingual documents. Each format can require different preprocessing, including OCR, layout reconstruction, table extraction, and language handling, before an AI system can search and use the content. When that work is manual or inconsistent, valuable information takes longer to access and chatbot answers can miss or misread important context. This makes it difficult to build one dependable retrieval workflow for the documents teams already use.
+Factory teams often spend too long gathering information across departments. Relevant details are scattered across PDFs, Word and Excel files, and scanned documents, with tables and images embedded inside them. Vietnamese, English, and Japanese content can also be difficult to compare, making it easier to miss information or lose context when answering a question.
 
 ## Unique selling point
 
