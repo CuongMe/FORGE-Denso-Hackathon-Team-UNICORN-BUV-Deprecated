@@ -69,10 +69,6 @@ The market is crowded at the generic RAG layer. FORGE should therefore be positi
 
 ### Related research
 
-- [Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks](https://arxiv.org/abs/2005.11401) established the core pattern of grounding generation with retrieved external knowledge.
-- [BGE-M3](https://arxiv.org/abs/2402.03216) supports multilingual dense, sparse, and multi-vector retrieval, which aligns with FORGE's Vietnamese/Japanese retrieval requirement.
-- [DocVQA](https://arxiv.org/abs/2007.00398) shows that document question answering depends on structure, layout, and reading comprehension—not OCR alone.
-- [MMDocRAG](https://arxiv.org/abs/2505.16470) finds that multimodal document QA still struggles with cross-modal evidence retrieval, supporting FORGE's emphasis on visual evidence and explicit evaluation.
 - **10. Lewis et al. (2020) — RAG, NeurIPS:** [paper](https://proceedings.neurips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html)
 - **11. Es et al. (2024) — RAGAS, EACL:** [paper](https://aclanthology.org/2024.eacl-demo.16/)
 
