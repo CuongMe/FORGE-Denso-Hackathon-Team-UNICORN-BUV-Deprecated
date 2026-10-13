@@ -51,8 +51,10 @@ The project uses three datasets: a multilingual golden set, curated external tes
 | Dataset | Contents and purpose |
 |---|---|
 | **Golden dataset** | [`golden_dataset_25_multilingual.csv`](data/evaluation/golden_dataset_25_multilingual.csv): 25 factory questions with expected answers (15 Vietnamese, 5 Japanese, 5 English), ready for recording answers and review. |
-| **Curated data** | [Dataset notes and included files](data/curated_forge_testing/README.md): 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A metadata. VIXIO samples remain local until redistribution terms are confirmed. |
+| **Curated data** | 30 [JA-Business-Doc-RQ-Bench](https://huggingface.co/datasets/stockmark/JA-Business-Doc-RQ-Bench) images with Q&A metadata, plus 30 [Screw Dataset](https://huggingface.co/datasets/shrish23/screw-dataset) image-mask pairs (five per class, CC BY 4.0). The screw images and masks are stored in [`images/screw_dataset`](data/curated_forge_testing/images/screw_dataset) and [`ground_truth/screw_dataset`](data/curated_forge_testing/ground_truth/screw_dataset). |
 | **AI-generated pack** | [`data/denso_factory_hack_data_prep`](data/denso_factory_hack_data_prep): synthetic factory PDFs, scans, images, spreadsheets, and CSVs for testing ingestion, OCR, visual analysis, retrieval, and UI flows. |
+
+* The VIXIO dataset was dropped because it is not licensed for open distribution.
 
 ### Curation Principles
 
