@@ -32,7 +32,7 @@ All team members contributed significantly to this project*
 
 - **Frontend (`apps/web`):** The pilot interface is built with Next.js, React, TypeScript, and Tailwind CSS. It includes chat, document browsing, uploads, and metrics. The Vercel demo is a separate proof of concept that answers from a preprocessed corpus.
 - **Backend (`services/api`):** The Python API uses FastAPI and Pydantic. Its implemented RAG pipeline uses Docling for document parsing and OCR, BGE-M3 for multilingual embeddings, Qdrant for hybrid retrieval, and a cross-encoder reranker. SQLite stores metadata; Gemini currently generates answers.
-- **Current stage:** The pilot frontend and core backend pipeline are implemented and under testing. The backend still depends on the Gemini API for answer generation, so it is not fully offline. Packaging and validation for factory deployment remain ahead.
+- **Current stage:** The pilot frontend and core backend pipeline are implemented and under testing. The backend still depends on the Gemini API for answer generation, so it is not fully offline, not fine-tuned or even running properly but the skeleton is set. Packaging and validation for factory deployment remain ahead.
 
 ## Pain point
 
