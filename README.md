@@ -73,6 +73,8 @@ The market is crowded at the generic RAG layer. FORGE should therefore be positi
 - [BGE-M3](https://arxiv.org/abs/2402.03216) supports multilingual dense, sparse, and multi-vector retrieval, which aligns with FORGE's Vietnamese/Japanese retrieval requirement.
 - [DocVQA](https://arxiv.org/abs/2007.00398) shows that document question answering depends on structure, layout, and reading comprehension—not OCR alone.
 - [MMDocRAG](https://arxiv.org/abs/2505.16470) finds that multimodal document QA still struggles with cross-modal evidence retrieval, supporting FORGE's emphasis on visual evidence and explicit evaluation.
+- **10. Lewis et al. (2020) — RAG, NeurIPS:** [paper](https://proceedings.neurips.cc/paper/2020/hash/6b493230205f780e1bc26945df7481e5-Abstract.html)
+- **11. Es et al. (2024) — RAGAS, EACL:** [paper](https://aclanthology.org/2024.eacl-demo.16/)
 
 The main gaps versus mature enterprise products are connectors, identity-aware permissions, high-availability workers, and measured benchmark results. These should be framed as the next production milestones rather than hidden behind generic RAG claims.
 
@@ -206,7 +208,16 @@ Each run records the corpus, parser, chunker, embedding model, reranker, LLM, pr
 
 #### Cost accounting
 
-Before hosting, check the current Gemini price for the configured model and the VM, disk, IPv4, and transfer prices in the chosen cloud region. Record actual token and infrastructure usage during the demo. Local inference still consumes paid VM time and storage; there is no guaranteed free monthly total.
+| Cost item | Estimate (USD) | Assumption |
+|---|---:|---|
+| Self-hosted software and models | $0 license fees | Next.js, FastAPI, Docling, Florence-2, BGE-M3, Qdrant, reranker, and local database; excludes hardware and electricity. |
+| Gemini 3.5 Flash-Lite | $0.30 / 1M input tokens; $2.50 / 1M output tokens | At 2,000 input + 500 output tokens per query: about $0.00185/query or $18.50 per 10,000 queries. |
+| Vercel Pro | $20 / user / month | Hobby is $0 but restricted to personal, non-commercial use. |
+| Upstash Redis | $0 up to 500K commands/month; then $0.20 / 100K commands | Free tier has data-size and bandwidth limits. |
+| Optional cloud VM | About $97.84 / month | One Google Cloud e2-standard-4 in Singapore, running 730 hours; disk, network, and tax excluded. |
+| Example hosted setup | About $136.34 / month | One Vercel Pro seat + VM + 10,000 Gemini queries, assuming Upstash stays within its free tier. |
+
+For fully offline deployment, omit Vercel, Upstash, and Gemini; budget for the factory server and electricity instead. Prices checked 13 October 2026; verify provider rates before deployment. [Gemini](https://ai.google.dev/gemini-api/docs/pricing) · [Vercel](https://vercel.com/pricing) · [Upstash](https://upstash.com/pricing/redis) · [Google Cloud](https://cloud.google.com/products/compute/pricing/general-purpose).
 
 ### License
 
