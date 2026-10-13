@@ -17,6 +17,8 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
   <img src="./docs/forge-demo-preview.gif" alt="Full 65-second FORGE product demonstration" width="100%" />
 </p>
 
+https://drive.google.com/drive/folders/1qdVDl9H-CoYMdPnjqeH863mENhnFoy40?usp=sharing
+
 ## Team UNICORN
 
 * Team Member 1: Phan Tuấn Minh - Team Leader - Software Engineering Year 2
@@ -26,6 +28,12 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 * Team Member 5: Bùi Minh Tiến - Technical Specialist - Software Engineering Year 2
 
 All team members contributed significantly to this project*
+## SPECIAL NOTES
+
+- **Frontend (`apps/web`):** The pilot interface is built with Next.js, React, TypeScript, and Tailwind CSS. It includes chat, document browsing, uploads, and metrics. The Vercel demo is a separate proof of concept that answers from a preprocessed corpus.
+- **Backend (`services/api`):** The Python API uses FastAPI and Pydantic. Its implemented RAG pipeline uses Docling for document parsing and OCR, BGE-M3 for multilingual embeddings, Qdrant for hybrid retrieval, and a cross-encoder reranker. SQLite stores metadata; Gemini currently generates answers.
+- **Current stage:** The pilot frontend and core backend pipeline are implemented and under testing. The backend still depends on the Gemini API for answer generation, so it is not fully offline. Packaging and validation for factory deployment remain ahead.
+
 ## Pain point
 
 Factory teams often spend too long gathering information across departments. Relevant details are scattered across PDFs, Word and Excel files, and scanned documents, with tables and images embedded inside them. Vietnamese, English, and Japanese content can also be difficult to compare, making it easier to miss information or lose context when answering a question.
@@ -48,10 +56,9 @@ The project uses three datasets: a multilingual golden set, curated external tes
 
 ### Curation Principles
 
-1. **Preserve provenance:** Keep each sample linked to its original source, dataset, metadata, and available ground truth.
+1. **Preserve provenance:** Keep each sample linked to its original source, dataset, metadata, and with proper open-source license.
 2. **Cover factory formats:** Include documents, scans, tables, images, CSV/XLS/XLSX, PowerPoint, and TXT files, plus bilingual Vietnamese/Japanese content.
 3. **Separate test purposes:** Use the golden dataset for answer evaluation, curated data for repeatable external-source tests, and the AI-generated pack for functionality testing.
-4. **Keep evaluation honest:** Label synthetic data, retain human-reviewed answers or masks, and leave unavailable ground truth unfilled.
 
 ## Market Research & Analysis
 
@@ -65,7 +72,7 @@ FORGE sits between managed enterprise search, open-source document-RAG platforms
 
 ### Positioning
 
-The market is crowded at the generic RAG layer. FORGE should therefore be positioned as a practical factory-document intelligence layer: local-first, multimodal, bilingual, source-cited, and safe to abstain when evidence is weak. Its strongest wedge is the combination of layout-aware ingestion, hybrid retrieval, visual evidence handling, and a repeatable factory evaluation set—not a claim that its individual models are unique.
+FORGE positioned as a practical factory-document intelligence layer: local-first, multimodal, bilingual, source-cited, and safe to abstain when evidence is weak. 
 
 ### Related research
 
@@ -173,7 +180,6 @@ FORGE runs as native Python and Node.js processes or on managed services; Docker
 | Embeddings | [BGE-M3](https://bge-model.com/bge/bge_m3.html) | Multilingual vector representations | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
 | Retrieval | [Qdrant](https://qdrant.tech/documentation/search/text-search/hybrid-search/) (self-hosted) | Dense/sparse hybrid search and fusion | <img src='https://cdn.simpleicons.org/qdrant/DC244C' alt='Qdrant' title='Qdrant' height='20' /> |
 | Reranking | [`bge-reranker-v2-m3`](https://huggingface.co/BAAI/bge-reranker-v2-m3) · CrossEncoder | Candidate reranking | <img src='https://cdn.simpleicons.org/huggingface/FFD21E' alt='Hugging Face' title='Hugging Face model ecosystem' height='20' /> |
-| Aggregation | SQLite in-memory (`sqlite3`) | SQL `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX` over selected tabular data; returns a source-cited result and falls back to RAG when it cannot execute the aggregation | <img src='https://cdn.simpleicons.org/sqlite/003B57' alt='SQLite' title='SQLite' height='20' /> |
 | Metadata | SQLite · PostgreSQL-ready | Documents, status, evaluation, and audit data | <img src='https://cdn.simpleicons.org/sqlite/003B57' alt='SQLite' title='SQLite' height='20' /> |
 | Storage | Local filesystem | Uploads and processed artifacts | — |
 | Jobs | Python worker | Background ingestion and re-indexing | <img src='https://cdn.simpleicons.org/python/3776AB' alt='Python' title='Python' height='20' /> |
@@ -198,7 +204,7 @@ A reliable RAG system needs to be evaluated at every important boundary, from do
 | **Answer Correctness** | Answers match ground truth | Ragas |
 | **Answerability F1** | System abstains when it should | Python |
 | **p95 Latency** | System is fast enough for production | Python |
-| **Validation** | Regression checks and human calibration | Python |
+| **p50 Latency** | Median end-to-end response time | Python |
 
 Each run records the corpus, parser, chunker, embedding model, reranker, LLM, prompt, retrieval settings, and timestamp.
 
@@ -238,3 +244,14 @@ The current abstention holdout cannot support this comparison. Use `TBD` until a
 | Operations | p95 latency | TBD | TBD | TBD |
 | Operations | Cost per query | TBD | TBD | TBD |
 
+## What’s Done and What’s Next
+
+| Status | Work |
+|---|---|
+| **Done** | Built the pilot API and web interface for document ingestion, browsing, and question answering. |
+| **Done** | Added layout-aware, multimodal document processing and multilingual retrieval for English, Japanese, and Vietnamese. |
+| **Done** | Implemented hybrid retrieval, reranking, source citations, and abstention when evidence is insufficient. |
+| **Done** | Prepared the 25-question golden dataset, curated test data, and synthetic factory document pack. |
+| **Next** | Complete human review and run the golden dataset; publish measured retrieval and answer-quality results. |
+| **Next** | Benchmark p50/p95 latency and throughput on the intended offline hardware at realistic corpus sizes. |
+| **Next** | Validate the DENSO pilot and finalize production needs such as access control, monitoring, backups, and deployment procedures. |
