@@ -214,13 +214,7 @@ Each run records the corpus, parser, chunker, embedding model, reranker, LLM, pr
 
 **Self-hosted estimate (USD), assuming an existing factory server:**
 
-| Cost item | Estimate | Assumption |
-|---|---:|---|
-| Software and model licences | $0 | Self-hosted/open-source components; hardware and support excluded. |
-| Local ingestion and retrieval | $0 per document/query in API fees | Runs on factory hardware; CPU/GPU use is not free. |
-| Server hardware | $0 incremental if already available; otherwise quote required | No server/GPU specification was provided to estimate purchase cost. |
-| Electricity example | About $36.50/month | 500 W average × 730 hours × $0.10/kWh; replace with measured draw and the factory tariff. |
-| Fully local answer generation | Not supported by the current backend | Answer generation currently requires the Gemini API; an on-prem LLM must be integrated before the system can run fully offline. |
+
 
 With existing hardware, budget for electricity and any hardware amortization; the software licence cost is $0.
 
