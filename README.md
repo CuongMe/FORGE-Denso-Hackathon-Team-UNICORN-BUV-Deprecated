@@ -212,11 +212,29 @@ Each run records the corpus, parser, chunker, embedding model, reranker, LLM, pr
 
 #### Cost accounting
 
-**Self-hosted estimate (USD), assuming an existing factory server:**
+**Planning estimate (USD).** Self-hosting can avoid hosting and per-query API fees when an existing server runs a local answer model. It still requires electricity, hardware capacity, maintenance, and human review. The current pilot uses Gemini for answer generation, so it is not fully offline.
 
+| Layer | Current stack / option | Main cost |
+|---|---|---|
+| App and API | Next.js, React, FastAPI, Pydantic | $0 software licence; staff time |
+| Document and image processing | Docling, Florence-2 | $0 software licence; compute and review |
+| Search | BGE-M3, bge-reranker-v2-m3, Qdrant | $0 software licence; CPU/GPU and memory |
+| Data and jobs | SQLite; PostgreSQL option, local storage, Python worker | $0 software licence; disk, backups, operations |
+| Answer generation | Local model for offline hosting; Gemini in the current pilot | Local compute or usage-based API fees |
 
+##### Illustrative ROI · cloud scenario
 
-With existing hardware, budget for electricity and any hardware amortization; the software licence cost is $0.
+> **Assumptions:** 20 of 100 engineers use FORGE once per workday; each lookup saves 20 minutes; 220 workdays/year; time valued at $6/hour.
+
+| Annual impact | Calculation | Estimate |
+|---|---|---:|
+| Time recovered | 20 × 20 min × 220 ÷ 60 | **1,467 hours** |
+| Value of recovered time | 1,466.7 hours × $6/hour | **$8,800** |
+| Cloud operating cost | Compute, API, support, and review | **$8,000** assumed |
+| **Net value** | $8,800 − $8,000 | **$800** |
+| **ROI** | $800 ÷ $8,000 | **10%** |
+
+*Illustrative only. Validate time savings and costs in the pilot. Self-hosted ROI also depends on hardware, electricity, maintenance, and the chosen model.*
 
 ### License
 
