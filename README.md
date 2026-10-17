@@ -255,3 +255,6 @@ The current abstention holdout cannot support this comparison. Use `TBD` until a
 | **Next** | Run the pilot and finalize the results. |
 | **Next** | Benchmark p50/p95 latency and throughput on the intended offline hardware using realistic data sizes. |
 | **Next** | Validate the DENSO pilot and finalize production requirements, including access control, monitoring, backups, and deployment procedures. |
+
+## Fine-tune Dataset Definition for Florence-2 (Labeling Plan)
+This section defines how factory images will be selected, labeled, and reviewed to build a consistent Florence-2 fine-tuning dataset for visual inspection and image understanding.
