@@ -19,7 +19,7 @@ FORGE is a multi-format document understanding and retrieval-augmented generatio
 
 https://drive.google.com/drive/folders/1qdVDl9H-CoYMdPnjqeH863mENhnFoy40?usp=sharing
 
-## Team UNICORN
+## Team UNICORN - BUV
 
 * Team Member 1: Phan Tuấn Minh - Team Leader - Software Engineering Year 2
 * Team Member 2: Phan Khánh Linh - UI/UX Design/Business Analyst - Data Science & AI Year 1
