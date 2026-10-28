@@ -27,7 +27,6 @@ https://drive.google.com/drive/folders/1qdVDl9H-CoYMdPnjqeH863mENhnFoy40?usp=sha
 * Team Member 4: Trần Hoàng Cường - Agile Developer - Data Science & AI Year 3 (Repo Owner)
 * Team Member 5: Bùi Minh Tiến - Technical Specialist - Software Engineering Year 2
 
-All team members contributed significantly to this project*
 ## SPECIAL NOTES
 
 - **Frontend (`apps/web`):** The pilot interface is built with Next.js, React, TypeScript, and Tailwind CSS. It includes chat, document browsing, uploads, and metrics. The Vercel demo is a separate proof of concept that answers from a preprocessed corpus.
