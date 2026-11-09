@@ -2,7 +2,7 @@
   <img src="./image-1.png" alt="UNICORN logo for FORGE" width="120" />
 </p>
 
-<h1 align="center">FORGE: Factory Operations Retrieval &amp; Generation Engine</h1> {Trashed}
+<h1 align="center">FORGE: Factory Operations Retrieval &amp; Generation Engine {Trashed}</h1> 
 
 <p align="center">
   <strong>Multimodal factory document intelligence for grounded, traceable answers.</strong><br />
